@@ -51,33 +51,33 @@ export default function LogsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Audit Log & Usage"
-        description="Processing audit trail and AI token usage reporting."
+        title="Audit and usage"
+        description="The processing trail, and what every AI call cost."
       />
 
       {/* Tab switcher */}
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1" role="group" aria-label="View">
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === "logs"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+          type="button"
+          aria-pressed={tab === "logs"}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[background-color,color,transform] duration-100 active:scale-[0.97] ${
+            tab === "logs" ? "bg-ink text-ink-foreground" : "text-body hover:bg-secondary hover:text-foreground"
           }`}
           onClick={() => setTab("logs")}
         >
-          <Activity className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-          Processing Logs
+          <Activity className="h-4 w-4" aria-hidden="true" />
+          Processing log
         </button>
         <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            tab === "tokens"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+          type="button"
+          aria-pressed={tab === "tokens"}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[background-color,color,transform] duration-100 active:scale-[0.97] ${
+            tab === "tokens" ? "bg-ink text-ink-foreground" : "text-body hover:bg-secondary hover:text-foreground"
           }`}
           onClick={() => setTab("tokens")}
         >
-          <DollarSign className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-          Token Usage & Cost
+          <DollarSign className="h-4 w-4" aria-hidden="true" />
+          AI usage and cost
         </button>
       </div>
 

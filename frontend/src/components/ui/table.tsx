@@ -5,27 +5,23 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * Table — the workhorse surface. Most of this product is numbers in columns.
+ * Table — lives inside a beige card.
  *
- * Changes from the stock table, each with a reason:
- *   - 32px rows, not 40+. An operator scans a queue; more rows per screen is the
- *     single biggest usability win available here.
- *   - Header is condensed, mono, uppercase and STICKY, so it survives scrolling
- *     a long queue.
- *   - Tabular figures throughout, so digits align down a column.
- *   - Hairline row rules, no zebra. Zebra is decoration that fights the tags.
- *   - `numeric` on a cell right-aligns and monospaces it. Amounts must line up.
+ *   - The container is the card: beige, inset ring, 24px corners.
+ *   - Header is Inter 12px 500, muted, not uppercase. It stays sticky.
+ *   - 40px rows with hairline rules; a row turns white on hover.
+ *   - Tabular figures throughout; `numeric` right-aligns and monospaces a cell.
  */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto border border-border-strong bg-card"
+      className="relative w-full overflow-x-auto rounded-3xl bg-card shadow-[inset_0_0_0_1px_var(--ring-card)]"
     >
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom border-collapse text-[0.8125rem] [font-variant-numeric:tabular-nums]",
+          "w-full caption-bottom border-collapse text-[14px] tracking-[-0.09px] [font-variant-numeric:tabular-nums]",
           className
         )}
         {...props}
@@ -38,10 +34,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn(
-        "sticky top-0 z-10 bg-muted [&_tr]:border-b [&_tr]:border-border-strong",
-        className
-      )}
+      className={cn("sticky top-0 z-10 bg-card [&_tr]:border-b [&_tr]:border-border", className)}
       {...props}
     />
   )
@@ -62,7 +55,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "border-t border-border-strong bg-muted font-medium [&>tr]:last:border-b-0",
+        "border-t border-border bg-card font-medium [&>tr]:last:border-b-0",
         className
       )}
       {...props}
@@ -75,7 +68,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-border transition-colors duration-[120ms] hover:bg-accent/60 has-aria-expanded:bg-accent data-[state=selected]:bg-primary/10",
+        "border-b border-border transition-colors duration-200 hover:bg-background has-aria-expanded:bg-background data-[state=selected]:bg-primary-soft",
         className
       )}
       {...props}
@@ -93,7 +86,7 @@ function TableHead({
       data-slot="table-head"
       scope="col"
       className={cn(
-        "h-7 px-2.5 text-left align-middle font-mono text-[0.6875rem] font-medium tracking-[0.1em] whitespace-nowrap uppercase text-muted-foreground",
+        "h-10 px-4 text-left align-middle text-[12px] font-medium whitespace-nowrap text-muted-foreground first:pl-5 last:pr-5",
         numeric && "text-right",
         className
       )}
@@ -111,8 +104,8 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "h-8 px-2.5 align-middle whitespace-nowrap",
-        numeric && "text-right font-mono",
+        "h-11 px-4 align-middle whitespace-nowrap first:pl-5 last:pr-5",
+        numeric && "text-right font-mono text-[13px] tracking-normal text-foreground",
         className
       )}
       {...props}

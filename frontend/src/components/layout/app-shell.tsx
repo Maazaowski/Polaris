@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { CommandPaletteProvider } from "@/components/layout/command-palette";
 
-/** App chrome (rail + section nav + header) for every page except bare /login. */
+/** App chrome (sidebar on a desk, a slim bar on a phone) for every page except bare /login. */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
@@ -21,8 +21,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header />
-          {/* Tighter gutters — this is a dense working surface, not a brochure. */}
-          <main className="flex-1 overflow-auto p-4 md:p-5">{children}</main>
+          <main className="flex-1 overflow-auto px-4 py-5 md:px-12 md:py-10">
+            <div className="mx-auto w-full max-w-[1320px]">{children}</div>
+          </main>
         </div>
       </div>
     </CommandPaletteProvider>

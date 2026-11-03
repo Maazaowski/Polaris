@@ -35,7 +35,7 @@ test.describe("mobile layout", () => {
 
 test("the queue becomes stacked records, not a sideways table", async ({ page }) => {
   await page.goto("/invoices");
-  await expect(page.getByRole("heading", { name: /work/i, level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /queue/i, level: 1 })).toBeVisible();
   await page.waitForLoadState("networkidle").catch(() => {});
   await page.waitForTimeout(1500);
 

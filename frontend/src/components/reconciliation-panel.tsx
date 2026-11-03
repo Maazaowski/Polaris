@@ -59,9 +59,9 @@ export function ReconciliationPanel({
   if (is_reconciled) {
     return (
       <p
-        className={cn("flex items-center gap-2 text-[0.8125rem] text-muted-foreground", className)}
+        className={cn("flex items-center gap-2 text-[14px] text-muted-foreground", className)}
       >
-        <span className="inline-block h-1.5 w-1.5 bg-success" aria-hidden="true" />
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
         {lineItemCount ?? 0} line item{lineItemCount === 1 ? "" : "s"} balance to the invoice
         total.
       </p>
@@ -69,17 +69,17 @@ export function ReconciliationPanel({
   }
 
   return (
-    <div className={cn("border border-warning/40 bg-warning/8", className)}>
-      <div className="border-b border-warning/25 px-3 py-2">
-        <p className="label-mono text-warning">Does not reconcile</p>
-        <p className="mt-0.5 text-[0.8125rem] text-foreground">
+    <div className={cn("overflow-hidden rounded-3xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0]", className)}>
+      <div className="border-b border-[#f3e3a0] px-6 py-4">
+        <p className="eyebrow text-warning">Does not balance</p>
+        <p className="mt-0.5 text-[15px] text-foreground">
           The extracted rows do not add up to what the invoice says. One or more line items
           is wrong, missing, or double-counted.
         </p>
       </div>
 
       {/* The arithmetic, as you would check it on paper. */}
-      <dl className="px-3 py-2.5 text-[0.8125rem]">
+      <dl className="px-6 py-4 text-[14px]">
         <div className="flex items-baseline justify-between gap-6 py-0.5">
           <dt className="text-muted-foreground">
             {lineItemCount ?? 0} line item{lineItemCount === 1 ? "" : "s"} sum to
@@ -94,7 +94,7 @@ export function ReconciliationPanel({
             <Money value={target} />
           </dd>
         </div>
-        <div className="mt-1 flex items-baseline justify-between gap-6 border-t border-warning/25 pt-1.5">
+        <div className="mt-1 flex items-baseline justify-between gap-6 border-t border-[#f3e3a0] pt-1.5">
           <dt className="font-medium">Off by</dt>
           <dd>
             <Money value={variance} sign className="font-semibold text-warning" />

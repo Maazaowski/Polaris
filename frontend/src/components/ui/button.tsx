@@ -4,53 +4,50 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Button — three tiers, not six variants.
+ * Button — pills, three tiers.
  *
- *   solid    the one primary action on a screen
- *   hairline everything else that is a real action
- *   text     tertiary / inline
+ *   solid    the one black pill on a screen
+ *   hairline the beige pill, for every other real action
+ *   text     quiet, for inline and tertiary actions
  *
- * Square (2px), no shadow, no active nudge, no 3px focus glow. Focus is the
- * branded 2px cut-coloured outline defined globally in globals.css, so it is
- * identical on every focusable thing in the product.
+ * Buttons press to 97% and change colour in 100ms, nothing slower. Focus is the
+ * 2px ring defined globally so it is identical on every focusable thing.
  *
- * `default`/`outline`/`secondary`/`ghost` are kept as aliases so the ~50 existing
- * call sites keep compiling while screens migrate. They map onto the three real
- * tiers rather than introducing new looks.
+ * `default`/`outline`/`secondary`/`ghost` are aliases onto the three tiers so
+ * existing call sites keep compiling.
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent text-sm font-medium whitespace-nowrap transition-colors duration-[120ms] outline-none select-none disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-transparent text-sm font-medium whitespace-nowrap transition-[background-color,color,transform] duration-100 outline-none select-none active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         // ── the three tiers ──
-        solid:
-          "bg-primary text-primary-foreground hover:bg-primary/88 aria-expanded:bg-primary/88",
+        solid: "bg-ink text-ink-foreground hover:bg-black dark:hover:bg-white aria-expanded:bg-black",
         hairline:
-          "border-border-strong bg-card text-foreground hover:bg-accent hover:border-border-strong aria-expanded:bg-accent",
+          "bg-secondary text-secondary-foreground hover:bg-[#efece6] dark:hover:bg-[#303030] aria-expanded:bg-[#efece6]",
         text:
-          "text-muted-foreground hover:text-foreground hover:bg-accent aria-expanded:bg-accent",
+          "text-body hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary",
 
         // ── aliases onto the tiers (kept for migration) ──
-        default:
-          "bg-primary text-primary-foreground hover:bg-primary/88 aria-expanded:bg-primary/88",
+        default: "bg-ink text-ink-foreground hover:bg-black dark:hover:bg-white aria-expanded:bg-black",
         outline:
-          "border-border-strong bg-card text-foreground hover:bg-accent aria-expanded:bg-accent",
+          "bg-secondary text-secondary-foreground hover:bg-[#efece6] dark:hover:bg-[#303030] aria-expanded:bg-[#efece6]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent",
+          "bg-secondary text-secondary-foreground hover:bg-[#efece6] dark:hover:bg-[#303030] aria-expanded:bg-[#efece6]",
         ghost:
-          "text-muted-foreground hover:text-foreground hover:bg-accent aria-expanded:bg-accent",
+          "text-body hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary",
 
-        // Destructive is deliberately quiet until hover. Ambient red is noise.
+        // Destructive reads as a quiet red pill until hovered.
         destructive:
-          "border-transparent text-destructive hover:bg-destructive/12 hover:border-destructive/35",
+          "bg-destructive-soft text-destructive hover:bg-destructive hover:text-destructive-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-8 px-2.5",
-        xs: "h-6 gap-1 px-1.5 text-xs [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 px-2 text-[0.8125rem] [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 px-3",
+        default: "h-8 px-3.5",
+        xs: "h-6 gap-1 px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 px-2.5 text-[0.8125rem] [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-10 px-5 text-[15px]",
+        xl: "h-12 px-6 text-[17px] tracking-[-0.22px]",
         icon: "size-8",
         "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7 [&_svg:not([class*='size-'])]:size-3.5",

@@ -6,30 +6,24 @@ import {
   useRetryException,
   useResolveException,
 } from "@/hooks/use-exceptions";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge, BadgeDot } from "@/components/ui/badge";
+import { EmptyState, ErrorState, LoadingState } from "@/components/states";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import {
-  AlertTriangle,
-  RefreshCw,
-  CheckCircle2,
-  ExternalLink,
-  Inbox,
-} from "lucide-react";
+import { RefreshCw, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { usePrompt } from "@/components/ui/confirm-dialog";
 import type { ExceptionRecord } from "@/types";
 
-const reasonColors: Record<string, string> = {
-  low_confidence: "bg-warning/12 text-warning border-warning/30",
-  reconciliation_failure: "bg-destructive/12 text-destructive border-destructive/30",
-  schema_validation: "bg-destructive/12 text-destructive border-destructive/30",
-  extraction_error: "bg-destructive/12 text-destructive border-destructive/30",
-  unknown_supplier: "bg-muted text-muted-foreground border-border-foreground",
-  unreadable_pdf: "bg-muted text-muted-foreground border-border-foreground",
+const reasonTone: Record<string, "warning" | "destructive" | "neutral"> = {
+  low_confidence: "warning",
+  reconciliation_failure: "destructive",
+  schema_validation: "destructive",
+  extraction_error: "destructive",
+  unknown_supplier: "neutral",
+  unreadable_pdf: "neutral",
 };
 
 function formatReason(reason: string): string {
@@ -40,7 +34,7 @@ function formatReason(reason: string): string {
 
 export default function ExceptionsPage() {
   const router = useRouter();
-  const { data: exceptions, isLoading, isError } = useExceptions();
+  const { data: exceptions, isLoading, isError, refetch } = useExceptions();
   const retryException = useRetryException();
   const resolveException = useResolveException();
   const prompt = usePrompt();
@@ -74,115 +68,90 @@ export default function ExceptionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Exception Queue"
-        description="Invoices that failed or need manual review. Retry or resolve each item."
+        title="Needs you"
+        description="What Polaris could not settle on its own. Each card says why, and what fixes it."
       />
 
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        <LoadingState rows={4} />
       ) : isError ? (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">
-              Failed to load exceptions. Is the backend running?
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorState what="the review list" onRetry={() => refetch()} />
       ) : !exceptions || exceptions.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Inbox className="h-10 w-10 text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No exceptions. All invoices processed successfully.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          tone="green"
+          title="Everything ran on its own."
+          hint="Nothing is waiting on a person. The queue is clear."
+          action={
+            <Button variant="hairline" onClick={() => router.push("/invoices")}>
+              Back to the queue
+            </Button>
+          }
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="fade-up fade-up-1 space-y-4">
           {exceptions.map((exc: ExceptionRecord) => (
-            <Card key={exc.intake_id}>
-              <CardContent className="py-4">
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        {exc.original_filename ?? exc.intake_id.slice(0, 12)}
+            <Card key={exc.intake_id} className="py-0">
+              <div className="grid md:grid-cols-[minmax(0,1fr)_280px]">
+                {/* Why */}
+                <div className="flex min-w-0 flex-col gap-3 px-6 py-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[13px] text-foreground">
+                      {exc.original_filename ?? exc.intake_id.slice(0, 12)}
+                    </span>
+                    <Badge variant={reasonTone[exc.reason] ?? "destructive"}>
+                      <BadgeDot />
+                      {formatReason(exc.reason)}
+                    </Badge>
+                    {exc.status && <Badge variant="neutral">{exc.status.replace(/_/g, " ")}</Badge>}
+                    {exc.timestamp && (
+                      <span className="ml-auto text-[13px] text-muted-foreground">
+                        {format(new Date(exc.timestamp), "d MMM, HH:mm")}
                       </span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          reasonColors[exc.reason] ??
-                          reasonColors.extraction_error
-                        }
-                      >
-                        {formatReason(exc.reason)}
-                      </Badge>
-                      {exc.status && (
-                        <Badge variant="secondary" className="text-xs">
-                          {exc.status}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {exc.message && (
-                      <p className="text-sm text-muted-foreground">
-                        {exc.message}
-                      </p>
                     )}
-
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="font-mono">{exc.intake_id.slice(0, 16)}...</span>
-                      {exc.timestamp && (
-                        <span>
-                          {format(
-                            new Date(exc.timestamp),
-                            "MMM d, yyyy HH:mm"
-                          )}
-                        </span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(`/invoices/${exc.intake_id}`)
-                      }
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRetry(exc.intake_id)}
-                      disabled={retryException.isPending}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Retry
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleResolve(exc.intake_id)}
-                      disabled={resolveException.isPending}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Resolve
-                    </Button>
-                  </div>
+                  {exc.message && (
+                    <p className="text-[17px] leading-snug font-medium tracking-[-0.2px] text-foreground">
+                      {exc.message}
+                    </p>
+                  )}
+
+                  <span className="font-mono text-[12px] text-muted-foreground">
+                    {exc.intake_id}
+                  </span>
                 </div>
-              </CardContent>
+
+                {/* Fix */}
+                <div className="flex flex-col gap-2 border-t border-ring-card bg-background px-6 py-5 md:border-t-0 md:border-l">
+                  <span className="eyebrow text-section-system">Fix it</span>
+                  <Button
+                    variant="solid"
+                    className="justify-start"
+                    onClick={() => router.push(`/invoices/${exc.intake_id}`)}
+                  >
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    Open the invoice
+                  </Button>
+                  <Button
+                    variant="hairline"
+                    className="justify-start"
+                    onClick={() => handleRetry(exc.intake_id)}
+                    disabled={retryException.isPending}
+                  >
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                    Run it again
+                  </Button>
+                  <Button
+                    variant="hairline"
+                    className="justify-start"
+                    onClick={() => handleResolve(exc.intake_id)}
+                    disabled={resolveException.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    Mark resolved
+                  </Button>
+                </div>
+              </div>
             </Card>
           ))}
         </div>

@@ -562,7 +562,7 @@ export default function ProfileAssistantPage() {
                     m.role === "user" ? "ml-6 bg-primary/10" : "mr-6 bg-muted",
                   )}
                 >
-                  <p className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-0.5 text-[12px] font-medium text-muted-foreground">
                     {m.role === "user" ? "You" : "Assistant"}
                   </p>
                   <p className="whitespace-pre-wrap">{m.content}</p>
@@ -575,13 +575,13 @@ export default function ProfileAssistantPage() {
               ))}
               {visiblePendingUserMessage && (
                 <div className="ml-6 rounded-md bg-primary/10 px-3 py-2 text-sm">
-                  <p className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">You</p>
+                  <p className="mb-0.5 text-[12px] font-medium text-muted-foreground">You</p>
                   <p className="whitespace-pre-wrap">{visiblePendingUserMessage.content}</p>
                 </div>
               )}
               {activeTurnJobs.map((job) => (
                 <div key={job.id} className="ml-6 rounded-md bg-primary/10 px-3 py-2 text-sm">
-                  <p className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-0.5 text-[12px] font-medium text-muted-foreground">
                     You {job.status === "queued" ? "Queued" : "Running"}
                   </p>
                   <p className="whitespace-pre-wrap">{job.message}</p>
@@ -721,7 +721,7 @@ export default function ProfileAssistantPage() {
                   <p className="text-sm text-destructive">{activeEntry.error}</p>
                 )}
                 {activeEntry?.diff && !activeEntry.diff.is_match && (
-                  <div className="rounded-md border border-warning/30 bg-warning/12 px-3 py-2 text-xs text-warning">
+                  <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] px-3 py-2 text-xs text-warning">
                     <p className="font-medium">Differs from XLS blueprint</p>
                     <p>{activeEntry.diff.summary}</p>
                   </div>
@@ -761,7 +761,7 @@ export default function ProfileAssistantPage() {
                 (column) => column.header === mapping.output_header,
               );
               return (
-                <div key={mapping.output_header} className="rounded-md border p-3">
+                <div key={mapping.output_header} className="rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{mapping.output_header}</span>
                     <Badge variant="secondary">Profile override</Badge>
@@ -849,7 +849,7 @@ export default function ProfileAssistantPage() {
             </div>
             <div className="space-y-2 md:col-span-3">
               <p className="font-medium">Generated extraction plan</p>
-              <div className="grid gap-3 rounded-md border p-3 md:grid-cols-3">
+              <div className="grid gap-3 rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)] md:grid-cols-3">
                 <div><p className="text-muted-foreground">Regions</p><p>{planRegions.map((region) => String(region.name ?? "line items")).join(", ") || "None"}</p></div>
                 <div><p className="text-muted-foreground">Row selection</p><p>{String(rowSelector.scope ?? "row")}</p></div>
                 <div><p className="text-muted-foreground">Reconciliation</p><p>{reconciliationRules.map((rule) => String(rule.name ?? "rule")).join(", ") || "None"}</p></div>

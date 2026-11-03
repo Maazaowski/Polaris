@@ -345,7 +345,7 @@ export function TrainingProgress({
       {/* Per-invoice checklist — authoritative state from the run (train + holdout) */}
       {rows.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-[12px] font-medium text-muted-foreground">
             Invoices
           </p>
           <div className="space-y-1">

@@ -78,9 +78,9 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <section className="space-y-3 rounded-lg border p-4">
+      <section className="space-y-3 rounded-3xl bg-card p-6 shadow-[inset_0_0_0_1px_var(--ring-card)]">
         <div>
-          <h2 className="text-sm font-medium">1 · What is this model for?</h2>
+          <h2 className="text-[17px] font-medium tracking-[-0.2px] text-foreground">1 · What is this template for?</h2>
           <p className="text-xs text-muted-foreground">
             Sets the document type and the deliverable columns the preview is checked against.
           </p>
@@ -158,7 +158,7 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
                   <p className="text-xs text-muted-foreground">The delivered columns.</p>
                 </div>
                 <p className="text-xs text-muted-foreground sm:col-span-2">
-                  You can still save the model under a profile later.
+                  You can still save the template under a supplier later.
                 </p>
               </div>
             )}
@@ -166,9 +166,9 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
         )}
       </section>
 
-      <section className="space-y-3 rounded-lg border p-4">
+      <section className="space-y-3 rounded-3xl bg-card p-6 shadow-[inset_0_0_0_1px_var(--ring-card)]">
         <div>
-          <h2 className="text-sm font-medium">2 · Sample invoice</h2>
+          <h2 className="text-[17px] font-medium tracking-[-0.2px] text-foreground">2 · Sample invoice</h2>
           <p className="text-xs text-muted-foreground">
             The PDF you author the layout rules against.
           </p>
@@ -176,8 +176,8 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
 
         <div
           className={cn(
-            "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-            dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+            "flex flex-col items-center justify-center gap-3 rounded-2xl bg-background p-8 text-center transition-[box-shadow,background-color]",
+            dragging ? "bg-primary-soft shadow-[inset_0_0_0_2px_var(--primary)]" : "shadow-[inset_0_0_0_1px_var(--input)]",
           )}
           onDragOver={(e) => {
             e.preventDefault();

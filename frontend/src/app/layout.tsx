@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono, IBM_Plex_Sans_Condensed } from "next/font/google";
+import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,42 +9,36 @@ import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
 /**
- * IBM Plex replaces Geist.
- *
- * Geist is Vercel's typeface and the create-next-app default — it carries no
- * brand signal. Plex was drawn for an engineering company and has the slightly
- * mechanical, unfashionable quality this product should have. Its mono is an
- * excellent tabular face, which matters because most of this UI is numbers in
- * columns. Condensed earns its place in table headers, where horizontal space
- * is the binding constraint.
+ * Inter carries the interface; Plus Jakarta Sans carries the few lines of hero
+ * copy (sign in, empty states); JetBrains Mono carries ids, filenames and money.
  */
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-plex-sans",
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-plex-mono",
+  variable: "--font-inter",
   display: "swap",
 });
 
-const plexCondensed = IBM_Plex_Sans_Condensed({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-plex-condensed",
+  weight: ["500", "600"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Stencil",
-    template: "%s · Stencil",
+    default: "Polaris",
+    template: "%s · Polaris",
   },
-  description: "Cut the template once. Reuse it on every invoice.",
+  description: "The first invoice pays. Every one after it is free.",
 };
 
 export default function RootLayout({
@@ -55,11 +49,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexSans.variable} ${plexMono.variable} ${plexCondensed.variable} h-full antialiased`}
+      className={`${inter.variable} ${jakarta.variable} ${jetbrains.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="h-full">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <QueryProvider>
             <TooltipProvider>
               <ConfirmProvider>

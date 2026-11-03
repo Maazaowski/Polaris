@@ -46,10 +46,10 @@ import type { ExtractionModel, SupplierProfile } from "@/types";
 type TemplateState = "ready" | "cutting" | "drifted" | "none";
 
 const TEMPLATE_COPY: Record<TemplateState, { label: string; hint: string }> = {
-  ready: { label: "Ready", hint: "Approved — invoices run free" },
-  cutting: { label: "Cutting", hint: "Candidate in training" },
-  drifted: { label: "Drifted", hint: "Validation failed — needs re-cutting" },
-  none: { label: "None", hint: "No template: every invoice pays AI cost" },
+  ready: { label: "Approved", hint: "Approved: invoices run free" },
+  cutting: { label: "Candidate", hint: "Being checked against AI" },
+  drifted: { label: "Drifted", hint: "Validation failed: the layout changed" },
+  none: { label: "No template", hint: "Every invoice pays AI cost" },
 };
 
 function templateStateFor(
@@ -160,40 +160,61 @@ export default function ProfilesPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Suppliers"
-        description="How each supplier's invoices are read and delivered."
+        description="One profile per supplier: how its invoices are recognised, read and delivered."
         actions={
           // One entry point. The system picks AI or manual authoring; the user
           // should not have to choose a mode before knowing anything.
           <Button variant="solid" render={<Link href="/profiles/new/assistant" />}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add supplier
+            New supplier
           </Button>
         }
       />
 
       {/* The number that matters, stated rather than buried in a column */}
-      {atRisk.length > 0 && (
-        <p className="border-l-2 border-destructive bg-destructive/8 px-3 py-2 text-[0.8125rem] text-foreground">
-          <strong>{atRisk.length}</strong> of {activeCount} live suppliers have no template —
-          every invoice from them pays full AI cost. Drafts are not counted.
-        </p>
+      {!isLoading && !isError && activeCount > 0 && (
+        <div className="fade-up fade-up-1 flex flex-col gap-3 rounded-3xl bg-card px-8 py-7 shadow-[inset_0_0_0_1px_var(--ring-card)]">
+          <p className="max-w-[640px] font-display text-[28px] leading-[1.15] font-semibold tracking-[-0.03em] text-foreground">
+            {atRisk.length === 0
+              ? `All ${activeCount} live supplier${activeCount === 1 ? "" : "s"} run free.`
+              : `${activeCount - atRisk.length} of ${activeCount} live suppliers run free. ${atRisk.length} still pay${atRisk.length === 1 ? "s" : ""} for every invoice.`}
+          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[15px] font-medium">
+            <span className="inline-flex items-center gap-2 text-section-suppliers">
+              <span aria-hidden="true">✓</span>
+              {activeCount - atRisk.length} with an approved template
+            </span>
+            {atRisk.length > 0 && (
+              <span className="inline-flex items-center gap-2 text-section-templates">
+                <span aria-hidden="true">✓</span>
+                {atRisk.map((r) => r.profile.identity.canonical_name).slice(0, 3).join(", ")}
+                {atRisk.length > 3 ? ` and ${atRisk.length - 3} more` : ""} use AI
+              </span>
+            )}
+          </div>
+          {atRisk.length > 0 && (
+            <Link href="/models" className="text-[15px] font-medium text-primary">
+              Write a template for {atRisk[0].profile.identity.canonical_name} and its invoices run at $0 →
+            </Link>
+          )}
+        </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="fade-up fade-up-2 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[16rem] flex-1 md:max-w-sm">
           <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
-            className="h-8 pl-8"
+            className="h-9 pl-9"
             placeholder="Search supplier or alias…"
             aria-label="Search suppliers"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <span className="label-mono ml-auto">
+        <span className="ml-auto text-[13px] text-muted-foreground">
           {rows.length} supplier{rows.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -208,7 +229,16 @@ export default function ProfilesPage() {
           hint={
             search
               ? "Try the supplier's short name or one of its aliases."
-              : "Add a supplier to tell Stencil how to read its invoices."
+              : "Add a supplier to tell Polaris how to read its invoices."
+          }
+          tone="green"
+          action={
+            !search ? (
+              <Button variant="solid" render={<Link href="/profiles/new/assistant" />}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                New supplier
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -219,7 +249,7 @@ export default function ProfilesPage() {
                 <button
                   type="button"
                   onClick={() => setSort("template")}
-                  className={cn("uppercase", sort === "template" && "text-foreground")}
+                  className={cn("font-medium", sort === "template" && "text-foreground")}
                 >
                   Template
                 </button>
@@ -228,7 +258,7 @@ export default function ProfilesPage() {
                 <button
                   type="button"
                   onClick={() => setSort("supplier")}
-                  className={cn("uppercase", sort === "supplier" && "text-foreground")}
+                  className={cn("font-medium", sort === "supplier" && "text-foreground")}
                 >
                   Supplier
                 </button>
@@ -238,7 +268,7 @@ export default function ProfilesPage() {
                 <button
                   type="button"
                   onClick={() => setSort("status")}
-                  className={cn("uppercase", sort === "status" && "text-foreground")}
+                  className={cn("font-medium", sort === "status" && "text-foreground")}
                 >
                   Status
                 </button>

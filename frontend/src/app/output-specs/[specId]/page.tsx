@@ -209,7 +209,7 @@ export default function OutputSpecEditorPage({
           </CardHeader>
           <CardContent className="space-y-4">
             {spec.columns.map((column, index) => (
-              <div key={index} className="grid gap-3 rounded-md border p-4 md:grid-cols-2">
+              <div key={index} className="grid gap-3 rounded-2xl p-4 shadow-[inset_0_0_0_1px_var(--input)] md:grid-cols-2">
                 <Input
                   value={column.header}
                   onChange={(e) => updateColumn(index, { header: e.target.value })}

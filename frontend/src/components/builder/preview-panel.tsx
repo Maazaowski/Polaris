@@ -137,7 +137,7 @@ function HeaderSummary({
     <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-b p-3 sm:grid-cols-3 lg:grid-cols-5">
       {entries.map((e) => (
         <div key={`${e.name ?? e.label}`} className="space-y-0.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{e.label}</p>
+          <p className="text-[12px] font-medium text-muted-foreground">{e.label}</p>
           {e.missing ? (
             <p
               className={

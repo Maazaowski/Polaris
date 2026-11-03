@@ -2,146 +2,161 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
+import { LogOut, Moon, Search, Sun } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-settings";
+import { useDashboardStats } from "@/hooks/use-dashboard";
 import { useLogout, useSession } from "@/hooks/use-session";
-import {
-  NAV_SECTIONS,
-  sectionForPath,
-  visibleChildren,
-  type NavChild,
-} from "./nav-config";
+import { useCommandPalette } from "./command-palette";
+import { NAV_SECTIONS, isCurrentPath, visibleChildren } from "./nav-config";
 
 /**
- * Two-tier navigation: a narrow section rail, then the pages within that
- * section. Sixteen flat destinations became three, and depth is reached by
- * being *in* a section rather than by scanning a list.
- *
- * Everything is square, hairline-ruled, and mono-labelled — the sidebar is
- * where the brand reads first, so it carries the system most literally.
+ * Sidebar: 240px, white, a hairline on the right. Every section is visible
+ * under a small caps label; the current page wears the beige fill. Counts sit
+ * on the right of the rows that have one.
  */
+function initials(email: string): string {
+  const name = email.split("@")[0] ?? "";
+  const parts = name.split(/[._-]+/).filter(Boolean);
+  const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: settings } = useSettings();
   const { data: session } = useSession();
+  const { data: stats } = useDashboardStats();
   const logout = useLogout();
+  const { open: openPalette } = useCommandPalette();
+  const { resolvedTheme, setTheme } = useTheme();
 
-  const active = sectionForPath(pathname) ?? NAV_SECTIONS[0];
-  const children = visibleChildren(active, {
+  const visibility = {
     isAdmin: session?.is_admin,
     debug: settings?.debug,
     signedIn: !!session,
-  });
+  };
 
-  const isCurrent = (child: NavChild) =>
-    pathname === child.href || pathname.startsWith(child.href + "/");
+  const counts: Record<string, number | undefined> = {
+    "/exceptions": stats?.pending_exceptions,
+  };
 
   return (
-    <aside className="flex shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      {/* ── Section rail ── */}
-      <div className="flex w-14 flex-col items-center gap-1 border-r border-sidebar-border py-3">
-        <Link
-          href="/"
-          aria-label="Stencil home"
-          className="mb-3 flex h-8 w-8 items-center justify-center"
-        >
-          <Logo variant="mark" href={null} />
-        </Link>
-
-        <nav aria-label="Sections" className="flex flex-col items-center gap-1">
-          {NAV_SECTIONS.map((section) => {
-            const on = section.id === active.id;
-            return (
-              <Tooltip key={section.id}>
-                <TooltipTrigger
-                  render={
-                    <Link
-                      href={section.href}
-                      // Icon-only: the tooltip is a VISUAL label, not an
-                      // accessible one. Without this a screen reader announces
-                      // the bare URL.
-                      aria-label={section.label}
-                      aria-current={on ? "page" : undefined}
-                      className={cn(
-                        "relative flex h-10 w-10 items-center justify-center rounded-md transition-colors duration-[120ms]",
-                        on
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/55 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                      )}
-                    >
-                      {/* The active mark is a cut line, not a pill */}
-                      {on && (
-                        <span className="absolute -left-[13px] h-6 w-[2px] bg-[var(--cut-line)]" />
-                      )}
-                      <section.icon className="h-[18px] w-[18px]" aria-hidden="true" />
-                    </Link>
-                  }
-                />
-                <TooltipContent side="right">{section.label}</TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
+    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 pt-7 pb-5 text-sidebar-foreground">
+      <div className="mb-5 px-1">
+        <Logo variant="primary" />
       </div>
 
-      {/* ── Pages within the section ── */}
-      <div className="flex w-52 flex-col">
-        <div className="flex h-12 items-center border-b border-sidebar-border px-3">
-          <span className="font-display text-[0.8125rem] font-semibold uppercase tracking-[0.13em]">
-            {active.label}
-          </span>
-        </div>
+      <button
+        type="button"
+        onClick={openPalette}
+        className="mb-2 flex h-9 w-full items-center gap-2 rounded-md bg-secondary px-3 text-left text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="flex-1 truncate">Search</span>
+        <kbd className="font-sans text-[11px] text-muted-foreground">⌘K</kbd>
+      </button>
 
-        <nav aria-label={`${active.label} pages`} className="flex-1 overflow-y-auto p-2">
-          {children.map((child) => {
-            const on = isCurrent(child);
-            return (
-              <Link
-                key={child.href}
-                href={child.href}
-                aria-current={on ? "page" : undefined}
-                className={cn(
-                  "group flex flex-col gap-0.5 rounded-md px-2.5 py-1.5 transition-colors duration-[120ms]",
-                  on
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                )}
+      <nav aria-label="Primary" className="flex-1 overflow-y-auto">
+        {NAV_SECTIONS.map((section) => {
+          const children = visibleChildren(section, visibility);
+          const primary = children.filter((c) => !c.secondary);
+          const secondary = children.filter((c) => c.secondary);
+          const rows = [...primary, ...secondary];
+          if (rows.length === 0) return null;
+          return (
+            <div key={section.id} className="mt-4 first:mt-2">
+              <p className="label-mono mb-1.5 px-2">{section.label}</p>
+              <ul className="flex flex-col gap-0.5">
+                {rows.map((child) => {
+                  const on = isCurrentPath(pathname, child, children);
+                  const count = counts[child.href];
+                  return (
+                    <li key={child.href}>
+                      <Link
+                        href={child.href}
+                        aria-current={on ? "page" : undefined}
+                        className={cn(
+                          "flex h-[30px] items-center gap-2.5 rounded-sm px-2 text-[14px] tracking-[-0.09px] transition-colors duration-200",
+                          on
+                            ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          child.secondary && !on && "text-muted-foreground",
+                        )}
+                      >
+                        <child.icon
+                          className={cn("h-4 w-4 shrink-0", on ? "text-foreground" : "text-muted-foreground")}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1 truncate">{child.label}</span>
+                        {count != null && count > 0 && (
+                          <span
+                            className={cn(
+                              "text-[12px]",
+                              child.href === "/exceptions" ? "font-medium text-destructive" : "text-muted-foreground",
+                            )}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="mt-4 flex items-center gap-2 border-t border-sidebar-border pt-4">
+        {session ? (
+          <>
+            <Link
+              href="/account"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-sm px-1 py-1 transition-colors hover:bg-sidebar-accent"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ffcf7b] text-[11px] font-semibold text-foreground"
               >
-                <span className="text-[0.8125rem] font-medium leading-tight">{child.label}</span>
-                {child.hint && (
-                  <span
-                    aria-hidden="true"
-                    className="text-[0.6875rem] leading-tight text-sidebar-foreground/45"
-                  >
-                    {child.hint}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {session && (
-          <div className="border-t border-sidebar-border p-2">
+                {initials(session.email)}
+              </span>
+              <span className="flex min-w-0 flex-col leading-4">
+                <span className="truncate text-[14px] font-medium text-foreground">
+                  {session.email.split("@")[0]}
+                </span>
+                <span className="truncate text-[12px] text-muted-foreground">
+                  {session.is_admin ? "Admin" : "User"}
+                </span>
+              </span>
+            </Link>
             <button
               type="button"
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground disabled:opacity-50"
+              aria-label="Sign out"
+              title="Sign out"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground disabled:opacity-50"
             >
-              <LogOut className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.8125rem] leading-tight">Sign out</span>
-                <span className="block truncate font-mono text-[0.625rem] leading-tight text-sidebar-foreground/40">
-                  {session.email}
-                </span>
-              </span>
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
-          </div>
+          </>
+        ) : (
+          <span className="flex-1" />
         )}
+        <button
+          type="button"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          aria-label="Toggle dark mode"
+          title="Toggle dark mode"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        >
+          <Sun className="h-3.5 w-3.5 dark:hidden" aria-hidden="true" />
+          <Moon className="hidden h-3.5 w-3.5 dark:block" aria-hidden="true" />
+        </button>
       </div>
     </aside>
   );

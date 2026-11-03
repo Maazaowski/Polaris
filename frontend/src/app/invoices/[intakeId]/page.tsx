@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   StatusBadge,
@@ -78,19 +79,11 @@ export default function InvoiceDetailPage({
   if (isError || !invoice) {
     return (
       <div className="space-y-6">
-        <Link href="/invoices">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Invoices
-          </Button>
-        </Link>
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">
-              Invoice not found or failed to load.
-            </p>
-          </CardContent>
-        </Card>
+        <Button variant="hairline" size="sm" render={<Link href="/invoices" />}>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to the queue
+        </Button>
+        <ErrorState what="this invoice" />
       </div>
     );
   }
@@ -145,99 +138,109 @@ export default function InvoiceDetailPage({
 
   return (
     <div className="space-y-6">
+      <Link
+        href="/invoices"
+        className="fade-up inline-flex items-center gap-1.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Queue
+      </Link>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/invoices">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {invoice.original_filename}
-              </h1>
-              <StatusBadge status={invoice.status} />
-            </div>
-            <p className="text-sm text-muted-foreground font-mono">
-              {invoice.id}
-              {invoice.intake_source && (
-                <Badge variant="outline" className="ml-2 text-xs capitalize">
-                  {invoice.intake_source}
-                </Badge>
-              )}
-            </p>
+      <div className="fade-up flex flex-wrap items-end justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="eyebrow text-section-work">
+            {job?.supplier_name ?? "Unknown supplier"}
+          </span>
+          <h1 className="min-w-0 truncate font-mono text-[26px] leading-tight font-medium text-foreground">
+            {invoice.original_filename}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+            <StatusBadge status={invoice.status} />
+            {job?.extraction_path && <ExtractionPathBadge path={job.extraction_path} />}
+            {invoice.intake_source && (
+              <Badge variant="neutral" className="capitalize">{invoice.intake_source}</Badge>
+            )}
+            <span className="font-mono">{invoice.id}</span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {isProcessing && (
             <Button
-              variant="outline"
-              size="sm"
+              variant="hairline"
               onClick={handleCancel}
               disabled={cancelInvoice.isPending}
             >
-              <Ban className="h-4 w-4 mr-2" />
-              {cancelInvoice.isPending ? "Cancelling..." : "Cancel"}
+              <Ban className="h-4 w-4" aria-hidden="true" />
+              {cancelInvoice.isPending ? "Cancelling…" : "Cancel"}
             </Button>
           )}
-        {isDelivered && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              render={
-                <a
-                  href={`/api/v1/invoices/${invoice.id}/output/${encodeURIComponent(xlsxFilename)}`}
-                  download={xlsxFilename}
-                />
-              }
-            >
-              <Download className="h-4 w-4 mr-2" />
-              XLSX
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              render={
-                <a
-                  href={`/api/v1/invoices/${invoice.id}/output/canonical_invoice.json`}
-                  download="canonical_invoice.json"
-                />
-              }
-            >
-              <Download className="h-4 w-4 mr-2" />
-              JSON
-            </Button>
-            {canReject && (
+          {isDelivered && (
+            <>
+              {canReject && (
+                <Button
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={rejectInvoice.isPending}
+                >
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                  {rejectInvoice.isPending ? "Rejecting…" : "Reject and re-read"}
+                </Button>
+              )}
               <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleReject}
-                disabled={rejectInvoice.isPending}
+                variant="hairline"
+                render={
+                  <a
+                    href={`/api/v1/invoices/${invoice.id}/output/canonical_invoice.json`}
+                    download="canonical_invoice.json"
+                  />
+                }
               >
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                {rejectInvoice.isPending ? "Rejecting..." : "Reject & Regenerate"}
+                <Download className="h-4 w-4" aria-hidden="true" />
+                JSON
               </Button>
-            )}
-          </div>
-        )}
+              <Button
+                variant="solid"
+                render={
+                  <a
+                    href={`/api/v1/invoices/${invoice.id}/output/${encodeURIComponent(xlsxFilename)}`}
+                    download={xlsxFilename}
+                  />
+                }
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download XLSX
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Warning banner — delivered, but something needs attention */}
-      {invoice.status === "completed_with_warnings" && (
-        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/12 px-4 py-3 text-sm text-warning">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-medium">Delivered with warnings</p>
-            <p className="text-warning">
-              {invoice.error_message ||
-                "The invoice was extracted and delivered, but a check needs review."}
-            </p>
-          </div>
+      {/* Verdict: the one floating callout on the page. */}
+      {isDelivered && job && (
+        <div className="fade-up fade-up-1 flex flex-wrap items-center gap-3">
+          <span className="inline-flex h-11 items-center gap-2.5 rounded-full bg-background pr-5 pl-3.5 text-[15px] font-medium text-foreground shadow-[var(--shadow-overlay)]">
+            <span
+              aria-hidden="true"
+              className={
+                job.is_reconciled
+                  ? "flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#00c454] text-[12px] font-semibold text-white"
+                  : "flex h-[22px] w-[22px] items-center justify-center rounded-full bg-warning text-[12px] font-semibold text-white"
+              }
+            >
+              {job.is_reconciled ? "✓" : "!"}
+            </span>
+            {job.is_reconciled
+              ? "Balanced to the printed total"
+              : invoice.status === "completed_with_warnings"
+                ? invoice.error_message || "Delivered, but a check needs review"
+                : "Rows do not sum to the printed total"}
+          </span>
+          <span className="text-[13px] text-muted-foreground">
+            {job.extraction_path === "model"
+              ? `Read by template in ${(job.extraction_duration_ms / 1000).toFixed(1)} s · no AI used`
+              : `Read with AI in ${(job.extraction_duration_ms / 1000).toFixed(1)} s · $${job.estimated_cost_usd.toFixed(2)}`}
+          </span>
         </div>
       )}
 
@@ -254,12 +257,12 @@ export default function InvoiceDetailPage({
 
       {/* The delivered rows — where the wrong one actually lives. */}
       {isDelivered && preview && (
-        <section className="flex flex-col gap-2">
+        <section className="fade-up fade-up-2 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="label-mono">Delivered rows</h2>
+            <h2 className="text-[19px] font-medium tracking-[-0.3px] text-foreground">Delivered rows</h2>
             <Button
               size="sm"
-              variant="outline"
+              variant="hairline"
               className="ml-auto"
               aria-pressed={showPdf}
               disabled={!provenance?.available}
@@ -308,25 +311,30 @@ export default function InvoiceDetailPage({
         it used to occupy the top of the page above the actual output. Stays
         open while the invoice is still running, when it IS the task.
       */}
-      <details className="border border-border bg-card" open={isProcessing}>
-        <summary className="cursor-pointer px-3 py-2 text-[0.8125rem] font-medium select-none hover:bg-accent">
+      <details
+        className="group/log overflow-hidden rounded-3xl bg-card shadow-[inset_0_0_0_1px_var(--ring-card)]"
+        open={isProcessing}
+      >
+        <summary className="flex cursor-pointer items-center gap-2 px-6 py-4 text-[15px] font-medium text-foreground select-none">
           Processing log
+          <span className="ml-auto text-[13px] font-normal text-muted-foreground group-open/log:hidden">Show</span>
+          <span className="ml-auto hidden text-[13px] font-normal text-muted-foreground group-open/log:inline">Hide</span>
         </summary>
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border px-6 py-4">
           <ProcessingTimeline intakeId={intakeId} showCancel={false} />
         </div>
       </details>
 
       {/* Info Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+        <Card size="sm">
+          <CardHeader className="pb-1">
+            <CardTitle className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
               <FileText className="h-4 w-4" />
               Document
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 text-sm">
+          <CardContent className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pages</span>
               <span>{invoice.page_count}</span>
@@ -356,14 +364,14 @@ export default function InvoiceDetailPage({
 
         {job && (
           <>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Card size="sm">
+              <CardHeader className="pb-1">
+                <CardTitle className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                   <Cpu className="h-4 w-4" />
                   Extraction
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 text-sm">
+              <CardContent className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Path</span>
                   <ExtractionPathBadge path={job.extraction_path} />
@@ -394,17 +402,19 @@ export default function InvoiceDetailPage({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Card size="sm">
+              <CardHeader className="pb-1">
+                <CardTitle className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                   <DollarSign className="h-4 w-4" />
-                  AI Cost
+                  Cost
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 text-sm">
+              <CardContent className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cost</span>
-                  <span>${job.estimated_cost_usd.toFixed(4)}</span>
+                  <span className="text-muted-foreground">AI spend</span>
+                  <span className={job.estimated_cost_usd === 0 ? "font-medium text-success" : ""}>
+                    {job.estimated_cost_usd === 0 ? "Free" : `$${job.estimated_cost_usd.toFixed(4)}`}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Input Tokens</span>
@@ -421,9 +431,9 @@ export default function InvoiceDetailPage({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Card size="sm">
+              <CardHeader className="pb-1">
+                <CardTitle className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                   {job.is_reconciled ? (
                     <CheckCircle2 className="h-4 w-4 text-success" />
                   ) : (
@@ -432,18 +442,11 @@ export default function InvoiceDetailPage({
                   Reconciliation
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 text-sm">
+              <CardContent className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Status</span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      job.is_reconciled
-                        ? "bg-success/12 text-success border-success/30"
-                        : "bg-warning/12 text-warning border-warning/30"
-                    }
-                  >
-                    {job.is_reconciled ? "Reconciled" : "Variance"}
+                  <Badge variant={job.is_reconciled ? "success" : "warning"}>
+                    {job.is_reconciled ? "Balanced" : "Variance"}
                   </Badge>
                 </div>
                 {job.reconciliation_variance !== null && (
@@ -477,8 +480,8 @@ export default function InvoiceDetailPage({
             <TabsTrigger value="errors">Errors</TabsTrigger>
           </TabsList>
           <TabsContent value="errors" className="mt-4">
-            <Card className="border-destructive">
-              <CardContent className="pt-6">
+            <Card className="bg-destructive-soft shadow-[inset_0_0_0_1px_#ffd9d9]">
+              <CardContent>
                 <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">
                   {job.error_message}
                 </pre>

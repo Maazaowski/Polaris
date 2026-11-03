@@ -203,7 +203,7 @@ export function OutputMappingEditor({
   return (
     <div className="space-y-4">
       {errors.length > 0 && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+        <div className="rounded-2xl bg-destructive-soft shadow-[inset_0_0_0_1px_#ffd9d9] p-3 text-sm text-destructive">
           <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />Fix mapping issues before saving</div>
           <ul className="mt-2 list-disc space-y-1 pl-5">{Array.from(new Set(errors)).map((error) => <li key={error}>{error}</li>)}</ul>
         </div>
@@ -375,7 +375,7 @@ export function ExtractionFieldSettings({
               {field.type === "date" && <div><label className="mb-1 block text-xs font-medium">Printed date format</label><Input className="font-mono" value={field.date_format ?? ""} onChange={(event) => updateOverride(field, { date_format: event.target.value || null })} placeholder="e.g. %d/%m/%Y" /></div>}
               <div className="md:col-span-2"><label className="mb-1 block text-xs font-medium">Description</label><Input value={field.description ?? ""} onChange={(event) => updateOverride(field, { description: event.target.value })} /></div>
               {field.type === "enum" && <div className="md:col-span-2"><label className="mb-1 block text-xs font-medium">Allowed values</label><TagInput value={field.enum_values ?? []} onChange={(enum_values) => updateOverride(field, { enum_values })} placeholder="Add value" /></div>}
-              <div className="flex items-center justify-between rounded-md border px-3 py-2 md:col-span-2"><div><p className="text-sm font-medium">Required</p><p className="text-xs text-muted-foreground">{baseField?.required ? "Required by the selected field schema." : "Extraction must return this field."}</p></div><Switch checked={Boolean(field.required)} disabled={Boolean(baseField?.required)} onCheckedChange={(required) => updateOverride(field, { required })} /></div>
+              <div className="flex items-center justify-between rounded-2xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)] md:col-span-2"><div><p className="text-sm font-medium">Required</p><p className="text-xs text-muted-foreground">{baseField?.required ? "Required by the selected field schema." : "Extraction must return this field."}</p></div><Switch checked={Boolean(field.required)} disabled={Boolean(baseField?.required)} onCheckedChange={(required) => updateOverride(field, { required })} /></div>
               <div className="flex justify-end md:col-span-2">
                 {isBase ? (
                   <Button variant="ghost" size="sm" disabled={!hasOverride} onClick={() => onChange(overrides.filter((item) => fieldKey(item) !== key))}><RotateCcw className="h-4 w-4" />Reset field</Button>
@@ -412,13 +412,13 @@ export function FixedDocumentValues({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-warning/30 bg-warning/12 p-3 text-sm text-muted-foreground">
+      <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] p-3 text-sm text-muted-foreground">
         Fixed values replace extracted document values. Use them only for values that are genuinely identical on every document for this profile.
       </div>
       {Object.entries(values).map(([name, value]) => {
         const field = documentFields.find((item) => item.name === name);
         return (
-          <div key={name} className="grid items-center gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+          <div key={name} className="grid items-center gap-2 rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)] md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
             <div><p className="text-sm font-medium">{humanize(name)}</p><p className="font-mono text-xs text-muted-foreground">field.{name}</p></div>
             <Input type={field?.type === "date" ? "date" : ["number", "currency", "integer"].includes(field?.type ?? "") ? "number" : "text"} value={String(value ?? "")} onChange={(event) => onChange({ ...values, [name]: parseValue(field, event.target.value) })} />
             <Button variant="ghost" size="sm" onClick={() => { const next = { ...values }; delete next[name]; onChange(next); }}><Trash2 className="h-4 w-4" /><span className="sr-only">Remove {name}</span></Button>
@@ -503,7 +503,7 @@ export function GeneratedProfileDetails({
               <div><p className="text-xs text-muted-foreground">Confidence</p><p>{Math.round(evidence.category_confidence * 100)}%</p></div>
               <div><p className="text-xs text-muted-foreground">Engine</p><p>{evidence.engine_version}</p></div>
             </div>
-            {(evidence.hard_blockers ?? []).length > 0 && <div className="rounded-md border border-warning/30 bg-warning/12 p-3"><p className="font-medium">Validation findings</p><p className="mt-1 text-xs text-muted-foreground">Informational only; these findings do not block saving or production delivery.</p><ul className="mt-2 list-disc pl-5">{evidence.hard_blockers?.map((risk) => <li key={risk}>{risk}</li>)}</ul></div>}
+            {(evidence.hard_blockers ?? []).length > 0 && <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] p-3"><p className="font-medium">Validation findings</p><p className="mt-1 text-xs text-muted-foreground">Informational only; these findings do not block saving or production delivery.</p><ul className="mt-2 list-disc pl-5">{evidence.hard_blockers?.map((risk) => <li key={risk}>{risk}</li>)}</ul></div>}
             {evidence.unresolved_risks.length > 0 && <div className="rounded-md bg-warning/12 p-3"><p className="font-medium">Unresolved risks</p><ul className="mt-1 list-disc pl-5">{evidence.unresolved_risks.map((risk) => <li key={risk}>{risk}</li>)}</ul></div>}
             {Object.keys(evidence.metrics).length > 0 && <details><summary className="cursor-pointer text-xs font-medium">Validation metrics</summary><dl className="mt-2 grid gap-2 md:grid-cols-2">{Object.entries(evidence.metrics).map(([key, value]) => <div key={key}><dt className="text-xs text-muted-foreground">{humanize(key)}</dt><dd>{Array.isArray(value) ? stringList(value).join(", ") : String(value)}</dd></div>)}</dl></details>}
           </div>

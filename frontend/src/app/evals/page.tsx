@@ -357,7 +357,7 @@ export default function EvalsPage() {
               <div
                 key={r.run_id}
                 className={cn(
-                  "rounded-md border px-3 py-2 text-xs",
+                  "rounded-2xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)] text-xs",
                   openRun === r.run_id ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                 )}
               >
@@ -581,7 +581,7 @@ export default function EvalsPage() {
                     {/* Baseline verdict + aggregate deltas — only once the run is complete AND every
                         baseline case ran, so a partial run never shows an alarming "Regressed". */}
                     {isDone && hasBaselineCmp && notInRun.length === 0 && regressionCompare.data && (
-                      <div className="rounded-md border p-3 text-xs">
+                      <div className="rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)] text-xs">
                         <p className={cn(
                           "text-sm font-medium",
                           comparisonVerdict(regressionCompare.data.a?.mean_row_f1, regressionCompare.data.b?.mean_row_f1) === "Improved" && "text-success",

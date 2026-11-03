@@ -16,7 +16,7 @@ setup("authenticate", async ({ page }) => {
   await page.getByRole("button", { name: "Sign in" }).click();
 
   // Landing on the queue is the signal that the session cookie stuck.
-  await expect(page.getByRole("heading", { name: "Work", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Queue", level: 1 })).toBeVisible();
   await expect(page).toHaveURL(/\/invoices/);
 
   await page.context().storageState({ path: AUTH_FILE });

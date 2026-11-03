@@ -3,21 +3,13 @@ import { cn } from "@/lib/utils";
 import { Mark } from "./mark";
 
 /**
- * The Stencil logo system.
- *
- * Four variants, one rule: the MARK carries the concept, the WORDMARK stays
- * disciplined. The previous wordmark sliced bridges through T/N/I/L — letters
- * with no counter to hold — which reads as a scanline glitch to anyone who
- * knows how a stencil is actually cut. Rather than fake structural bridges in
- * type we do not control, the bridge idea lives in the mark, where it is real.
- *
- * Everything is SVG + text: no raster, no baked background, no white plate.
+ * The Polaris logo: the star mark and the word, Inter 600 with tight tracking.
  * Ink inherits `currentColor` so it works on either theme.
  */
 type LogoVariant = "primary" | "mark" | "wordmark" | "mono";
 
 const WORDMARK_CLASS =
-  "font-display font-bold uppercase leading-none tracking-[0.14em] text-[0.95rem] select-none";
+  "font-sans font-semibold leading-none tracking-[-0.2px] text-[16px] select-none";
 
 export function Logo({
   variant = "primary",
@@ -31,36 +23,32 @@ export function Logo({
 }) {
   const content =
     variant === "mark" ? (
-      <Mark className="h-7 w-7" />
+      <Mark className="h-5 w-5" />
     ) : variant === "wordmark" ? (
-      <span className={WORDMARK_CLASS}>Stencil</span>
+      <span className={WORDMARK_CLASS}>Polaris</span>
     ) : (
-      <span className="flex items-center gap-2.5">
-        <Mark className="h-7 w-7" showCut={variant !== "mono"} />
-        <span className={WORDMARK_CLASS}>Stencil</span>
+      <span className="flex items-center gap-2">
+        <Mark className="h-[18px] w-[18px]" />
+        <span className={WORDMARK_CLASS}>Polaris</span>
       </span>
     );
 
   const classes = cn(
-    // Ink INHERITS — never force a colour here. The mark lives on the dark
-    // sidebar and on the light login page, and `text-foreground` would make it
-    // invisible on one of them.
-    "inline-flex items-center",
-    // Focus is branded, never removed.
-    href && "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cut)]",
+    "inline-flex items-center text-foreground",
+    href && "rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     className,
   );
 
   if (!href) {
     return (
-      <span className={classes} role="img" aria-label="Stencil">
+      <span className={classes} role="img" aria-label="Polaris">
         {content}
       </span>
     );
   }
 
   return (
-    <Link href={href} className={classes} aria-label="Stencil home">
+    <Link href={href} className={classes} aria-label="Polaris home">
       {content}
     </Link>
   );

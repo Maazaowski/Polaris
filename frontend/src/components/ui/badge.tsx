@@ -5,38 +5,37 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /**
- * Tag — a square status mark, not a pill.
+ * Pill — the status vocabulary.
  *
- * The rule this exists to enforce: **normal is silent.** A tag marks deviation.
- * When 18 of 20 table rows carry an amber chip, amber has stopped meaning
- * "attention" — which is exactly what the old pill did. If a row is fine, it
- * gets no tag at all.
+ * Soft tint, dark text of the same hue, 24px tall, Inter 500 at 13px. Every
+ * pair passes 4.5:1. Green means free or done, gold means money was spent or
+ * something drifted, red means a person is needed, blue means in progress.
  *
- * Geometry: 1px radius, 18px tall, mono, uppercase, letterspaced. It reads as a
- * stamped mark rather than a bubble, and it stops competing with the data.
+ * `success`/`warning`/`destructive`/`cut`/`neutral` are the real variants; the
+ * rest are aliases kept so existing call sites compile.
  */
 const badgeVariants = cva(
-  "group/badge inline-flex h-[18px] w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border px-1.5 font-mono text-[0.6875rem] leading-none font-medium tracking-[0.06em] whitespace-nowrap uppercase transition-colors [&>svg]:pointer-events-none [&>svg]:size-2.5!",
+  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full px-2.5 text-[13px] leading-none font-medium tracking-[-0.09px] whitespace-nowrap transition-colors [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
-        /** Reconciled, delivered, healthy. Use sparingly — prefer no tag. */
-        success: "border-success/30 bg-success/12 text-success",
-        /** Delivered but needs a look: variance, drift, partial. */
-        warning: "border-warning/30 bg-warning/12 text-warning",
-        /** Failed. Rare by design. */
-        destructive: "border-destructive/35 bg-destructive/12 text-destructive",
-        /** The zero-cost model path — the product's proudest state. */
-        cut: "border-primary/35 bg-primary/12 text-primary",
-        /** Structural, non-semantic label (type, source, count). */
-        neutral: "border-border-strong bg-muted text-muted-foreground",
+        /** Delivered, free, balanced, approved. */
+        success: "bg-success-soft text-success",
+        /** Paid AI, drift, variance: look, but nothing is broken. */
+        warning: "bg-warning-soft text-warning",
+        /** Failed, or a person is needed. */
+        destructive: "bg-destructive-soft text-destructive",
+        /** In progress. */
+        cut: "bg-primary-soft text-primary",
+        /** Structural label with no urgency. */
+        neutral: "bg-secondary text-muted-foreground",
 
-        // ── aliases kept so existing call sites compile during migration ──
-        default: "border-primary/35 bg-primary/12 text-primary",
-        secondary: "border-border-strong bg-muted text-muted-foreground",
-        outline: "border-border-strong bg-transparent text-muted-foreground",
-        ghost: "border-transparent bg-transparent text-muted-foreground",
-        link: "border-transparent bg-transparent text-primary underline-offset-4 hover:underline",
+        // ── aliases kept so existing call sites compile ──
+        default: "bg-primary-soft text-primary",
+        secondary: "bg-secondary text-muted-foreground",
+        outline: "bg-transparent text-muted-foreground shadow-[inset_0_0_0_1px_var(--input)]",
+        ghost: "bg-transparent text-muted-foreground",
+        link: "bg-transparent text-primary underline-offset-4 hover:underline",
       },
     },
     defaultVariants: {
@@ -67,4 +66,14 @@ function Badge({
   })
 }
 
-export { Badge, badgeVariants }
+/** The dot that leads a status pill. */
+function BadgeDot({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("inline-block size-1.5 shrink-0 rounded-full bg-current", className)}
+    />
+  )
+}
+
+export { Badge, BadgeDot, badgeVariants }

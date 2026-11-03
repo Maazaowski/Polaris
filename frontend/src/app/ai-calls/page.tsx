@@ -83,7 +83,7 @@ export default function AiCallsPage() {
                   key={call.name}
                   onClick={() => setSelected(call.name)}
                   className={cn(
-                    "w-full rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                    "w-full rounded-2xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)] text-left text-xs transition-colors",
                     selected === call.name ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                   )}
                 >

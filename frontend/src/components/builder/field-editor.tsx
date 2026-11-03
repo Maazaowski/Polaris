@@ -327,7 +327,7 @@ export function FieldEditorPanel({
       </p>
 
       {columns.length === 0 && (
-        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border-strong p-3 text-xs text-muted-foreground">
           Tip: draw column bands on the <span className="font-medium">Columns</span> tab first.
         </div>
       )}

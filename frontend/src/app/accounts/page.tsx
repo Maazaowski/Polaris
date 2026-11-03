@@ -16,10 +16,11 @@ import { useProfiles } from "@/hooks/use-profiles";
 import { safeFormatDate } from "@/lib/format-date";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/states";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -40,16 +41,15 @@ import {
   RefreshCw,
   ChevronRight,
   ChevronDown,
-  Landmark,
   Plus,
 } from "lucide-react";
 import type { AccountRow, AccountState } from "@/types";
 
-const STATE_BADGE: Record<AccountState, string> = {
-  unmapped: "bg-warning/12 text-warning",
-  mapped: "bg-success/12 text-success",
-  conflict: "bg-destructive/12 text-destructive",
-  missing: "bg-muted text-muted-foreground",
+const STATE_BADGE: Record<AccountState, "warning" | "success" | "destructive" | "neutral"> = {
+  unmapped: "warning",
+  mapped: "success",
+  conflict: "destructive",
+  missing: "neutral",
 };
 
 const STATE_FILTERS: (AccountState | "all")[] = ["all", "unmapped", "mapped", "conflict", "missing"];
@@ -193,51 +193,74 @@ export default function AccountsPage() {
             : "Discover account folders and map them to profiles."
         }
         actions={
-          <div className="flex items-center gap-3">
+          <>
             {data?.synced_at && !isSyncing && (
-              <span className="text-xs text-muted-foreground">
-                Synced {safeFormatDate(data.synced_at, "MMM d HH:mm")}
+              <span className="text-[13px] text-muted-foreground">
+                Scanned {safeFormatDate(data.synced_at, "d MMM HH:mm")}
               </span>
             )}
             <AddAccountDialog />
-            <Button variant="outline" onClick={doSync} disabled={isSyncing}>
-              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-              {isSyncing ? "Syncing…" : "Sync"}
+            <Button variant="hairline" onClick={doSync} disabled={isSyncing}>
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} aria-hidden="true" />
+              {isSyncing ? "Scanning…" : "Rescan"}
             </Button>
-          </div>
+          </>
         }
       />
 
+      {/* The four states, as numbers. */}
+      {data && !data.never_synced && (
+        <div className="fade-up fade-up-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Mapped", value: Math.max(0, data.total_accounts - data.unmapped - data.conflict - data.missing), note: "read automatically", tone: "text-success" },
+            { label: "Unmapped", value: data.unmapped, note: "no profile claims the folder", tone: "text-warning" },
+            { label: "Conflicts", value: data.conflict, note: "two profiles claim the folder", tone: "text-destructive" },
+            { label: "Missing folder", value: data.missing, note: "profile points at nothing", tone: "text-muted-foreground" },
+          ].map((f) => (
+            <div key={f.label} className="flex flex-col gap-1 rounded-3xl bg-card px-6 py-5 shadow-[inset_0_0_0_1px_var(--ring-card)]">
+              <span className="text-[13px] text-muted-foreground">{f.label}</span>
+              <span className="font-display text-[30px] leading-none font-medium tracking-[-0.03em] text-foreground">
+                {f.value.toLocaleString()}
+              </span>
+              <span className={`text-[13px] font-medium ${f.tone}`}>{f.note}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="fade-up fade-up-2 flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="State" className="flex gap-1">
+          {STATE_FILTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={stateFilter === s}
+              onClick={() => setStateFilter(s)}
+              className={cn(
+                "h-8 rounded-full px-3.5 text-sm font-medium capitalize transition-[background-color,color,transform] duration-100 active:scale-[0.97]",
+                stateFilter === s ? "bg-ink text-ink-foreground" : "text-body hover:bg-secondary hover:text-foreground",
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="relative ml-auto min-w-[14rem] md:max-w-xs">
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
-            placeholder="Search customer, account, folder..."
+            placeholder="Search customer, account, folder…"
             aria-label="Search accounts"
-            className="pl-9"
+            className="h-9 pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
-        <div className="flex gap-1">
-          {STATE_FILTERS.map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={stateFilter === s ? "default" : "outline"}
-              onClick={() => setStateFilter(s)}
-              className="capitalize"
-            >
-              {s}
-            </Button>
-          ))}
         </div>
       </div>
 
       {/* Bulk-assign toolbar */}
       {selected.size > 0 && (
-        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-lg border bg-background/95 px-4 py-3 shadow-sm backdrop-blur">
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-3 rounded-full bg-background px-5 py-2.5 shadow-[var(--shadow-overlay)]">
           <span className="text-sm font-medium">{selected.size} selected</span>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Assign to</span>
@@ -283,9 +306,9 @@ export default function AccountsPage() {
                 {st?.customers_total ? ` · ${st.customers_done ?? 0}/${st.customers_total} customers` : ""}
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
               <div
-                className="h-full rounded-sm bg-primary transition-all duration-500"
+                className="h-full rounded-full bg-section-suppliers transition-all duration-500"
                 style={{ width: `${syncPct}%` }}
               />
             </div>
@@ -295,43 +318,33 @@ export default function AccountsPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-12" />
-          ))}
-        </div>
+        <LoadingState rows={6} />
       ) : isError ? (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">Failed to load accounts. Is the backend running?</p>
-          </CardContent>
-        </Card>
+        <ErrorState what="the accounts" />
       ) : data?.never_synced && !isSyncing ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Landmark className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="mb-3 text-sm text-muted-foreground">
-              No snapshot yet — run a sync to discover account folders on disk.
-            </p>
-            <Button onClick={doSync} disabled={isSyncing}>
-              <RefreshCw className="h-4 w-4" />
-              Sync now
+        <EmptyState
+          tone="green"
+          title="Nothing scanned yet."
+          hint="Run a scan to discover the customer and account folders on disk."
+          action={
+            <Button variant="solid" onClick={doSync} disabled={isSyncing}>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Scan now
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : groups.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Landmark className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {search || stateFilter !== "all"
-                ? "No accounts match the filter."
-                : isSyncing
-                  ? "Scanning…"
-                  : "No account folders found under the scan directory."}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          compact
+          tone="green"
+          title={
+            search || stateFilter !== "all"
+              ? "No accounts match the filter."
+              : isSyncing
+                ? "Scanning…"
+                : "No account folders found under the scan directory."
+          }
+        />
       ) : (
         <div className="space-y-2">
           {groups.map((g) => {
@@ -339,9 +352,9 @@ export default function AccountsPage() {
             const groupPaths = g.accounts.map((a) => a.inbound_path);
             const selectedInGroup = groupPaths.filter((p) => selected.has(p)).length;
             return (
-              <Card key={g.customer} className="overflow-hidden">
+              <Card key={g.customer} className="gap-0 overflow-hidden py-0">
                 <button
-                  className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-muted/40"
+                  className="flex w-full items-center gap-2 px-5 py-3.5 text-left transition-colors hover:bg-background"
                   onClick={() => toggleGroupExpand(g.customer)}
                 >
                   {open ? (
@@ -354,12 +367,12 @@ export default function AccountsPage() {
                     {g.accounts.length} account{g.accounts.length === 1 ? "" : "s"}
                   </span>
                   {g.unmapped > 0 && (
-                    <Badge variant="outline" className={STATE_BADGE.unmapped}>
+                    <Badge variant={STATE_BADGE.unmapped}>
                       {g.unmapped} unmapped
                     </Badge>
                   )}
                   {g.conflict > 0 && (
-                    <Badge variant="outline" className={STATE_BADGE.conflict}>
+                    <Badge variant={STATE_BADGE.conflict}>
                       {g.conflict} conflict
                     </Badge>
                   )}
@@ -371,8 +384,8 @@ export default function AccountsPage() {
                 </button>
 
                 {open && (
-                  <div className="border-t">
-                    <div className="flex items-center gap-2 border-b bg-muted/20 px-4 py-1.5 text-xs">
+                  <div className="border-t border-border">
+                    <div className="flex items-center gap-2 border-b border-border px-5 py-2 text-xs">
                       <input
                         type="checkbox"
                         aria-label={`Select all in ${g.customer}`}
@@ -384,7 +397,7 @@ export default function AccountsPage() {
                     {g.accounts.map((a) => (
                       <div
                         key={a.inbound_path}
-                        className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted/30 data-[selected=true]:bg-accent/40"
+                        className="flex items-center gap-3 border-b border-border px-5 py-2.5 text-sm transition-colors last:border-b-0 hover:bg-background data-[selected=true]:bg-primary-soft"
                         data-selected={selected.has(a.inbound_path)}
                       >
                         <input
@@ -395,7 +408,7 @@ export default function AccountsPage() {
                         />
                         <span className="font-mono">{a.account}</span>
                         <span className="text-xs text-muted-foreground">{a.pdf_count} pdf</span>
-                        <Badge variant="outline" className={STATE_BADGE[a.state]}>
+                        <Badge variant={STATE_BADGE[a.state]}>
                           {a.state}
                         </Badge>
                         {a.profile_ids.length > 0 && (

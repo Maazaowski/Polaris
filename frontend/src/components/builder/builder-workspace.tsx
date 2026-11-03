@@ -228,14 +228,14 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-20 -mx-1 flex items-center justify-end bg-background/80 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="sticky top-0 z-20 -mx-1 flex items-center justify-end bg-background/85 px-1 py-2 backdrop-blur">
         <SaveControl draft={draft} sampleId={sampleId} profileId={profileId} target={target} />
       </div>
 
       {isLoading && <Skeleton className="h-[600px] w-full max-w-5xl" />}
 
       {error && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-2xl bg-destructive-soft p-4 text-sm text-destructive shadow-[inset_0_0_0_1px_#ffd9d9]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>Could not load the sample layout: {formatApiError(error)}</span>
         </div>
@@ -313,7 +313,7 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
             </div>
 
             {data.warnings.length > 0 && (
-              <div className="rounded-md border border-warning/30 bg-warning/12 p-2 text-xs text-warning">
+              <div className="rounded-2xl bg-warning-soft px-4 py-2.5 text-xs text-warning shadow-[inset_0_0_0_1px_#f3e3a0]">
                 {data.warnings.join(" · ")}
               </div>
             )}
@@ -322,7 +322,7 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
                 stays inside the viewer instead of moving the whole app. When the
                 original PDF is toggled on, it sits side-by-side for comparison. */}
             <div className="flex gap-3">
-              <div className="min-w-0 flex-1 max-h-[calc(100vh-13rem)] overflow-auto rounded-lg border bg-muted/30 p-6">
+              <div className="min-w-0 flex-1 max-h-[calc(100vh-13rem)] overflow-auto rounded-3xl bg-card p-6 shadow-[inset_0_0_0_1px_var(--ring-card)]">
                 <div className="flex flex-col items-center gap-8">
                   {pages.map((p, i) => (
                     <div
@@ -345,7 +345,7 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
               </div>
 
               {showOriginal && (
-                <div className="min-w-0 flex-1 h-[calc(100vh-13rem)] overflow-hidden rounded-lg border bg-white">
+                <div className="min-w-0 flex-1 h-[calc(100vh-13rem)] overflow-hidden rounded-3xl bg-white shadow-[inset_0_0_0_1px_var(--ring-card)]">
                   <iframe
                     src={originalPdfUrl}
                     title="Original invoice PDF"

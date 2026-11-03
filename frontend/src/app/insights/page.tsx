@@ -6,6 +6,7 @@ import type { MonthlyCostPoint } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
+import { ErrorState } from "@/components/states";
 import {
   Select,
   SelectContent,
@@ -70,27 +71,23 @@ function StatCard({
   isLoading?: boolean;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
+    <Card size="sm" className="gap-2 px-6 py-5">
+      <div className="flex items-center justify-between">
+        <span className="text-[14px] font-medium text-muted-foreground">{title}</span>
         <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-8 w-24" />
-        ) : (
-          <>
-            <div className="text-2xl font-bold">{value}</div>
-            {description && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {description}
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-9 w-24 rounded-full" />
+      ) : (
+        <>
+          <div className="font-display text-[34px] leading-none font-medium tracking-[-0.03em] text-foreground [font-variant-numeric:tabular-nums]">
+            {value}
+          </div>
+          {description && (
+            <p className="text-[13px] text-muted-foreground">{description}</p>
+          )}
+        </>
+      )}
     </Card>
   );
 }
@@ -122,7 +119,7 @@ function VolumeChart() {
         {data && data.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="date"
                 className="text-xs"
@@ -174,7 +171,7 @@ function CostChart() {
         {data && data.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="date"
                 className="text-xs"
@@ -235,7 +232,7 @@ function MonthlyTrendChart({
         ) : data && data.some((d) => d.cost > 0) ? (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="month"
                 className="text-xs"
@@ -392,7 +389,7 @@ function MonthlyUsageSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-heading font-semibold">Monthly Usage</h2>
+          <h2 className="text-[19px] font-medium tracking-[-0.3px] text-foreground">Monthly usage</h2>
           <p className="text-sm text-muted-foreground">
             AI cost and volume for the selected month.
           </p>
@@ -419,14 +416,14 @@ function MonthlyUsageSection() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          title="Total AI Cost"
+          title="AI spend"
           value={usd(m?.total_cost)}
           icon={DollarSign}
           description={`${m?.ai_calls ?? 0} AI calls`}
           isLoading={isLoading}
         />
         <StatCard
-          title="Invoice Extraction"
+          title="Invoice reading"
           value={usd(m?.extraction_cost)}
           icon={FileText}
           description="Production invoice extraction"
@@ -440,21 +437,21 @@ function MonthlyUsageSection() {
           isLoading={isLoading}
         />
         <StatCard
-          title="Model Training"
+          title="Template writing"
           value={usd(m?.training_cost)}
           icon={GraduationCap}
           description="Authoring & training models"
           isLoading={isLoading}
         />
         <StatCard
-          title="Invoices Processed"
+          title="Invoices processed"
           value={m?.invoices_processed ?? 0}
           icon={CheckCircle2}
           description={`${m?.invoices_completed ?? 0} completed, ${m?.invoices_failed ?? 0} failed`}
           isLoading={isLoading}
         />
         <StatCard
-          title="Ran at $0 (model path)"
+          title="Ran free"
           value={`${pctZero.toFixed(0)}%`}
           icon={Zap}
           description={
@@ -481,20 +478,10 @@ export default function InsightsPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Dashboard"
-          description="Overview of your invoice extraction pipeline."
+          title="Insights"
+          description="What it cost, what it saved, and where the next saving is."
         />
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              <p>
-                Unable to connect to the backend API. Make sure the FastAPI
-                server is running on port 8000.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <ErrorState what="the insights" detail="The API did not answer. Make sure the backend is running on port 8000." />
       </div>
     );
   }
@@ -503,34 +490,34 @@ export default function InsightsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Insights"
-        description="Cost and volume across the extraction pipeline."
+        description="What it cost, what it saved, and where the next saving is."
       />
 
       {/* Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Invoices"
+          title="Invoices"
           value={stats?.total_invoices ?? 0}
           icon={FileText}
           description={`${stats?.completed_invoices ?? 0} completed, ${stats?.failed_invoices ?? 0} failed`}
           isLoading={isLoading}
         />
         <StatCard
-          title="Reconciled"
+          title="Balanced"
           value={`${(stats?.success_rate ?? 0).toFixed(1)}%`}
           icon={CheckCircle2}
           description={`${stats?.reconciled_jobs ?? 0} of ${stats?.scored_jobs ?? 0} extractions balance to the invoice total`}
           isLoading={isLoading}
         />
         <StatCard
-          title="Needs Review"
+          title="Needs you"
           value={stats?.pending_exceptions ?? 0}
           icon={AlertTriangle}
           description={`${stats?.failed_invoices ?? 0} failed, ${stats?.completed_with_warnings ?? 0} delivered with warnings`}
           isLoading={isLoading}
         />
         <StatCard
-          title="AI Cost (Total)"
+          title="AI spend"
           value={`$${(stats?.total_ai_cost ?? 0).toFixed(2)}`}
           icon={DollarSign}
           description={`${stats?.ai_path_count ?? 0} AI extractions`}
@@ -545,14 +532,14 @@ export default function InsightsPage() {
       */}
       <div className="grid gap-4 md:grid-cols-2">
         <StatCard
-          title="Invoice Extraction"
+          title="Invoice reading"
           value={`$${(stats?.extraction_cost ?? 0).toFixed(2)}`}
           icon={DollarSign}
           description="Spent extracting production invoices"
           isLoading={isLoading}
         />
         <StatCard
-          title="Template Training"
+          title="Template writing"
           value={`$${(stats?.model_training_cost ?? 0).toFixed(2)}`}
           icon={DollarSign}
           description="Spent cutting and validating templates"

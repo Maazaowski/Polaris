@@ -47,11 +47,11 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="My Account" description="Your sign-in details." />
+      <PageHeader title="My account" description="Your sign-in details." />
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <UserCircle2 className="h-4 w-4" />
             Profile
           </CardTitle>
@@ -74,7 +74,7 @@ export default function AccountPage() {
 
       <Card className="max-w-lg">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <KeyRound className="h-4 w-4" />
             Change password
           </CardTitle>

@@ -1,7 +1,8 @@
-# Stencil frontend
+# Polaris frontend
 
-The operator UI for Stencil: a Next.js 16 (App Router) app that talks to the
-FastAPI backend over `/api/v1`. Everything a user does with Stencil, from
+The operator UI, shown to users as **Polaris** (the package, env prefix and
+backend keep the `stencil` name for now): a Next.js 16 (App Router) app that
+talks to the FastAPI backend over `/api/v1`. Everything a user does, from
 dropping an invoice to approving a template, happens here.
 
 **Read [`AGENTS.md`](AGENTS.md) before writing code.** This is a pre-release
@@ -31,8 +32,9 @@ npm start          # serve the production build
 
 | Path | What lives there |
 |---|---|
-| `src/app/` | One folder per route. Three sections: **Work** (`/invoices`, `/exceptions`, `/upload`), **Suppliers** (`/profiles`, `/accounts`, `/models`, `/field-schemas`, `/output-specs`), **System** (`/settings`, `/insights`, `/logs`, `/users`, `/account`, plus `/ai-calls` and `/evals` when debug is on). |
-| `src/components/layout/` | The shell: section rail, sidebar, header, command palette (`Ctrl/Cmd+K`). `nav-config.ts` is the single source of navigation. |
+| `src/app/` | One folder per route. Four sections: **Work** (`/invoices`, `/exceptions`, `/upload`), **Suppliers** (`/profiles`, `/accounts`, `/field-schemas`, `/output-specs`), **Templates** (`/models`, `/models/builder`), **System** (`/insights`, `/settings`, `/logs`, `/users`, `/account`, plus `/ai-calls` and `/evals` when debug is on). |
+| `src/components/layout/` | The shell: a 240px sidebar that lists every section, a phone-only top bar, the command palette (`Ctrl/Cmd+K`). `nav-config.ts` is the single source of navigation. |
+| `src/components/brand/` | The star mark, the wordmark, and the mascot plus confetti used in empty states and on sign in. |
 | `src/components/builder/` | The visual model builder (`/models/builder`): layout canvas plus editors for regions, columns, row classifiers, headers, grouping, tax and computed values. |
 | `src/components/profiles/` | Profile editor tabs and the AI profile assistant. |
 | `src/components/ui/` | shadcn/ui v4 primitives on top of Base UI. `data-table.tsx` is the one table every list goes through. |
@@ -40,6 +42,31 @@ npm start          # serve the production build
 | `src/lib/api/` | The typed fetch client. `src/types/` mirrors the backend schemas by hand; the profile type must be updated together with the backend (see the root `CLAUDE.md`). |
 | `e2e/` | Playwright suite (see below). |
 | `scripts/` | Screenshot and accessibility audit tooling (`shots.mjs`, `a11y-audit.mjs`, `portfolio-shots.mjs`), and the e2e runner. |
+
+## Design language
+
+Measured from family.co and documented on the design canvas's Foundations board.
+The tokens live in `src/app/globals.css`; the primitives in `src/components/ui/`
+wear them, so a page rarely needs its own colours.
+
+- A white page. Surfaces are beige (`bg-card`) with a 1px inset ring
+  (`shadow-[inset_0_0_0_1px_var(--ring-card)]`), never a drop shadow. The one
+  floating shadow (`--shadow-overlay`) is for a single callout per screen.
+- Corners: `rounded-3xl` (24px) cards, `rounded-full` pills, `rounded-md` (8px)
+  inputs, `rounded-sm` (6px) sidebar rows.
+- Buttons are pills. `variant="solid"` is the black pill, one per screen;
+  `hairline` is the beige pill for everything else; `text` is quiet.
+- Status is always a pill (`Badge`): `success` for free and done, `warning` for
+  paid and drift, `destructive` when a person is needed, `cut` for in progress.
+- One accent per section, spent only on the eyebrow label above the page title
+  and on check lists: `text-section-work`, `-suppliers`, `-templates`, `-system`.
+  `PageHeader` derives the eyebrow from the route.
+- Type: Inter for the UI (`--font-sans`), Plus Jakarta Sans for hero copy and
+  big numbers (`font-display`), JetBrains Mono for ids, filenames and money.
+- Motion: `.fade-up` entrances on the expo-out curve (`ease-out-expo`), 100ms
+  colour changes, buttons press to 97%. `prefers-reduced-motion` turns it off.
+- The mascot (`Mascot`, `Confetti`) belongs in empty states, the upload zone and
+  sign in. Never beside data.
 
 Conventions worth knowing:
 

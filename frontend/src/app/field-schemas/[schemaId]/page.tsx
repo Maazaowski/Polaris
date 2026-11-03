@@ -207,7 +207,7 @@ export default function FieldSchemaEditorPage({
           </CardHeader>
           <CardContent className="space-y-4">
             {schema.fields.map((field, index) => (
-              <div key={index} className="grid gap-3 rounded-md border p-4 md:grid-cols-3">
+              <div key={index} className="grid gap-3 rounded-2xl p-4 shadow-[inset_0_0_0_1px_var(--input)] md:grid-cols-3">
                 <Input
                   value={field.name}
                   onChange={(e) => updateField(index, { name: e.target.value })}

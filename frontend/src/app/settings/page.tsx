@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { ErrorState } from "@/components/states";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -78,12 +79,12 @@ function ProviderKeyRow({
         {label}
       </Label>
       {isSet ? (
-        <Badge variant="outline" className="border-success/30 bg-success/12 text-success">
+        <Badge variant="success">
           <CheckCircle2 className="mr-1 h-3 w-3" />
           Configured
         </Badge>
       ) : (
-        <Badge variant="outline" className="border-destructive/30 bg-destructive/12 text-destructive">
+        <Badge variant="destructive">
           <XCircle className="mr-1 h-3 w-3" />
           Not Set
         </Badge>
@@ -263,7 +264,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Settings"
-          description="Application configuration and thresholds."
+          description="Provider, thresholds, workers, people. Changes apply live to every process."
         />
         <div className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -279,15 +280,9 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Settings"
-          description="Application configuration and thresholds."
+          description="Provider, thresholds, workers, people. Changes apply live to every process."
         />
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-sm text-destructive">
-              Failed to load settings. Is the backend running?
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorState what="the settings" />
       </div>
     );
   }
@@ -301,25 +296,24 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Application configuration and thresholds."
+        description="Provider, thresholds, workers, people. Changes apply live to every process."
         actions={
           <>
             <Button
-              variant="outline"
-              size="sm"
+              variant="hairline"
               onClick={handleReset}
               disabled={!dirty}
             >
-              <RotateCcw className="h-4 w-4" />
-              Reset
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              Discard
             </Button>
             <Button
-              size="sm"
+              variant="solid"
               onClick={handleSave}
               disabled={!dirty || updateSettings.isPending}
             >
-              <Save className="h-4 w-4" />
-              {updateSettings.isPending ? "Saving..." : "Save Changes"}
+              <Save className="h-4 w-4" aria-hidden="true" />
+              {updateSettings.isPending ? "Saving…" : "Save changes"}
             </Button>
           </>
         }
@@ -331,7 +325,7 @@ export default function SettingsPage() {
       {/* Folder Paths (read-only) */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4" />
             Folder Paths
           </CardTitle>
@@ -364,7 +358,7 @@ export default function SettingsPage() {
       {/* AI / OpenAI Settings */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <Brain className="h-4 w-4" />
             AI Configuration
           </CardTitle>
@@ -540,7 +534,7 @@ export default function SettingsPage() {
       {/* Extraction Thresholds */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <Gauge className="h-4 w-4" />
             Extraction Thresholds
           </CardTitle>
@@ -615,7 +609,7 @@ export default function SettingsPage() {
       {/* File Watcher & System */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             File Watcher & System
           </CardTitle>
@@ -743,9 +737,9 @@ export default function SettingsPage() {
       </Card>
 
       {(settings?.debug || form.debug) && (
-        <Card className="border-destructive/50">
+        <Card className="bg-destructive-soft shadow-[inset_0_0_0_1px_#ffd9d9]">
           <CardHeader>
-            <CardTitle className="text-base text-destructive flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-4 w-4" />
               Danger zone
             </CardTitle>
@@ -807,7 +801,7 @@ export default function SettingsPage() {
 
       {/* Sticky save bar when dirty */}
       {dirty && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-3 flex items-center justify-center gap-3 z-50">
+        <div className="fixed right-0 bottom-0 left-0 z-50 flex items-center justify-center gap-3 border-t border-border bg-background/90 p-3 backdrop-blur">
           <span className="text-sm text-muted-foreground">
             You have unsaved changes
           </span>

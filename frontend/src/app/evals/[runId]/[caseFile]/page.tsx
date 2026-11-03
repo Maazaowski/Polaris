@@ -59,7 +59,7 @@ export default function EvalCaseDetailPage({
             {data.error && <p className="text-destructive">{data.error}</p>}
 
             {hallucinations.length > 0 && (
-              <div className="rounded-md border border-warning/30 bg-warning/12 px-3 py-2 text-warning">
+              <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] px-3 py-2 text-warning">
                 <p className="font-medium">Possible hallucinations (value not in source)</p>
                 {hallucinations.slice(0, 30).map((h, i) => (
                   <span key={i} className="mr-2 font-mono">{h.column}={h.value}</span>

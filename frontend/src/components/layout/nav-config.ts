@@ -7,6 +7,7 @@ import {
   FlaskConical,
   Gauge,
   Landmark,
+  LayoutGrid,
   ScrollText,
   Settings,
   Table,
@@ -18,30 +19,32 @@ import {
 } from "lucide-react";
 
 /**
- * Navigation — three destinations, not sixteen.
+ * Navigation: four sections, each with a handful of pages, all visible at once
+ * in the sidebar under a small caps label.
  *
- * The old sidebar gave "Field Schemas" the same prominence as the daily invoice
- * queue. The operator's job is three things: work the queue, configure how a
- * supplier is handled, administer the system. Everything else is a sub-view of
- * one of those, reachable by tab or by the command palette.
+ *   Work       the operator's daily screens
+ *   Suppliers  how each supplier's invoices are recognised, read and delivered
+ *   Templates  the reusable extraction models and the visual builder
+ *   System     insights, settings, people
  *
- * Routes are unchanged — this is an information-architecture change, not a
- * routing one, so nothing breaks and existing links keep working.
+ * Routes are unchanged; this is information architecture, not routing.
  */
 
 export type NavChild = {
   href: string;
   label: string;
-  /** Shown in the section rail and the command palette. */
+  /** Shown in the command palette. */
   hint?: string;
   icon: LucideIcon;
   adminOnly?: boolean;
   debugOnly?: boolean;
   sessionOnly?: boolean;
+  /** Secondary pages: reachable from the sidebar's "more" group and the palette. */
+  secondary?: boolean;
 };
 
 export type NavSection = {
-  id: string;
+  id: "work" | "suppliers" | "templates" | "system";
   href: string;
   label: string;
   icon: LucideIcon;
@@ -56,13 +59,11 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/invoices",
     label: "Work",
     icon: FileText,
-    // Exceptions is a FILTER on invoices, not a separate object — keeping it as
-    // its own destination meant two lists for one job, with counts that disagreed.
     match: ["/invoices", "/exceptions", "/upload", "/"],
     children: [
-      { href: "/invoices", label: "Queue", hint: "Everything flowing through", icon: FileText },
-      { href: "/exceptions", label: "Needs review", hint: "Failed and variance", icon: AlertTriangle },
-      { href: "/upload", label: "Upload", hint: "Add an invoice by hand", icon: Upload },
+      { href: "/invoices", label: "Queue", hint: "Everything that came in", icon: FileText },
+      { href: "/exceptions", label: "Needs you", hint: "Failed and variance", icon: AlertTriangle },
+      { href: "/upload", label: "Upload", hint: "Add invoices by hand", icon: Upload },
     ],
   },
   {
@@ -70,30 +71,39 @@ export const NAV_SECTIONS: NavSection[] = [
     href: "/profiles",
     label: "Suppliers",
     icon: Users,
-    // Profiles, Accounts and Models all answer "how do we handle supplier X?".
-    match: ["/profiles", "/accounts", "/models", "/field-schemas", "/output-specs"],
+    match: ["/profiles", "/accounts", "/field-schemas", "/output-specs"],
     children: [
-      { href: "/profiles", label: "Profiles", hint: "Per-supplier extraction config", icon: Users },
-      { href: "/accounts", label: "Accounts", hint: "Folders on disk", icon: Landmark },
-      { href: "/models", label: "Templates", hint: "The cut stencils", icon: Boxes },
-      { href: "/field-schemas", label: "Field schemas", hint: "What we extract", icon: Database },
-      { href: "/output-specs", label: "Output specs", hint: "What we deliver", icon: Table },
+      { href: "/profiles", label: "Suppliers", hint: "One profile per supplier", icon: Users },
+      { href: "/accounts", label: "Accounts", hint: "Customer folders on disk", icon: Landmark },
+      { href: "/field-schemas", label: "Field schemas", hint: "What we extract", icon: Database, secondary: true },
+      { href: "/output-specs", label: "Deliverables", hint: "What we deliver", icon: Table, secondary: true },
+    ],
+  },
+  {
+    id: "templates",
+    href: "/models",
+    label: "Templates",
+    icon: Boxes,
+    match: ["/models"],
+    children: [
+      { href: "/models", label: "Templates", hint: "Written once, run for free", icon: Boxes },
+      { href: "/models/builder", label: "Builder", hint: "Draw a template by hand", icon: LayoutGrid },
     ],
   },
   {
     id: "system",
-    href: "/settings",
+    href: "/insights",
     label: "System",
     icon: Settings,
     match: ["/settings", "/insights", "/logs", "/users", "/account", "/ai-calls", "/evals"],
     children: [
-      { href: "/settings", label: "Settings", hint: "Provider, thresholds, watcher", icon: Settings },
       { href: "/insights", label: "Insights", hint: "Cost and volume over time", icon: Gauge },
-      { href: "/logs", label: "Audit & usage", hint: "Processing trail and AI spend", icon: ScrollText },
-      { href: "/users", label: "Users", hint: "People and roles", icon: UserCog, adminOnly: true },
-      { href: "/account", label: "My account", hint: "Password and session", icon: UserCircle2, sessionOnly: true },
-      { href: "/ai-calls", label: "AI calls", hint: "Captured prompts", icon: Bug, debugOnly: true },
-      { href: "/evals", label: "Evals", hint: "Labelled regression corpus", icon: FlaskConical, debugOnly: true },
+      { href: "/settings", label: "Settings", hint: "Provider, thresholds, watcher", icon: Settings },
+      { href: "/logs", label: "Audit and usage", hint: "Processing trail and AI spend", icon: ScrollText, secondary: true },
+      { href: "/users", label: "People", hint: "Accounts and roles", icon: UserCog, adminOnly: true, secondary: true },
+      { href: "/account", label: "My account", hint: "Password and session", icon: UserCircle2, sessionOnly: true, secondary: true },
+      { href: "/ai-calls", label: "AI calls", hint: "Captured prompts", icon: Bug, debugOnly: true, secondary: true },
+      { href: "/evals", label: "Evals", hint: "Labelled regression corpus", icon: FlaskConical, debugOnly: true, secondary: true },
     ],
   },
 ];
@@ -119,4 +129,14 @@ export function visibleChildren(
     if (c.sessionOnly && !signedIn) return false;
     return true;
   });
+}
+
+/** Is this child the current page? `/models` must not light up for `/models/builder`. */
+export function isCurrentPath(pathname: string, child: NavChild, siblings: NavChild[]): boolean {
+  if (pathname === child.href) return true;
+  if (!pathname.startsWith(child.href + "/")) return false;
+  // A more specific sibling owns this path.
+  return !siblings.some(
+    (s) => s !== child && s.href.length > child.href.length && pathname.startsWith(s.href),
+  );
 }

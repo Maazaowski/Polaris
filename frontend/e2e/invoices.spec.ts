@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("invoice queue", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/invoices");
-    await expect(page.getByRole("heading", { name: /work/i, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /queue/i, level: 1 })).toBeVisible();
   });
 
   test("renders a table with the expected columns", async ({ page }) => {

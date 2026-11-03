@@ -60,6 +60,6 @@ test.describe("unauthenticated access", () => {
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page.getByRole("heading", { name: "Work", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Queue", level: 1 })).toBeVisible();
   });
 });

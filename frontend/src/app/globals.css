@@ -5,28 +5,31 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================================
-   STENCIL — design tokens
+   POLARIS — design tokens
    ----------------------------------------------------------------------------
-   Ink on substrate, cut in prepress cyan.
+   Warm, quiet, a little playful. The grammar was measured from family.co:
 
-   The previous theme was the unmodified shadcn scaffold (radius 0.625rem,
-   destructive 27.325, Geist) with the primary hue nudged to blue-violet. Every
-   value below is a decision, not a default.
-
-   Rules encoded here:
-     - Corners are CUT, not softened. Radius tops out at 3px.
-     - Elevation is hairlines and background steps, not shadows.
-     - Colour is signal. A surface is never coloured for interest.
-     - Mono carries every number, id, path and status.
+     - A white page. Surfaces are beige with a 1px INSET ring, never a drop
+       shadow. One floating shadow exists, for the single callout on a screen.
+     - Corners are soft: 24px cards, 32px pills, 8px inputs, 6px nav rows.
+     - One black pill per screen is the action. Everything else is beige.
+     - One accent per section (Work blue, Suppliers green, Templates gold,
+       System orange) and it is spent on the eyebrow label and check lists only.
+     - Status is always a pill: green means free, gold means paid, red means a
+       person is needed.
+     - Inter carries the UI; Plus Jakarta Sans carries hero copy; JetBrains
+       Mono carries ids, filenames and money.
    ========================================================================== */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-body: var(--body);
 
   --font-sans: var(--font-ui-sans);
   --font-mono: var(--font-ui-mono);
   --font-display: var(--font-ui-display);
+  --font-heading: var(--font-ui-sans);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -44,15 +47,19 @@
   --color-chart-5: var(--chart-5);
 
   --color-ring: var(--ring);
+  --color-ring-card: var(--ring-card);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -61,153 +68,194 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Corners are cut. The whole scale fits in 3px. */
-  --radius-sm: 1px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 3px;
-  --radius-2xl: 3px;
-  --radius-3xl: 3px;
-  --radius-4xl: 3px;
+  /* Section accents. Spent on eyebrows and check lists, nothing else. */
+  --color-section-work: var(--section-work);
+  --color-section-suppliers: var(--section-suppliers);
+  --color-section-templates: var(--section-templates);
+  --color-section-system: var(--section-system);
+
+  /* Confetti. Art only, never UI. */
+  --color-confetti-blue: #7dc4ff;
+  --color-confetti-yellow: #ffcf7b;
+  --color-confetti-pink: #f966ac;
+  --color-confetti-purple: #9553f9;
+  --color-confetti-green: #44c67f;
+  --color-confetti-orange: #ff5310;
+
+  /* Soft corners. Cards 24, pills are rounded-full. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 32px;
+
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+
+  --shadow-float: var(--shadow-overlay);
+  --shadow-overlay: var(--shadow-overlay);
 }
 
 :root {
   /* ---- type ------------------------------------------------------------ */
-  --font-ui-sans: var(--font-plex-sans), system-ui, "Segoe UI", Arial, sans-serif;
-  --font-ui-mono: var(--font-plex-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --font-ui-display: var(--font-plex-condensed), var(--font-plex-sans), system-ui, sans-serif;
+  --font-ui-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-ui-mono: var(--font-jetbrains), ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-ui-display: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
 
-  /* ---- substrate ------------------------------------------------------- */
-  /* Warm-neutral drafting paper. Deliberately not cream, not blue-grey. */
-  --background: oklch(0.941 0.004 85);
-  --foreground: oklch(0.185 0.006 85);
+  /* ---- page ------------------------------------------------------------ */
+  --background: #ffffff;
+  --foreground: #343433; /* headings and primary text */
+  --body: #494440; /* running copy */
 
-  --card: oklch(0.975 0.003 85);
-  --card-foreground: oklch(0.185 0.006 85);
-  --popover: oklch(0.985 0.002 85);
-  --popover-foreground: oklch(0.185 0.006 85);
+  --card: #fbfaf9; /* beige surface */
+  --card-foreground: #343433;
+  --ring-card: #f2f0ed; /* the 1px inset ring every card wears */
+  --popover: #ffffff;
+  --popover-foreground: #343433;
 
-  --secondary: oklch(0.906 0.004 85);
-  --secondary-foreground: oklch(0.30 0.006 85);
-  --muted: oklch(0.916 0.004 85);
-  --muted-foreground: oklch(0.505 0.006 85);
-  --accent: oklch(0.906 0.004 85);
-  --accent-foreground: oklch(0.24 0.006 85);
+  --secondary: #f6f4ef; /* beige fill: secondary pills, selected nav */
+  --secondary-foreground: #121212;
+  --muted: #f6f4ef;
+  --muted-foreground: #848281;
+  --accent: #f6f4ef;
+  --accent-foreground: #343433;
 
-  /* Two border weights: hairline for structure, strong for enclosure. */
-  --border: oklch(0.855 0.005 85);
-  --border-strong: oklch(0.735 0.006 85);
-  --input: oklch(0.795 0.006 85);
+  --border: #e8e8e8;
+  --border-strong: #d6d3ce;
+  --input: #eaeaea;
 
-  /* ---- the cut --------------------------------------------------------- */
-  /* Prepress cyan: the non-reproducing blue that marks where material is cut.
-     Reserved for interaction, focus, and the zero-cost model path. */
-  --cut: oklch(0.53 0.098 219);
-  --cut-line: oklch(0.64 0.115 219);
-  --cut-soft: oklch(0.925 0.021 219);
+  /* ---- the action ------------------------------------------------------ */
+  /* The black pill. One per screen. */
+  --ink: #171717;
+  --ink-foreground: #ffffff;
 
-  --primary: var(--cut);
-  --primary-foreground: oklch(0.985 0.002 85);
-  --ring: var(--cut);
+  /* Blue is the link and selection colour, and the Work section's accent. */
+  --primary: #3784f4;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eef4ff;
+  --ring: #343433;
+
+  /* Kept for older call sites that reference the previous accent name. */
+  --cut: #3784f4;
+  --cut-line: #3784f4;
+  --cut-soft: #eef4ff;
 
   /* ---- signal ---------------------------------------------------------- */
-  /* Desaturated by default. Saturation is reserved for alarm. */
-  --success: oklch(0.475 0.072 158);
-  --success-foreground: oklch(0.975 0.004 158);
-  --success-soft: oklch(0.925 0.022 158);
+  --success: #1b8a4b;
+  --success-foreground: #ffffff;
+  --success-soft: rgba(0, 196, 84, 0.1);
 
-  --warning: oklch(0.525 0.093 66);
-  --warning-foreground: oklch(0.975 0.004 66);
-  --warning-soft: oklch(0.928 0.030 66);
+  --warning: #9a7200;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fefae6;
 
-  --destructive: oklch(0.475 0.135 27);
-  --destructive-foreground: oklch(0.975 0.004 27);
-  --destructive-soft: oklch(0.925 0.028 27);
+  --destructive: #d83a3a;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fff0f0;
+
+  /* ---- sections -------------------------------------------------------- */
+  --section-work: #3784f4;
+  --section-suppliers: #44c67f;
+  --section-templates: #ca9230;
+  --section-system: #ff5310;
 
   /* ---- charts ---------------------------------------------------------- */
-  /* Ink-first: data is graphite, the accent marks the series that matters. */
-  --chart-1: oklch(0.53 0.098 219);
-  --chart-2: oklch(0.42 0.008 85);
-  --chart-3: oklch(0.475 0.072 158);
-  --chart-4: oklch(0.525 0.093 66);
-  --chart-5: oklch(0.63 0.010 85);
+  --chart-1: #44c67f;
+  --chart-2: #ffbe4c;
+  --chart-3: #3784f4;
+  --chart-4: #ff5310;
+  --chart-5: #d6d3ce;
 
   /* ---- shell ----------------------------------------------------------- */
-  --sidebar: oklch(0.185 0.006 85);
-  --sidebar-foreground: oklch(0.885 0.004 85);
-  --sidebar-primary: var(--cut-line);
-  --sidebar-primary-foreground: oklch(0.145 0.006 85);
-  --sidebar-accent: oklch(0.255 0.006 85);
-  --sidebar-accent-foreground: oklch(0.965 0.003 85);
-  --sidebar-border: oklch(0.285 0.006 85);
-  --sidebar-ring: var(--cut-line);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #494440;
+  --sidebar-primary: #343433;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f6f4ef;
+  --sidebar-accent-foreground: #343433;
+  --sidebar-border: #e8e8e8;
+  --sidebar-ring: #343433;
 
-  /* One shadow exists, for genuinely floating layers. Nothing else may use it. */
-  --shadow-overlay: 0 8px 24px -8px oklch(0.185 0.006 85 / 22%);
+  /* The one floating shadow. Callouts and popovers only. */
+  --shadow-overlay: 0 3px 16px rgba(0, 0, 0, 0.1);
 }
 
 .dark {
-  --background: oklch(0.163 0.005 85);
-  --foreground: oklch(0.925 0.004 85);
+  --background: #0f0f0f;
+  --foreground: #f2f0ed;
+  --body: #d6d3ce;
 
-  /* A real step between ground and surface — the old theme used 4%. */
-  --card: oklch(0.216 0.005 85);
-  --card-foreground: oklch(0.925 0.004 85);
-  --popover: oklch(0.238 0.005 85);
-  --popover-foreground: oklch(0.925 0.004 85);
+  --card: #171717;
+  --card-foreground: #f2f0ed;
+  --ring-card: #242424;
+  --popover: #1c1c1c;
+  --popover-foreground: #f2f0ed;
 
-  --secondary: oklch(0.258 0.005 85);
-  --secondary-foreground: oklch(0.925 0.004 85);
-  --muted: oklch(0.248 0.005 85);
-  --muted-foreground: oklch(0.665 0.006 85);
-  --accent: oklch(0.278 0.005 85);
-  --accent-foreground: oklch(0.955 0.003 85);
+  --secondary: #262626;
+  --secondary-foreground: #f2f0ed;
+  --muted: #222222;
+  --muted-foreground: #8e8e93;
+  --accent: #262626;
+  --accent-foreground: #f2f0ed;
 
-  --border: oklch(0.298 0.005 85);
-  --border-strong: oklch(0.395 0.006 85);
-  --input: oklch(0.355 0.006 85);
+  --border: #262626;
+  --border-strong: #3a3a3a;
+  --input: #303030;
 
-  --cut: oklch(0.745 0.118 219);
-  --cut-line: oklch(0.775 0.125 219);
-  --cut-soft: oklch(0.285 0.043 219);
+  --ink: #ffffff;
+  --ink-foreground: #171717;
 
-  --primary: var(--cut);
-  --primary-foreground: oklch(0.163 0.005 85);
-  --ring: var(--cut);
+  --primary: #6dadff;
+  --primary-foreground: #0f0f0f;
+  --primary-soft: rgba(109, 173, 255, 0.14);
+  --ring: #f2f0ed;
 
-  --success: oklch(0.745 0.098 158);
-  --success-foreground: oklch(0.163 0.005 85);
-  --success-soft: oklch(0.268 0.040 158);
+  --cut: #6dadff;
+  --cut-line: #6dadff;
+  --cut-soft: rgba(109, 173, 255, 0.14);
 
-  --warning: oklch(0.795 0.105 74);
-  --warning-foreground: oklch(0.163 0.005 85);
-  --warning-soft: oklch(0.288 0.043 74);
+  --success: #4cd27f;
+  --success-foreground: #0f0f0f;
+  --success-soft: rgba(0, 196, 84, 0.16);
 
-  --destructive: oklch(0.715 0.135 25);
-  --destructive-foreground: oklch(0.163 0.005 85);
-  --destructive-soft: oklch(0.288 0.052 25);
+  --warning: #f3c04a;
+  --warning-foreground: #0f0f0f;
+  --warning-soft: rgba(246, 195, 15, 0.14);
 
-  --chart-1: oklch(0.745 0.118 219);
-  --chart-2: oklch(0.735 0.006 85);
-  --chart-3: oklch(0.745 0.098 158);
-  --chart-4: oklch(0.795 0.105 74);
-  --chart-5: oklch(0.505 0.008 85);
+  --destructive: #ff6b6b;
+  --destructive-foreground: #0f0f0f;
+  --destructive-soft: rgba(255, 78, 78, 0.14);
 
-  --sidebar: oklch(0.128 0.005 85);
-  --sidebar-foreground: oklch(0.855 0.004 85);
-  --sidebar-primary: var(--cut-line);
-  --sidebar-primary-foreground: oklch(0.128 0.005 85);
-  --sidebar-accent: oklch(0.228 0.005 85);
-  --sidebar-accent-foreground: oklch(0.965 0.003 85);
-  --sidebar-border: oklch(0.258 0.005 85);
-  --sidebar-ring: var(--cut-line);
+  --section-work: #6dadff;
+  --section-suppliers: #5ad692;
+  --section-templates: #e2ac4e;
+  --section-system: #ff7a47;
 
-  --shadow-overlay: 0 8px 24px -8px oklch(0 0 0 / 55%);
+  --chart-1: #5ad692;
+  --chart-2: #ffcf7b;
+  --chart-3: #6dadff;
+  --chart-4: #ff7a47;
+  --chart-5: #3a3a3a;
+
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #d6d3ce;
+  --sidebar-primary: #f2f0ed;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #222222;
+  --sidebar-accent-foreground: #f2f0ed;
+  --sidebar-border: #262626;
+  --sidebar-ring: #f2f0ed;
+
+  --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.55);
 }
 
 @layer base {
@@ -216,9 +264,11 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-size: 14px; /* dense by default — this is an eight-hour tool */
-    line-height: 1.55;
+    @apply bg-background;
+    color: var(--body);
+    font-size: 15px;
+    line-height: 22px;
+    letter-spacing: -0.13px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -227,51 +277,111 @@
     @apply font-sans;
   }
 
-  /* Digits align in columns everywhere they stack. Non-negotiable. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--foreground);
+  }
+
+  /* Digits align in columns everywhere they stack. */
   table,
   .tabular,
   [data-slot="table"] {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Focus is visible, branded, and never removed. */
+  /* Focus is visible and never removed. */
   :focus-visible {
-    outline: 2px solid var(--cut);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--cut-soft);
+    background: var(--primary-soft);
     color: var(--foreground);
   }
 }
 
 @layer utilities {
-  /* The stencil bridge as a real device: a rule that breaks where a bridge
-     would sit. Used for section dividers. */
+  /* Section divider. */
   .rule-bridged {
     height: 1px;
-    background: var(--border-strong);
-    -webkit-mask-image: repeating-linear-gradient(
-      to right,
-      #000 0 5rem,
-      transparent 5rem 5.5rem
-    );
-    mask-image: repeating-linear-gradient(to right, #000 0 5rem, transparent 5rem 5.5rem);
+    background: var(--border);
   }
 
-  /* Mono label: the uppercase micro-caption used for every field label. */
+  /* Small caps label used for field labels and sidebar groups. */
   .label-mono {
-    font-family: var(--font-ui-mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
+    font-family: var(--font-ui-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted-foreground);
   }
+
+  /* The coloured one-word label above a page title. */
+  .eyebrow {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.09px;
+    line-height: 20px;
+  }
+
+  /* Beige surface with the inset ring. The same look the Card component wears. */
+  .surface {
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--ring-card);
+    border-radius: var(--radius-3xl);
+  }
+
+  /* White inset-ring field, for anything that is not an <input>. */
+  .field-ring {
+    background: var(--background);
+    box-shadow: inset 0 0 0 1px var(--input);
+  }
+
+  /* Entrances: a fade and a 12px rise on the expo-out curve. */
+  .fade-up {
+    animation: fade-up 0.9s var(--ease-out-expo) both;
+  }
+  .fade-up-1 {
+    animation-delay: 0.05s;
+  }
+  .fade-up-2 {
+    animation-delay: 0.1s;
+  }
+  .fade-up-3 {
+    animation-delay: 0.15s;
+  }
+
+  .bob {
+    animation: bob 4s ease-in-out infinite;
+  }
 }
 
-/* Indeterminate progress sweep (training progress). Motion budget: linear,
-   no easing flourish. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Indeterminate progress sweep (training progress). */
 @keyframes progress-slide {
   0% {
     transform: translateX(-100%);
@@ -281,8 +391,7 @@
   }
 }
 
-/* The one signature gesture: when an invoice routes to a saved template and
-   costs nothing, the cut line draws once across the row. 200ms, then gone. */
+/* Kept for the queue row that routed to a template: a green line draws once. */
 @keyframes cut-sweep {
   from {
     transform: scaleX(0);

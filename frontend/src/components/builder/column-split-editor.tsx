@@ -110,7 +110,7 @@ export function ColumnSplitPanel({ region, suggested, onChange }: ColumnSplitPan
   const split = region.column_split_x?.[0] ?? null;
 
   return (
-    <div className="space-y-2 rounded-md border p-3">
+    <div className="space-y-2 rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)]">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-sm font-medium">
           <Columns2 className="h-4 w-4" />

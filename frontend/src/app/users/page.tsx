@@ -99,7 +99,7 @@ export default function UsersPage() {
   if (session && !isAdmin) {
     return (
       <div className="space-y-4">
-        <PageHeader title="Users" description="Account management" />
+        <PageHeader title="People" description="Accounts and roles." />
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             You need an admin account to manage users. To change your own password, go
@@ -113,13 +113,13 @@ export default function UsersPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Users"
-        description="Who can sign in, and what they're allowed to do. Admins manage users; everyone changes their own password under My Account."
+        title="People"
+        description="Who can sign in, and what they are allowed to do. Admins manage people; everyone changes their own password under My account."
       />
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
             Add user
           </CardTitle>
@@ -194,15 +194,15 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2">
             <UsersIcon className="h-4 w-4" />
             Accounts
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-2xl shadow-[inset_0_0_0_1px_var(--input)]">
             <div className="min-w-[960px] divide-y">
-              <div className="grid grid-cols-[1.4fr_1.1fr_130px_100px_1fr_280px] gap-3 bg-muted/40 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="grid grid-cols-[1.4fr_1.1fr_130px_100px_1fr_280px] gap-3 px-4 py-2.5 text-[12px] font-medium text-muted-foreground">
                 <span>Email</span>
                 <span>Name</span>
                 <span>Role</span>

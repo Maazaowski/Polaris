@@ -62,13 +62,13 @@ export function ExtractionPreviewView({
     <div className="space-y-4">
       {/* Header fields */}
       {preview.header_fields.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-3xl bg-card px-6 py-5 shadow-[inset_0_0_0_1px_var(--ring-card)] sm:grid-cols-3 lg:grid-cols-6">
           {preview.header_fields.map((f) => (
             <div key={f.label} className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <p className="text-[12px] font-medium text-muted-foreground">
                 {f.label}
               </p>
-              <p className="text-sm font-medium">{fmtCell(f.value) || "—"}</p>
+              <p className="text-sm font-medium text-foreground">{fmtCell(f.value) || "—"}</p>
             </div>
           ))}
         </div>
@@ -77,13 +77,7 @@ export function ExtractionPreviewView({
       {/* Reconciliation + totals */}
       <div className="flex flex-wrap items-center gap-2">
         {rec && (
-          <Badge
-            className={
-              rec.is_reconciled
-                ? "bg-success/12 text-success"
-                : "bg-warning/12 text-warning"
-            }
-          >
+          <Badge variant={rec.is_reconciled ? "success" : "warning"}>
             {rec.is_reconciled ? (
               <CheckCircle2 className="mr-1 h-3 w-3" />
             ) : (
@@ -114,7 +108,7 @@ export function ExtractionPreviewView({
       </div>
 
       {/* Deliverable table */}
-      <div className="overflow-x-auto rounded-md border">
+      <div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -137,20 +131,20 @@ export function ExtractionPreviewView({
                   key={ri}
                   data-testid="delivered-row"
                   aria-selected={locatable ? selectedRow === ri : undefined}
-                  className={cn(locatable && selectedRow === ri && "bg-primary/8")}
+                  className={cn(locatable && selectedRow === ri && "bg-success-soft hover:bg-success-soft")}
                 >
                   {locatable && (
-                    <TableCell className="w-8 px-1">
+                    <TableCell className="w-10 pr-0">
                       <button
                         type="button"
                         aria-label={`Show row ${ri + 1} on the PDF`}
                         aria-pressed={selectedRow === ri}
                         onClick={() => onLocateRow?.(ri)}
                         className={cn(
-                          "inline-flex h-6 w-6 items-center justify-center rounded border",
+                          "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors",
                           selectedRow === ri
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+                            ? "bg-[#00c454] text-white"
+                            : "bg-secondary text-muted-foreground hover:bg-ink hover:text-ink-foreground",
                         )}
                       >
                         <Crosshair className="h-3.5 w-3.5" aria-hidden="true" />
@@ -179,9 +173,9 @@ export function ExtractionPreviewView({
       </div>
 
       {preview.conflicts && preview.conflicts.length > 0 && (
-        <div className="rounded-md border border-warning/30 bg-warning/12 px-3 py-2 text-xs text-warning">
+        <div className="rounded-2xl bg-warning-soft px-4 py-3 text-xs text-warning shadow-[inset_0_0_0_1px_#f3e3a0]">
           <p className="font-medium">
-            Setup conflicts — a note contradicts a configured field
+            Setup conflicts: a note contradicts a configured field
           </p>
           <ul className="list-disc space-y-1 pl-4">
             {preview.conflicts.map((c, i) => (
@@ -202,7 +196,7 @@ export function ExtractionPreviewView({
       )}
 
       {preview.warnings && preview.warnings.length > 0 && (
-        <div className="rounded-md border border-warning/30 bg-warning/12 px-3 py-2 text-xs text-warning">
+        <div className="rounded-2xl bg-warning-soft px-4 py-3 text-xs text-warning shadow-[inset_0_0_0_1px_#f3e3a0]">
           <p className="font-medium">Warnings</p>
           <ul className="list-disc pl-4">
             {preview.warnings.map((w, i) => (

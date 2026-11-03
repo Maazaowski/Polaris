@@ -53,7 +53,7 @@ function OperandEditor({
   const roleValue = src.rows === "all_in_group" ? ANY_ROW : (src.row_role ?? "");
 
   return (
-    <div className="space-y-1.5 rounded-md border bg-muted/20 p-1.5">
+    <div className="space-y-1.5 rounded-2xl bg-background shadow-[inset_0_0_0_1px_var(--input)] p-1.5">
       <div className="flex items-center gap-1.5">
         <Select value={operand.kind} onValueChange={(v) => v && onChange({ ...operand, kind: v as DraftValueOperand["kind"] })}>
           <SelectTrigger className="h-7 w-32 text-xs">

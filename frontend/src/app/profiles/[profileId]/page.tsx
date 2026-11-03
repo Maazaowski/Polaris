@@ -648,7 +648,7 @@ function Field({
 function SetupConflictsPanel({ conflicts }: { conflicts: SetupConflict[] }) {
   if (!conflicts.length) return null;
   return (
-    <div className="rounded-md border border-warning/30 bg-warning/12 px-3 py-2 text-xs text-warning">
+    <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] px-3 py-2 text-xs text-warning">
       <p className="font-medium">
         {conflicts.length} setup conflict{conflicts.length === 1 ? "" : "s"} — a note
         contradicts a configured field
@@ -1547,7 +1547,7 @@ export default function ProfileEditorPage({
                 </Field>
               </div>
               {activeOutputSpec && (
-                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl bg-background shadow-[inset_0_0_0_1px_var(--input)] p-3 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">Delivered columns</p>
                   <p>{activeOutputSpec.columns.map((c) => c.header).join(", ")}</p>
                 </div>
@@ -1593,7 +1593,7 @@ export default function ProfileEditorPage({
                             placeholder="What this supplier calls it (optional)"
                           />
                           {field.type === "date" && (
-                            <div className="space-y-1.5 rounded-md border bg-muted/20 p-2.5">
+                            <div className="space-y-1.5 rounded-2xl bg-background shadow-[inset_0_0_0_1px_var(--input)] p-2.5">
                               <label
                                 htmlFor={`date-format-${field.scope}-${field.name}`}
                                 className="text-xs font-medium text-foreground"
@@ -1657,7 +1657,7 @@ export default function ProfileEditorPage({
                         No accounts mapped to this profile yet.
                       </p>
                     ) : (
-                      <div className="overflow-hidden rounded-md border">
+                      <div className="overflow-hidden rounded-2xl shadow-[inset_0_0_0_1px_var(--input)]">
                         {accounts.map((account, index) => (
                           <div
                             key={index}
@@ -1695,7 +1695,7 @@ export default function ProfileEditorPage({
                 hint="Plain-English notes about this source's documents."
               >
                 <textarea
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[220px] font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-h-[220px] w-full rounded-2xl border-0 bg-background px-3 py-2 font-mono text-sm shadow-[inset_0_0_0_1px_var(--input)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--ring)] focus-visible:outline-none"
                   value={profile.notes ?? ""}
                   onChange={(e) => update("notes", e.target.value)}
                   placeholder=""
@@ -1761,7 +1761,7 @@ export default function ProfileEditorPage({
                     placeholder=""
                   />
                 </Field>
-                <div className="rounded-md border px-3 py-2 text-sm">
+                <div className="rounded-2xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)] text-sm">
                   <p className="text-xs text-muted-foreground">Created by</p>
                   <p className="font-medium">
                     {auditDisplay(profile.audit, "created")?.display ?? "—"}
@@ -1770,7 +1770,7 @@ export default function ProfileEditorPage({
                     {auditDisplay(profile.audit, "created")?.at ?? profile.created_date ?? ""}
                   </p>
                 </div>
-                <div className="rounded-md border px-3 py-2 text-sm">
+                <div className="rounded-2xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)] text-sm">
                   <p className="text-xs text-muted-foreground">Updated by</p>
                   <p className="font-medium">
                     {auditDisplay(profile.audit, "updated")?.display ?? "—"}

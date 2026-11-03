@@ -219,7 +219,7 @@ function describeRowMatch(where?: RowMatch): string {
 
 function HeaderRuleTable({ rules }: { rules: Record<string, HeaderFieldRule> }) {
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -290,7 +290,7 @@ function WorkbenchTable({
   const showOutput = !!reviewModelId;
   const colSpan = showOutput ? 5 : 4;
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -438,7 +438,7 @@ function WizardStepper({
                 )}
               </span>
               <span className="hidden sm:block">
-                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="block text-[12px] font-medium text-muted-foreground">
                   Step {i + 1}
                 </span>
                 <span
@@ -1053,7 +1053,7 @@ export default function ModelDetailPage({
         {/* ─────────────── Training workbench ─────────────── */}
         <TabsContent value="training" className="space-y-6">
           {isLive && (
-            <Card className="border-primary/30 bg-primary/12">
+            <Card className="bg-primary-soft">
               <CardContent className="pt-4 pb-4 flex items-start gap-3">
                 <GitBranch className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm">
@@ -1113,7 +1113,7 @@ export default function ModelDetailPage({
                   )}
                 >
                   <input {...getInputProps()} />
-                  <span className="flex h-12 w-12 items-center justify-center rounded-sm bg-primary/10 text-primary">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary">
                     <Upload className="h-6 w-6" />
                   </span>
                   <p className="text-sm font-medium">
@@ -1321,14 +1321,14 @@ export default function ModelDetailPage({
               </CardHeader>
               <CardContent className="space-y-4">
                 {!hasTrained ? (
-                  <div className="rounded-md border border-dashed p-3 text-sm flex items-start gap-2 text-muted-foreground">
+                  <div className="rounded-2xl border border-dashed border-border-strong p-3 text-sm flex items-start gap-2 text-muted-foreground">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <span>Not trained yet — go back to the Train step and start a run.</span>
                   </div>
                 ) : (
                   <div
                     className={cn(
-                      "rounded-md border p-3 text-sm flex items-start gap-2",
+                      "rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)] text-sm flex items-start gap-2",
                       trainingSet.approvable
                         ? "border-success/30 bg-success/12"
                         : "border-warning/30 bg-warning/12",
@@ -1348,7 +1348,7 @@ export default function ModelDetailPage({
                 )}
 
                 {trainingSet.warnings.length > 0 && (
-                  <div className="rounded-md border border-warning/30 bg-warning/12 p-3 text-sm flex items-start gap-2">
+                  <div className="rounded-2xl bg-warning-soft shadow-[inset_0_0_0_1px_#f3e3a0] p-3 text-sm flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                     <span>
                       Holdout warning: {trainingSet.warnings.join("; ")}. You can still approve, but
@@ -1441,7 +1441,7 @@ export default function ModelDetailPage({
                 </div>
 
                 {testResult && (
-                  <div className="rounded-md border p-3 text-sm space-y-2">
+                  <div className="rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)] text-sm space-y-2">
                     <div className="flex items-center gap-2">
                       {testResult.is_valid ? (
                         <CheckCircle2 className="h-4 w-4 text-success" />
@@ -1491,7 +1491,7 @@ export default function ModelDetailPage({
                 Every version of this model. The live version extracts production invoices; retired
                 versions are kept so you can roll back with one click.
               </p>
-              <div className="rounded-md border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1748,7 +1748,7 @@ export default function ModelDetailPage({
               )}
             </div>
             {tableRules.columns && tableRules.columns.length > 0 && (
-              <div className="rounded-md border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1810,7 +1810,7 @@ export default function ModelDetailPage({
             </div>
 
             {region.columns && region.columns.length > 0 && (
-              <div className="rounded-md border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1847,7 +1847,7 @@ export default function ModelDetailPage({
           </CardHeader>
           <CardContent className="space-y-4">
             {rowClassifiers.length > 0 && (
-              <div className="rounded-md border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1914,7 +1914,7 @@ export default function ModelDetailPage({
             <CardTitle className="text-sm font-medium">Line Item Fields</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

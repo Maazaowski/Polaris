@@ -20,6 +20,7 @@ import { useUploadInvoice, useInvoices } from "@/hooks/use-invoices";
 import { PipelineProgress } from "@/components/pipeline-progress";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/page-header";
+import { Confetti, Mascot } from "@/components/brand/mascot";
 import { cn } from "@/lib/utils";
 
 interface QueueItem {
@@ -136,47 +137,50 @@ export default function UploadPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Upload Invoices"
-        description="Drop PDF invoices to start extraction. Multiple files supported."
+        title="Upload"
+        description="Drop PDFs. Polaris names the supplier, picks the template, and gets to work."
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <div
-            {...getRootProps()}
-            className={cn(
-              "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-              isDragActive
-                ? "border-primary bg-primary/5"
-                : "border-muted-foreground/25 hover:border-muted-foreground/50"
-            )}
-            onClick={open}
-          >
-            <input {...getInputProps()} aria-label="Choose invoice PDFs to upload" />
-            <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-            {isDragActive ? (
-              <p className="text-sm font-medium text-primary">
-                Drop PDF files here...
-              </p>
-            ) : (
-              <>
-                <p className="text-sm font-medium">
-                  Drag and drop PDFs here, or click to browse
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  PDF files only, up to 50 MB each
-                </p>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div
+        {...getRootProps()}
+        className={cn(
+          "fade-up fade-up-1 relative flex min-h-[380px] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-4xl bg-card p-8 text-center shadow-[inset_0_0_0_1px_var(--ring-card)] transition-[box-shadow,background-color] duration-200",
+          isDragActive
+            ? "bg-primary-soft shadow-[inset_0_0_0_2px_var(--primary)]"
+            : "hover:shadow-[inset_0_0_0_2px_var(--primary)]"
+        )}
+        onClick={open}
+      >
+        <input {...getInputProps()} aria-label="Choose invoice PDFs to upload" />
+        <Confetti className="absolute top-8 left-10 h-44 w-44" />
+        <Confetti className="absolute right-10 bottom-6 h-44 w-44" flip />
+        <Mascot size={140} />
+        {isDragActive ? (
+          <p className="font-display text-[34px] leading-tight font-semibold tracking-[-0.03em] text-primary">
+            Drop them here
+          </p>
+        ) : (
+          <>
+            <p className="font-display text-[34px] leading-tight font-semibold tracking-[-0.03em] text-foreground">
+              Drop invoices here
+            </p>
+            <p className="max-w-[380px] text-muted-foreground">
+              PDF only, up to 50 MB each, as many as you like. Or{" "}
+              <span className="font-medium text-primary">browse your files</span>.
+            </p>
+            <span className="mt-1 inline-flex h-12 items-center rounded-full bg-ink px-6 text-[17px] font-medium tracking-[-0.22px] text-ink-foreground">
+              <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+              Choose PDFs
+            </span>
+          </>
+        )}
+      </div>
 
       {queue.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">
-              Upload Queue ({queue.length} file{queue.length !== 1 ? "s" : ""})
+            <CardTitle>
+              Ready to upload · {queue.length} file{queue.length !== 1 ? "s" : ""}
             </CardTitle>
             <div className="flex gap-2">
               {hasCompleted && (
@@ -201,7 +205,7 @@ export default function UploadPage() {
               {queue.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3"
+                  className="flex items-center gap-3 rounded-2xl bg-background px-4 py-3 shadow-[inset_0_0_0_1px_var(--input)]"
                 >
                   {item.status === "uploading" && (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
@@ -266,7 +270,7 @@ export default function UploadPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Recent Invoices</CardTitle>
+          <CardTitle>Recent invoices</CardTitle>
         </CardHeader>
         <CardContent>
           {recentData?.items && recentData.items.length > 0 ? (
@@ -274,7 +278,7 @@ export default function UploadPage() {
               {recentData.items.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 shadow-[inset_0_0_0_1px_var(--input)] transition-colors hover:bg-background"
                   onClick={() => router.push(`/invoices/${invoice.id}`)}
                 >
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />

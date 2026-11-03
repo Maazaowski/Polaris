@@ -53,7 +53,7 @@ const columns: ColumnDef<InvoiceListItem>[] = [
     // end — as the old table did — hid the only distinguishing part.
     cell: ({ row }) => (
       <span
-        className="block max-w-[300px] truncate font-mono text-xs [direction:rtl] text-left"
+        className="block max-w-[300px] truncate font-mono text-[13px] text-foreground [direction:rtl] text-left"
         title={row.original.original_filename}
       >
         {row.original.original_filename}
@@ -84,7 +84,7 @@ const columns: ColumnDef<InvoiceListItem>[] = [
     accessorKey: "page_count",
     header: ({ column }) => <SortableHeader column={column} label="Pages" />,
     cell: ({ row }) => (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span className="text-[13px] text-muted-foreground">
         {row.original.page_count}
       </span>
     ),
@@ -93,7 +93,7 @@ const columns: ColumnDef<InvoiceListItem>[] = [
     accessorKey: "started_at",
     header: ({ column }) => <SortableHeader column={column} label="Started" />,
     cell: ({ row }) => (
-      <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+      <span className="whitespace-nowrap text-[13px] text-muted-foreground">
         {safeFormatDate(
           row.original.started_at ?? row.original.created_at,
           "dd MMM HH:mm",
@@ -289,29 +289,34 @@ function InvoicesPageContent() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Work"
-        description="Everything flowing through the pipeline."
+        title="Queue"
+        description="Every invoice that came in, what it cost, and where it is."
+        actions={
+          <Button variant="solid" render={<Link href="/upload" />}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            Upload invoice
+          </Button>
+        }
       />
 
-      {/* Replaces the old dashboard: three figures, in priority order. */}
+      {/* The four numbers: ran free, paid, balanced, needs you. */}
       <WorkStatusLine />
 
-      {/* Status chips — only for states that actually have rows. "Received 0"
-          and "Processing 0" were permanent dead controls. */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Status pills — only for states that actually have rows. */}
+      <div className="fade-up fade-up-2 flex flex-wrap items-center gap-1">
         <button
           type="button"
           onClick={() => setParams({ status: null })}
           aria-pressed={!status}
           className={cn(
-            "flex h-7 items-center gap-1.5 rounded-sm border px-2 text-[0.8125rem] transition-colors",
+            "flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[background-color,color,transform] duration-100 active:scale-[0.97]",
             !status
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+              ? "bg-ink text-ink-foreground"
+              : "text-body hover:bg-secondary hover:text-foreground",
           )}
         >
           All
-          <span className="font-mono text-xs opacity-70">{allCount}</span>
+          <span className={cn("text-xs", !status ? "opacity-70" : "text-muted-foreground")}>{allCount}</span>
         </button>
         {statusChips
           .filter((chip) => (statusCounts[chip.value] ?? 0) > 0 || status === chip.value)
@@ -324,14 +329,14 @@ function InvoicesPageContent() {
                 aria-pressed={on}
                 onClick={() => setParams({ status: on ? null : chip.value })}
                 className={cn(
-                  "flex h-7 items-center gap-1.5 rounded-sm border px-2 text-[0.8125rem] transition-colors",
+                  "flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-[background-color,color,transform] duration-100 active:scale-[0.97]",
                   on
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+                    ? "bg-ink text-ink-foreground"
+                    : "text-body hover:bg-secondary hover:text-foreground",
                 )}
               >
                 {chip.label}
-                <span className="font-mono text-xs opacity-70">
+                <span className={cn("text-xs", on ? "opacity-70" : "text-muted-foreground")}>
                   {statusCounts[chip.value] ?? 0}
                 </span>
               </button>
@@ -340,14 +345,14 @@ function InvoicesPageContent() {
       </div>
 
       {/* Search is always visible; the rest lives behind one menu. */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="fade-up fade-up-2 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[15rem] flex-1 md:max-w-sm">
           <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
-            className="h-8 pl-8"
+            className="h-9 pl-9"
             placeholder="Search filename…"
             aria-label="Search by filename"
             value={searchInput}
@@ -416,7 +421,7 @@ function InvoicesPageContent() {
             key={f.key + f.value}
             type="button"
             onClick={f.clear}
-            className="flex h-7 items-center gap-1 rounded-sm border border-primary/40 bg-primary/10 px-2 text-[0.8125rem] text-primary transition-colors hover:bg-primary/16"
+            className="flex h-7 items-center gap-1 rounded-full bg-primary-soft px-2.5 text-[13px] font-medium text-primary transition-colors hover:bg-primary/15"
             aria-label={`Remove filter ${f.label}`}
           >
             {f.label}
@@ -430,11 +435,11 @@ function InvoicesPageContent() {
           </Button>
         )}
 
-        <span className="label-mono ml-auto">{total ?? 0} invoices</span>
+        <span className="ml-auto text-[13px] text-muted-foreground">{total ?? 0} invoices</span>
       </div>
 
-
       {/* Table */}
+      <div className="fade-up fade-up-3">
       {isLoading ? (
         <LoadingState rows={10} />
       ) : isError ? (
@@ -480,24 +485,24 @@ function InvoicesPageContent() {
                     Clear filters
                   </Button>
                 }
-                className="border-0"
+                compact
               />
             ) : (
               <EmptyState
                 title="Nothing has come through yet."
                 hint="Drop a PDF into a watched supplier folder, or upload one by hand."
                 action={
-                  <Button variant="solid" size="sm" render={<Link href="/upload" />}>
-                    <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                  <Button variant="solid" render={<Link href="/upload" />}>
+                    <Upload className="h-4 w-4" aria-hidden="true" />
                     Upload an invoice
                   </Button>
                 }
-                className="border-0"
               />
             )
           }
         />
       )}
+      </div>
     </div>
   );
 }

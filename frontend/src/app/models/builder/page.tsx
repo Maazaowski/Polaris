@@ -24,17 +24,20 @@ function BuilderGate() {
   const boundName = profile?.identity.canonical_name;
   const description = started
     ? `Authoring against ${started.sample.name}${boundName ? ` · for ${boundName}` : ""}`
-    : "Choose what the model delivers, then add a sample invoice to author against.";
+    : "Choose what the template delivers, then add a sample invoice to draw against.";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Model Builder" description={description} />
-        <Button variant="outline" size="sm" onClick={() => router.push("/models")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to models
-        </Button>
-      </div>
+      <PageHeader
+        title="Builder"
+        description={description}
+        actions={
+          <Button variant="hairline" onClick={() => router.push("/models")}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Templates
+          </Button>
+        }
+      />
 
       {!started ? (
         <BuilderSetup

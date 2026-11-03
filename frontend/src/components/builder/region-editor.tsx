@@ -190,7 +190,7 @@ export function RegionEditorPanel({
         </p>
       </div>
 
-      <div className="space-y-2 rounded-md border p-3">
+      <div className="space-y-2 rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)]">
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-medium">Start anchor row is also data</span>
           <Switch

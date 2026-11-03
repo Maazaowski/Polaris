@@ -130,7 +130,7 @@ export function GroupingEditorPanel({ grouping, onChange, roles, itemCount }: Gr
       </p>
 
       {noRoles && (
-        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-border-strong p-3 text-xs text-muted-foreground">
           Tip: define row roles on the <span className="font-medium">Rows</span> tab first — grouping
           uses them.
         </div>

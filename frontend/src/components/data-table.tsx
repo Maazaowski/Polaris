@@ -30,8 +30,7 @@ interface DataTableProps<TData, TValue> {
   emptyState?: React.ReactNode;
   /**
    * Phone rendering for a single record. When supplied, widths below `md` swap
-   * the table for a stacked list — a nine-column table you scroll sideways on a
-   * phone is a squeezed desktop, not a mobile view. Triage, not authoring.
+   * the table for a stacked list.
    */
   mobileRow?: (row: TData) => React.ReactNode;
 }
@@ -58,32 +57,34 @@ export function DataTable<TData, TValue>({
     state: { sorting },
   });
 
+  const hasRows = table.getRowModel().rows.length > 0;
+
   return (
     <div className="space-y-4">
       <div className={mobileRow ? "hidden md:block" : undefined}>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
+        {hasRows ? (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={onRowClick ? "cursor-pointer hover:bg-muted/50" : ""}
+                  className={onRowClick ? "cursor-pointer" : ""}
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -95,38 +96,31 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  {emptyState ?? "No results."}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div>{emptyState ?? <p className="py-8 text-center text-muted-foreground">No results.</p>}</div>
+        )}
       </div>
 
-      {/* Stacked records for phone widths — read and approve, not author. */}
+      {/* Stacked records for phone widths. */}
       {mobileRow && (
-        <div className="flex flex-col gap-px border border-border-strong bg-border md:hidden">
-          {table.getRowModel().rows.length ? (
+        <div className="overflow-hidden rounded-3xl bg-card shadow-[inset_0_0_0_1px_var(--ring-card)] md:hidden">
+          {hasRows ? (
             table.getRowModel().rows.map((row) => (
               <button
                 key={row.id}
                 type="button"
                 onClick={() => onRowClick?.(row.original)}
                 disabled={!onRowClick}
-                className="bg-card px-3 py-2.5 text-left transition-colors enabled:hover:bg-accent disabled:cursor-default"
+                className="block w-full border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 enabled:hover:bg-background disabled:cursor-default"
               >
                 {mobileRow(row.original)}
               </button>
             ))
           ) : (
-            <div className="bg-card px-3 py-8 text-center text-muted-foreground">
+            <div className="px-3 py-8 text-center text-muted-foreground">
               {emptyState ?? "No results."}
             </div>
           )}
@@ -135,13 +129,13 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {totalPages > 1 && onPageChange && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between px-1">
+          <p className="text-[13px] text-muted-foreground">
             Page {page} of {totalPages}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
-              variant="outline"
+              variant="hairline"
               size="sm"
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1}
@@ -150,7 +144,7 @@ export function DataTable<TData, TValue>({
               Previous
             </Button>
             <Button
-              variant="outline"
+              variant="hairline"
               size="sm"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages}
@@ -174,14 +168,13 @@ export function SortableHeader({
   label: string;
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-3 h-8"
+    <button
+      type="button"
+      className="-ml-1 inline-flex h-7 items-center gap-1 rounded-full px-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       {label}
-      <ArrowUpDown className="ml-1 h-3 w-3" />
-    </Button>
+      <ArrowUpDown className="h-3 w-3" aria-hidden="true" />
+    </button>
   );
 }

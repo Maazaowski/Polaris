@@ -8,21 +8,21 @@ import { collectErrors, unnamedControls } from "./helpers";
  */
 const ROUTES: Array<{ path: string; heading: RegExp }> = [
   // "/" redirects to the queue: the operator lands on work, not on metrics.
-  { path: "/", heading: /work/i },
+  { path: "/", heading: /queue/i },
   { path: "/upload", heading: /upload/i },
-  { path: "/invoices", heading: /work/i },
+  { path: "/invoices", heading: /queue/i },
   { path: "/insights", heading: /insights/i },
   // Nav says "Exceptions"/"Logs"; the pages title themselves differently.
-  { path: "/exceptions", heading: /exception queue/i },
+  { path: "/exceptions", heading: /needs you/i },
   // The page is titled "Suppliers" — the route keeps its old name.
   { path: "/profiles", heading: /suppliers/i },
   { path: "/accounts", heading: /accounts/i },
   { path: "/field-schemas", heading: /field schemas/i },
   { path: "/output-specs", heading: /output specs/i },
-  { path: "/models", heading: /models/i },
-  { path: "/logs", heading: /audit log/i },
+  { path: "/models", heading: /templates/i },
+  { path: "/logs", heading: /audit and usage/i },
   { path: "/settings", heading: /settings/i },
-  { path: "/users", heading: /users/i },
+  { path: "/users", heading: /people/i },
   { path: "/account", heading: /account/i },
 ];
 
@@ -59,20 +59,21 @@ test("primary navigation exposes every destination with an accessible name", asy
 
 test("no interactive control on the landing queue is missing an accessible name", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /work/i, level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /queue/i, level: 1 })).toBeVisible();
   expect(await unnamedControls(page)).toEqual([]);
 });
 
-test("the section rail switches sections and the shell stays mounted", async ({ page }) => {
+test("the sidebar moves between sections and the shell stays mounted", async ({ page }) => {
   await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Primary" });
 
-  // Rail → section, then a page within that section.
-  await page.getByRole("link", { name: "Work", exact: true }).click();
-  await expect(page).toHaveURL(/\/invoices/);
-  await page.getByRole("link", { name: "Queue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /work/i, level: 1 })).toBeVisible();
+  // Every section is listed at once; a page within one, then another section.
+  await nav.getByRole("link", { name: /needs you/i }).click();
+  await expect(page).toHaveURL(/\/exceptions/);
+  await nav.getByRole("link", { name: /^queue/i }).click();
+  await expect(page.getByRole("heading", { name: /queue/i, level: 1 })).toBeVisible();
 
-  await page.getByRole("link", { name: "Suppliers", exact: true }).click();
+  await nav.getByRole("link", { name: "Suppliers", exact: true }).click();
   await expect(page).toHaveURL(/\/profiles/);
   await expect(page.getByRole("heading", { name: /suppliers/i, level: 1 })).toBeVisible();
 });

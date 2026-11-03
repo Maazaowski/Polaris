@@ -103,9 +103,9 @@ export function ProvenancePanel({
     <section
       aria-label="Where each value was read from on the PDF"
       data-testid="provenance-panel"
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3"
+      className="flex flex-col gap-3 rounded-3xl bg-card p-5 shadow-[inset_0_0_0_1px_var(--ring-card)]"
     >
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-[13px]">
         <Button
           size="icon-sm"
           variant="outline"
@@ -138,7 +138,7 @@ export function ProvenancePanel({
           <span className="text-muted-foreground">Pick a delivered row or a field to locate it.</span>
         )}
         {provenance.approximate && (
-          <span className="ml-auto rounded border border-warning/40 bg-warning/12 px-2 py-0.5 text-warning">
+          <span className="ml-auto rounded-full bg-warning-soft px-2.5 py-0.5 text-warning">
             Approximate: AI path cites printed rows, not individual cells
           </span>
         )}
@@ -155,8 +155,8 @@ export function ProvenancePanel({
                 aria-pressed={active}
                 onClick={() => onSelect(active ? null : { kind: "header", name })}
                 className={cn(
-                  "rounded border px-2 py-0.5 text-xs capitalize",
-                  active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent",
+                  "h-7 rounded-full px-2.5 text-[13px] font-medium capitalize transition-colors",
+                  active ? "bg-ink text-ink-foreground" : "bg-secondary text-body hover:text-foreground",
                 )}
               >
                 {humanField(name)}
@@ -176,7 +176,7 @@ export function ProvenancePanel({
         </p>
       )}
       {page && (
-        <div className="max-h-[70vh] overflow-auto rounded-md bg-muted/40 p-2">
+        <div className="max-h-[70vh] overflow-auto rounded-2xl bg-secondary p-3">
           <LayoutCanvas page={page} zoom={0.8} showRowOutlines={false}>
             {/* Every delivered row on this page, faintly, so the operator sees coverage. */}
             {rows.map((r) =>
