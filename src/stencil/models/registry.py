@@ -368,6 +368,131 @@ def update_model_rules(
     return model
 
 
+@dataclass
+class RekeyResult:
+    """Outcome of recomputing one model's layout fingerprint from its source PDF."""
+
+    model_id: str
+    status: str
+    source_intake: str | None
+    pdf_path: Path | None
+    old_fingerprint: str
+    new_fingerprint: str | None
+    old_family_key: str | None
+    new_family_key: str | None
+    applied: bool = False
+    error: str | None = None
+
+    @property
+    def changed(self) -> bool:
+        return self.new_fingerprint is not None and self.new_fingerprint != self.old_fingerprint
+
+
+def rekey_model_fingerprint(
+    db: Session,
+    model_id: str,
+    *,
+    apply: bool = True,
+    updated_by: str | None = None,
+) -> RekeyResult | None:
+    """Recompute a model's layout fingerprint from the invoice it was authored on.
+
+    A fingerprint is salted by the profile's fingerprint rules and document
+    category and by the fingerprinter itself. When any of those change after a
+    model is approved, the stored hash no longer equals what the pipeline
+    computes for the very same PDF: routing finds no exact match, every invoice
+    falls through to AI with a layout-drift exception, and the "$0 template"
+    path silently never fires. Re-keying recomputes the hash with the current
+    profile + fingerprinter from the archived authoring PDF so the model routes
+    again. Rules are untouched; status is untouched.
+
+    Returns None when the model does not exist. With ``apply=False`` nothing is
+    written (dry run).
+    """
+    record = crud.get_extraction_model(db, model_id)
+    if record is None:
+        return None
+    result = RekeyResult(
+        model_id=model_id,
+        status=record.status,
+        source_intake=record.created_from_intake,
+        pdf_path=None,
+        old_fingerprint=record.layout_fingerprint or "",
+        new_fingerprint=None,
+        old_family_key=record.layout_family_key,
+        new_family_key=None,
+    )
+    if not record.created_from_intake:
+        result.error = "model has no source intake (created_from_intake is empty)"
+        return result
+    intake = crud.get_intake(db, record.created_from_intake)
+    if intake is None:
+        result.error = f"source intake {record.created_from_intake} no longer exists"
+        return result
+
+    pdf_path = _archived_pdf_for(intake)
+    if pdf_path is None:
+        result.error = f"archived PDF for intake {intake.id} not found on this host"
+        return result
+    result.pdf_path = pdf_path
+
+    # Imported here: the fingerprinter and profile loader sit above this module
+    # in the import graph (the pipeline imports both plus the registry).
+    from stencil.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
+    from stencil.profiles.loader import get_profile
+
+    profile_id = record.supplier_profile_id or record.id
+    try:
+        profile = get_profile(profile_id)
+    except Exception as exc:  # profile store unavailable
+        result.error = f"profile {profile_id} could not be loaded: {exc}"
+        return result
+    if profile is None:
+        result.error = f"profile {profile_id} no longer exists"
+        return result
+
+    fingerprint, features = fingerprint_pdf(pdf_path, profile=profile)
+    result.new_fingerprint = fingerprint
+    result.new_family_key = compute_layout_family_key(
+        features, supplier=record.supplier or "", output_type=record.output_type or "",
+    )
+    if not apply:
+        return result
+
+    updated = crud.update_model_fingerprint(
+        db, model_id,
+        layout_fingerprint=fingerprint,
+        layout_family_key=result.new_family_key,
+        updated_by=updated_by,
+    )
+    if updated is not None:
+        model = _try_parse_model(updated.model_json)
+        if model is not None:
+            _save_model_to_filesystem(model)
+    result.applied = True
+    logger.info(
+        "registry.model_rekeyed", model_id=model_id, changed=result.changed,
+        old_fingerprint=result.old_fingerprint, new_fingerprint=fingerprint,
+    )
+    return result
+
+
+def _archived_pdf_for(intake) -> Path | None:
+    """Locate an intake's archived original PDF on this host.
+
+    The DB stores the path as seen by the process that archived it (``/work/…``
+    inside Docker). Prefer the current ``archive_dir`` layout, then fall back to
+    the stored absolute path for same-host setups.
+    """
+    candidates: list[Path] = [settings.archive_dir / intake.id / "original.pdf"]
+    if intake.archive_pdf_path:
+        candidates.append(Path(intake.archive_pdf_path))
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def delete_model(db: Session, model_id: str) -> bool:
     """Permanently delete a model: removes the DB record AND the filesystem JSON."""
     deleted = crud.delete_extraction_model(db, model_id)

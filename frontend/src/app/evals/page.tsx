@@ -351,14 +351,22 @@ export default function EvalsPage() {
             <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No runs yet.</CardContent></Card>
           ) : (
             runList.map((r) => (
-              <button
+              // A card is a <div>: the open/select control and the A/B compare
+              // pickers are sibling buttons, never nested (nested <button>s are
+              // invalid HTML and broke hydration on this page).
+              <div
                 key={r.run_id}
-                onClick={() => setOpenRun(r.run_id)}
                 className={cn(
-                  "w-full rounded-md border px-3 py-2 text-left text-xs",
+                  "rounded-md border px-3 py-2 text-xs",
                   openRun === r.run_id ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                 )}
               >
+                <button
+                  type="button"
+                  onClick={() => setOpenRun(r.run_id)}
+                  aria-expanded={openRun === r.run_id}
+                  className="w-full text-left"
+                >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{r.label || r.run_id}</span>
                   <span className="text-muted-foreground">{safeFormatDate(r.created_at, "MMM d HH:mm")}</span>
@@ -389,17 +397,24 @@ export default function EvalsPage() {
                     </div>
                   </div>
                 )}
+                </button>
                 <div className="mt-1 flex gap-2 text-[10px]">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCmp((c) => ({ ...c, a: r.run_id })); }}
+                    type="button"
+                    onClick={() => setCmp((c) => ({ ...c, a: r.run_id }))}
+                    aria-label={`Use ${r.label || r.run_id} as run A`}
+                    aria-pressed={cmp.a === r.run_id}
                     className={cn("rounded border px-1", cmp.a === r.run_id ? "border-primary text-primary" : "border-border text-muted-foreground")}
                   >A</button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCmp((c) => ({ ...c, b: r.run_id })); }}
+                    type="button"
+                    onClick={() => setCmp((c) => ({ ...c, b: r.run_id }))}
+                    aria-label={`Use ${r.label || r.run_id} as run B`}
+                    aria-pressed={cmp.b === r.run_id}
                     className={cn("rounded border px-1", cmp.b === r.run_id ? "border-primary text-primary" : "border-border text-muted-foreground")}
                   >B</button>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>

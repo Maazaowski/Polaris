@@ -1,0 +1,42 @@
+# Manual-only: re-author the golden-corpus models with a real AI key and hand
+# back the model.json snapshots as an artifact for review + commit. Never runs
+# on a schedule; there is no nightly AI spend.
+name: Authoring (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      layout:
+        description: Corpus layout to re-author
+        type: choice
+        default: all
+        options:
+          - all
+          - colt.standard
+          - eunetworks.standard
+
+jobs:
+  authoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Author corpus models
+        env:
+          ST_OPENAI_API_KEY: ${{ secrets.ST_OPENAI_API_KEY }}
+        run: |
+          if [ "${{ inputs.layout }}" = "all" ]; then
+            pytest tests/test_models/test_corpus_authoring.py -m authoring -q
+          else
+            pytest tests/test_models/test_corpus_authoring.py -m authoring -q -k "${{ inputs.layout }}"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corpus-model-snapshots-${{ inputs.layout }}
+          path: tests/fixtures/corpus/*/model.json
+          if-no-files-found: warn
