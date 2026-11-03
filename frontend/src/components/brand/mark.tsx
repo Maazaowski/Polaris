@@ -1,28 +1,41 @@
 import { cn } from "@/lib/utils";
 
 /**
- * The Polaris mark — a four-point star in a single ink.
+ * The Polaris mark — the four-point star you steer by, with one small glint.
  *
  * Rules:
- *   - Ink uses `currentColor`, so the mark inherits the theme. Never a fill.
- *   - One path, so it survives 16px.
+ *   - The star uses `currentColor`, so it inherits the theme.
+ *   - The glint is the only colour in the lockup: the primary accent. At
+ *     16px it is dropped (`glint={false}`), the star alone survives.
+ *   - Two paths, no gradients, never rotated.
  */
 export function Mark({
   className,
+  glint = true,
 }: {
   className?: string;
-  /** Kept for older call sites; the star has no accent to toggle. */
+  /** Show the accent glint. Off below 32px and in one-colour contexts. */
+  glint?: boolean;
+  /** Kept for older call sites. */
   showCut?: boolean;
 }) {
   return (
     <svg
-      viewBox="0 0 24 24"
-      className={cn("h-6 w-6 shrink-0", className)}
-      fill="currentColor"
+      viewBox="0 0 28 24"
+      className={cn("h-6 w-7 shrink-0", className)}
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M12 1.5c1.2 6.3 4.2 9.3 10.5 10.5C16.2 13.2 13.2 16.2 12 22.5 10.8 16.2 7.8 13.2 1.5 12 7.8 10.8 10.8 7.8 12 1.5z" />
+      <path
+        d="M11 1.5c1.1 5.8 3.9 8.6 9.7 9.7-5.8 1.1-8.6 3.9-9.7 9.7-1.1-5.8-3.9-8.6-9.7-9.7 5.8-1.1 8.6-3.9 9.7-9.7z"
+        fill="currentColor"
+      />
+      {glint && (
+        <path
+          d="M23 1c.5 2.5 1.7 3.7 4.2 4.2-2.5.5-3.7 1.7-4.2 4.2-.5-2.5-1.7-3.7-4.2-4.2 2.5-.5 3.7-1.7 4.2-4.2z"
+          fill="var(--primary)"
+        />
+      )}
     </svg>
   );
 }

@@ -3,8 +3,11 @@ import { cn } from "@/lib/utils";
 import { Mark } from "./mark";
 
 /**
- * The Polaris logo: the star mark and the word, Inter 600 with tight tracking.
- * Ink inherits `currentColor` so it works on either theme.
+ * The Polaris logo: the star with its glint, then the word in Inter 600 with
+ * tight tracking. Ink inherits `currentColor` so it works on either theme.
+ *
+ * Clear space is one star-height on every side; the lockup is never drawn
+ * under 24px tall, and the star alone never under 16px.
  */
 type LogoVariant = "primary" | "mark" | "wordmark" | "mono";
 
@@ -23,12 +26,12 @@ export function Logo({
 }) {
   const content =
     variant === "mark" ? (
-      <Mark className="h-5 w-5" />
+      <Mark className="h-5 w-6" />
     ) : variant === "wordmark" ? (
       <span className={WORDMARK_CLASS}>Polaris</span>
     ) : (
-      <span className="flex items-center gap-2">
-        <Mark className="h-[18px] w-[18px]" />
+      <span className="flex items-center gap-1.5">
+        <Mark className="h-[20px] w-[24px]" glint={variant !== "mono"} />
         <span className={WORDMARK_CLASS}>Polaris</span>
       </span>
     );
