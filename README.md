@@ -144,6 +144,14 @@ python run_pipeline.py                       # dev watcher: processes drops sync
 
 ## First run: from empty database to first invoice
 
+**Want a populated app first, with no AI key?** The demo seeder turns an empty database into a month of history in a few seconds, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `ST_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes first (it needs `ST_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
+
+```bash
+python scripts/seed_demo.py --reset
+```
+
+To go from empty to a first invoice by hand instead:
+
 1. **Sign in** with `ST_ADMIN_EMAIL` / `ST_ADMIN_PASSWORD`. The bootstrap only runs while the users table is empty; manage people afterwards under **System → Users**.
 2. **Add an AI key** under **Settings → AI Configuration** if you did not put one in `.env`. Keys are stored encrypted in MySQL (`ST_SECRET_KEY`), and you can switch provider between OpenAI and Anthropic there.
 3. **Add a supplier.** **Suppliers → Add supplier** opens the AI profile assistant: pick the output spec and field schema, drop one or more of that supplier's invoices, and let it draft the profile. Save it, then activate it.
