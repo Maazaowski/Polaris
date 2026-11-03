@@ -244,6 +244,14 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+### First run: seed a demo (no AI key needed)
+
+A fresh install starts with zero profiles, so the queue and Insights are empty. The demo seeder turns that into a month of history in under a minute, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `ST_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes first (it needs `ST_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
+
+```bash
+python scripts/seed_demo.py --reset
+```
+
 ---
 
 ## Usage

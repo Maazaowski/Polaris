@@ -42,13 +42,20 @@ can't serve — fixtures can be added incrementally.
 
 | Layout | PDFs in git | `model.json` | Expected outputs | Suites active in CI |
 | --- | --- | --- | --- | --- |
-| `eunetworks.standard` | Yes (8 invoices) | Not yet | Not yet | Suite 1 (fingerprints) only |
-| `colt.standard` | No (`invoices/` missing) | Yes | Not yet | Skipped until PDFs are committed |
+| `eunetworks.standard` | Yes (9 invoices) | Yes (hand-authored, classifier recipe) | `expected_line_items.json` | Suites 1 + 2 |
+| `colt.standard` | Yes (8 invoices) | Yes (AI-authored, grouping strategy) | `expected_line_items.json` | Suites 1 + 2 |
+| `gtt.standard` | No | No | No | Profile round-trip only |
 
 To gate extraction (Suite 2) for a layout, commit `expected/*.xlsx` or
 `expected_line_items.json`, run the manual authoring workflow (or local
 `pytest -m authoring`), then commit the refreshed `model.json`.
 
-Colt PDFs are not in the repository; add them under
-`colt.standard/invoices/` when available if Colt regressions should block merge.
+The euNetworks `model.json` was built by hand against the rendered layout rows
+(the same primitives the visual builder emits) rather than by the AI loop;
+`A837737 - IE-SI55765.pdf` is a genuine EUR 0.00 usage-only invoice, so its
+expectation is zero rows.
+
+These two layouts also feed `scripts/seed_demo.py`, which loads their
+profiles and models into a live database and runs the invoices through the
+pipeline for a demo.
 

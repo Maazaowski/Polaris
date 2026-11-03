@@ -1,0 +1,66 @@
+{
+  "model_id": "eunetworks.standard.v2",
+  "supplier_profile_id": "eunetworks.standard.v2",
+  "version": 1,
+  "supplier": "euNetworks",
+  "output_type": "standard",
+  "status": "candidate",
+  "layout_fingerprint": "",
+  "layout_family_key": null,
+  "header_fields": {
+    "invoice_number": {"page": 1, "label": "Document No.", "value_position": "below", "value_pattern": "([A-Z]{2}-[A-Z]{2}\\d+)", "required": true},
+    "invoice_date": {"page": 1, "label": "Invoice Date", "value_position": "below", "value_pattern": "(\\d{2}/\\d{2}/\\d{4})", "date_format": "%d/%m/%Y", "required": true},
+    "due_date": {"page": 1, "label": "Due Date", "value_position": "below", "value_pattern": "(\\d{2}/\\d{2}/\\d{4})", "date_format": "%d/%m/%Y", "required": true},
+    "account_number": {"page": 1, "label": "Customer ID", "value_position": "below", "value_pattern": "([A-Z]\\d+)", "required": true},
+    "currency": {"page": 1, "label": "Currency", "literal": "EUR", "required": false}
+  },
+  "region": {
+    "start_anchors": ["Customer PO#"],
+    "end_anchors": ["Net Total"],
+    "end_scope": "document",
+    "repeat_per_page": true,
+    "include_unanchored_pages": true,
+    "columns": [
+      {"name": "service_id", "x0": 60, "x1": 150, "header_text": "Service"},
+      {"name": "period", "x0": 60, "x1": 220, "header_text": "Billing Period"},
+      {"name": "description", "x0": 60, "x1": 310, "header_text": "Description"},
+      {"name": "unit_price", "x0": 680, "x1": 760, "header_text": "Unit Price"},
+      {"name": "quantity", "x0": 790, "x1": 850, "header_text": "Quantity"},
+      {"name": "amount", "x0": 855, "x1": 935, "header_text": "Net Value"}
+    ]
+  },
+  "row_classifiers": [
+    {"role": "skip", "where": {"row_text": "^Page\\s+\\d+\\s+of\\s+\\d+$"}},
+    {"role": "skip", "where": {"column": "service_id", "pattern": "^\\d{4,}$"}},
+    {"role": "item_start", "where": {"column": "service_id", "pattern": "^S\\d{8}$"}},
+    {"role": "contract", "where": {"column": "service_id", "pattern": "^C\\d{5}-\\d{3}$"}},
+    {"role": "period", "where": {"column": "period", "pattern": "^\\d{2}/\\d{2}/\\d{4}\\s*-\\s*\\d{2}/\\d{2}/\\d{4}$"}},
+    {"role": "charge", "where": {"has_amount_in_column": "amount"}}
+  ],
+  "grouping": {"mode": "role_transition", "start_role": "item_start", "emit": "one_item_per_group"},
+  "item_fields": [
+    {"name": "service_id", "source": {"rows": "role", "row_role": "item_start", "column": "service_id", "pattern": "^(S\\d{8})$"}, "transform": {"type": "string"}, "required": true},
+    {"name": "billing_reference", "source": {"rows": "role", "row_role": "contract", "column": "service_id", "pattern": "^(C\\d{5}-\\d{3})$"}, "transform": {"type": "string"}, "required": true},
+    {"name": "description", "source": {"rows": "all_in_group", "column": "description", "pattern": "^(?!S\\d{8}$|C\\d{5}-\\d{3}$|\\d{2}/\\d{2}/\\d{4}|PO\\s|#\\d)(.+)$", "join": " "}, "transform": {"type": "string"}, "required": true},
+    {"name": "charge_type", "literal": "recurring", "transform": {"type": "string"}, "required": true},
+    {"name": "amount", "source": {"rows": "role", "row_role": "charge", "column": "amount", "pattern": "([0-9][0-9,]*\\.\\d{2})", "occurrence": "first"}, "transform": {"type": "currency"}, "required": true},
+    {"name": "unit_rate", "source": {"rows": "role", "row_role": "charge", "column": "unit_price", "pattern": "([0-9][0-9,]*\\.\\d{2})", "occurrence": "first"}, "transform": {"type": "currency"}, "required": false},
+    {"name": "quantity", "source": {"rows": "role", "row_role": "charge", "column": "quantity", "pattern": "^(\\d+)$", "occurrence": "first"}, "transform": {"type": "integer"}, "required": false},
+    {"name": "billing_period_start", "source": {"rows": "role", "row_role": "period", "column": "period", "pattern": "^(\\d{2}/\\d{2}/\\d{4})"}, "transform": {"type": "date", "date_format": "%d/%m/%Y"}, "required": false},
+    {"name": "billing_period_end", "source": {"rows": "role", "row_role": "period", "column": "period", "pattern": "-\\s*(\\d{2}/\\d{2}/\\d{4})$"}, "transform": {"type": "date", "date_format": "%d/%m/%Y"}, "required": false},
+    {"name": "currency", "literal": "EUR", "transform": {"type": "string"}, "required": true}
+  ],
+  "totals": {
+    "subtotal": {"page": 1, "label": "Net Total", "value_position": "right", "value_pattern": "([0-9][0-9,]*\\.\\d{2})", "occurrence": "last", "required": true},
+    "tax": {"page": 1, "label": "Tax Total", "value_position": "right", "value_pattern": "([0-9][0-9,]*\\.\\d{2})", "occurrence": "last", "required": true},
+    "total_due": {"page": 1, "label": "Invoice Total", "value_position": "right", "value_pattern": "([0-9][0-9,]*\\.\\d{2})", "occurrence": "last", "required": true},
+    "tax_rate": {"page": 1, "label": "Tax Rate", "value_position": "below", "value_pattern": "(\\d+(?:\\.\\d+)?\\s*%)", "occurrence": "last", "required": false}
+  },
+  "self_checks": [{"check": "sum_of_items_equals", "field": "subtotal", "tolerance": 0.01}],
+  "tax_output_mode": "calculate",
+  "tax_rate_source": "invoice_tax_rate",
+  "confidence": 0.9,
+  "created_by": "manual_authoring",
+  "created_from_intake": null,
+  "notes": "Hand-authored from the golden corpus. Each service block opens with an S######## service number row, carries its C#####-### contract number on the next row, one dd/mm/yyyy billing-period row and a single Net Value charge row; usage blocks with a zero Net Value are emitted and dropped by the zero-amount filter. VAT is invoice-level (Tax Rate / Tax Total); delivered tax is calculated from the invoice rate."
+}
