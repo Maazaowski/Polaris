@@ -41,6 +41,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from stencil.clock import utcnow  # noqa: E402
+
 CORPUS_ROOT = REPO_ROOT / "tests" / "fixtures" / "corpus"
 DEMO_LAYOUTS: tuple[str, ...] = ("colt.standard", "eunetworks.standard")
 
@@ -277,7 +279,7 @@ def spread_timestamps(db, intake_ids: list[str], *, now: datetime | None = None,
 
     if not intake_ids:
         return
-    reference = now or datetime.now()
+    reference = now or utcnow()  # DB timestamps are naive UTC (stencil.clock)
     rng = random.Random(seed)
     # Oldest first so the queue order follows the corpus order.
     offsets = sorted((rng.uniform(0.5, days - 0.5) for _ in intake_ids), reverse=True)

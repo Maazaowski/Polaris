@@ -4,6 +4,10 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #
+# MYSQL_DATABASE (default: stencil) picks the schema inside the local MySQL,
+# so a seeded demo database (see scripts/seed_demo.py) can live beside the
+# dev one:  MYSQL_DATABASE=stencil_demo docker compose -f ... up -d
+#
 # The base docker-compose.yml alone is PRODUCTION (uses ST_DATABASE_URL from .env).
 # ──────────────────────────────────────────────────────────
 
@@ -14,7 +18,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-stencil}
-      MYSQL_DATABASE: stencil
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-stencil}
       MYSQL_USER: stencil
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-stencil}
     ports:
@@ -35,7 +39,7 @@ services:
   # ST_DATABASE_URL values override the base file's production value.
   backend:
     environment:
-      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/stencil
+      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/${MYSQL_DATABASE:-stencil}
     volumes:
       # Replace the production /mnt/c bind by destination when Compose merges
       # this overlay. Docker Desktop then receives a native Windows host path.
@@ -46,7 +50,7 @@ services:
 
   worker:
     environment:
-      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/stencil
+      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/${MYSQL_DATABASE:-stencil}
     volumes:
       - ${ST_HOST_DATA_DIR:-C:\Stencil}/Invoices:/data/Invoices
     depends_on:
@@ -55,7 +59,7 @@ services:
 
   watcher:
     environment:
-      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/stencil
+      ST_DATABASE_URL: mysql+pymysql://stencil:${MYSQL_PASSWORD:-stencil}@mysql:3306/${MYSQL_DATABASE:-stencil}
     volumes:
       - ${ST_HOST_DATA_DIR:-C:\Stencil}/Invoices:/data/Invoices
     depends_on:

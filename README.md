@@ -150,6 +150,22 @@ python run_pipeline.py                       # dev watcher: processes drops sync
 python scripts/seed_demo.py --reset
 ```
 
+**A fresh database just for demos or recordings**, so the development data stays untouched:
+
+```bash
+# Native: a second MySQL beside the dev one (its own volume), then migrate and seed into it.
+docker run -d --name stencil-demo-mysql -p 3308:3306 -v stencil_demo_mysql_data:/var/lib/mysql   -e MYSQL_ROOT_PASSWORD=stencil -e MYSQL_DATABASE=stencil_demo -e MYSQL_USER=stencil -e MYSQL_PASSWORD=stencil mysql:8.0
+export ST_DATABASE_URL=mysql+pymysql://stencil:stencil@127.0.0.1:3308/stencil_demo        ST_REDIS_URL=redis://127.0.0.1:6379/1 ST_DATA_DIR=C:/Stencil-demo ST_WORK_DIR=C:/StencilDemo
+alembic upgrade head && python scripts/seed_demo.py
+# then start the API, worker and frontend with the same variables; the first admin comes from ST_ADMIN_EMAIL/PASSWORD.
+
+# Docker: a separate Compose project gets its own MySQL volume, so it starts empty.
+COMPOSE_PROJECT_NAME=stencil-demo MYSQL_DATABASE=stencil_demo   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -p stencil-demo exec backend python scripts/seed_demo.py
+```
+
+Stop the dev stack first in the Docker variant; both publish the same ports. Provider keys are encrypted with `ST_SECRET_KEY`, so a key saved in one database can be carried to another only when both stacks share that secret.
+
 To go from empty to a first invoice by hand instead:
 
 1. **Sign in** with `ST_ADMIN_EMAIL` / `ST_ADMIN_PASSWORD`. The bootstrap only runs while the users table is empty; manage people afterwards under **System → Users**.
