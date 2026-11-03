@@ -25,7 +25,10 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
   timeout: 45_000,
-  expect: { timeout: 10_000 },
+  // Against `next dev` a route compiles on its first visit, so a navigation
+  // assertion can legitimately wait longer than it would against the
+  // production build CI runs. Keep CI strict.
+  expect: { timeout: process.env.CI ? 10_000 : 20_000 },
 
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",

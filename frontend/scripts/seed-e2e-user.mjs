@@ -2,11 +2,16 @@
  * Seeds a throwaway admin for the Playwright suite and prints the credentials
  * as shell exports. Idempotent: reuses the account if it already exists.
  *
- * Requires the backend container to be running (docker compose dev stack).
- * Skipped automatically when E2E_EMAIL/E2E_PASSWORD are already set.
+ * Seeds through the backend container when the Docker dev stack is up, and
+ * otherwise through the repo's own Python (the .venv, or `python` on PATH)
+ * against whatever ST_DATABASE_URL the environment points at — so a native
+ * stack works with the same `npm run test:e2e`. Skipped automatically when
+ * E2E_EMAIL/E2E_PASSWORD are already set.
  */
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 const EMAIL = process.env.E2E_EMAIL || "e2e@stencil.test";
 
@@ -55,9 +60,30 @@ const compose = [
   password,
 ];
 
-const result = spawnSync("docker", compose, { encoding: "utf8" });
+const repoRoot = resolve(process.cwd(), "..");
+
+/** The repo venv's interpreter if it exists, else whatever `python` resolves to. */
+function localPython() {
+  const candidates =
+    process.platform === "win32"
+      ? [resolve(repoRoot, ".venv", "Scripts", "python.exe")]
+      : [resolve(repoRoot, ".venv", "bin", "python")];
+  return candidates.find((c) => existsSync(c)) ?? "python";
+}
+
+let result = spawnSync("docker", compose, { encoding: "utf8" });
 if (result.status !== 0) {
-  console.error("Failed to seed the E2E user. Is the dev stack up?");
+  // No container to exec into: seed through the local interpreter instead.
+  const python = localPython();
+  console.error(`Docker dev stack not reachable; seeding with ${python} against ST_DATABASE_URL.`);
+  result = spawnSync(python, ["-c", PY, EMAIL, password], {
+    encoding: "utf8",
+    cwd: repoRoot,
+    env: { ...process.env, PYTHONPATH: resolve(repoRoot, "src"), PYTHONUTF8: "1" },
+  });
+}
+if (result.status !== 0) {
+  console.error("Failed to seed the E2E user. Start the dev stack, or point ST_DATABASE_URL at a running MySQL.");
   console.error(result.stderr || result.stdout);
   process.exit(1);
 }

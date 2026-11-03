@@ -25,16 +25,20 @@ test.describe("invoice queue", () => {
 
   test("status chips filter the table and survive a reload", async ({ page }) => {
     // Chips render only for statuses that have rows, so they appear after the
-    // first fetch — waiting beats skipping, which hides the test entirely.
-    const failedChip = page.getByRole("button", { name: /^failed/i }).first();
-    await expect(failedChip).toBeVisible();
+    // first fetch. Wait for the "All" chip (always present once loaded), then
+    // pick any non-"All" status chip: a freshly seeded stack has no failures.
+    await expect(page.getByRole("button", { name: /^all/i }).first()).toBeVisible();
+    const chip = page.getByRole("button", { name: /^(failed|warnings|completed|processing)/i }).first();
+    test.skip((await chip.count()) === 0, "only one status present in this stack");
+    const status = ((await chip.innerText()).trim().split(/\s/)[0] || "").toLowerCase();
+    const expected = status === "warnings" ? /status=completed_with_warnings/ : new RegExp(`status=${status}`);
 
-    await failedChip.click();
-    await expect(page).toHaveURL(/status=failed/);
+    await chip.click();
+    await expect(page).toHaveURL(expected);
 
     // The filter is URL-driven, so a reload must preserve it (deep-linkable).
     await page.reload();
-    await expect(page).toHaveURL(/status=failed/);
+    await expect(page).toHaveURL(expected);
   });
 
   test("filters appear as removable chips and survive a reload", async ({ page }) => {
@@ -90,7 +94,10 @@ test.describe("invoice queue", () => {
     // Exact name: a loose /next/i also matches the "Open Next.js Dev Tools" button
     // that `next dev` injects, which is a strict-mode violation.
     const next = page.getByRole("button", { name: "Next", exact: true });
-    test.skip(!(await next.isEnabled().catch(() => false)), "only one page of results");
+    // isEnabled() waits for the element to exist; with a single page it may be
+    // absent, so bound the wait instead of eating the whole test timeout.
+    const paged = (await next.count()) > 0 && (await next.isEnabled({ timeout: 5_000 }).catch(() => false));
+    test.skip(!paged, "only one page of results");
 
     const firstCellBefore = await page.locator("tbody tr").first().innerText();
     await next.click();

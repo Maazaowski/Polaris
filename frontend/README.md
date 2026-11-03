@@ -57,11 +57,13 @@ The Playwright suite runs against an already running stack (backend, worker,
 Redis, MySQL and this dev server or the Docker frontend). It never starts one.
 
 ```bash
-# Option A: the Docker dev stack is up. Seeds a throwaway admin through
-# `docker compose exec backend`, then runs the suite.
+# One command for either stack. It seeds a throwaway admin first: through
+# `docker compose exec backend` when the Docker dev stack is up, otherwise
+# through the repo's .venv Python against ST_DATABASE_URL (export it for a
+# native stack), then runs the suite.
 npm run test:e2e
 
-# Option B: any running stack, any existing admin account.
+# Or skip seeding and use an existing admin account.
 E2E_EMAIL=you@example.com E2E_PASSWORD=… npx playwright test
 ```
 
