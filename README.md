@@ -214,6 +214,7 @@ To go from empty to a first invoice by hand instead:
                       <original name>.xlsx      the deliverable, in the profile's output spec
                       canonical_invoice.json    the full normalized extraction
                       extraction_log.json       path taken, tokens, cost, confidence, warnings
+                      provenance.json           where each delivered cell was read from (page, printed row, box)
                       manifest.json             written LAST, the ready signal for pickup
                       model_review/             AI vs model comparison files, when training/validating
                     The XLSX is also copied to the profile's output folder under the same name;
@@ -293,7 +294,7 @@ Three sections, reachable from the rail on the left or the command palette (`Ctr
 | Section | Route | What it is for |
 |---|---|---|
 | **Work** | `/invoices` | The queue. Status chips, supplier filter, search and pagination survive reloads; headline counters for *need you*, *reconciled* and *ran free*. Stacked records on a phone. |
-| | `/invoices/[id]` | One invoice: delivered rows, header fields, downloads, and a live processing timeline (polling plus WebSocket). Cancel or reject in flight. |
+| | `/invoices/[id]` | One invoice: delivered rows, header fields, downloads, and a live processing timeline (polling plus WebSocket). Cancel or reject in flight. **Show on PDF** locates any delivered row or header field on the reconstructed page: template runs highlight the exact cells each value was read from; AI runs highlight the printed row they cited. |
 | | `/exceptions` | Failed and variance invoices with the reason; retry or resolve. |
 | | `/upload` | Drag-and-drop PDFs with per-file progress. |
 | **Suppliers** | `/profiles` | Every supplier profile with its template state (none, cutting, ready, drifted) and delivery folder. |
@@ -319,7 +320,7 @@ Interactive docs at <http://localhost:8000/docs>. The main groups:
 | Group | Highlights |
 |---|---|
 | `/api/v1/auth` | `login`, `logout`, `me`, `change-password` |
-| `/api/v1/invoices` | list with filters and facets, detail, jobs, logs, `upload`, `cancel`, `reject`, output and model-review downloads, `purge` (debug) |
+| `/api/v1/invoices` | list with filters and facets, detail, jobs, logs, `upload`, `cancel`, `reject`, output and model-review downloads, `provenance` (where each delivered value came from), `purge` (debug) |
 | `/api/v1/exceptions` | list, detail, partial output, PDF, `retry`, `resolve` |
 | `/api/v1/profiles` | CRUD, `activate`/`retire`, `lint`, `validate`, `preview`, training invoices and status, `simple-hints`, and the `authoring/sessions` assistant |
 | `/api/v1/models` | list, detail, `approve`/`activate`/`retire`, `clone`/`rollback`, `rules` (edit in place), training set, versions, usage, `draft/test` and `draft/eval-folder` for the builder |

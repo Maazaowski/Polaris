@@ -24,6 +24,7 @@ from pathlib import Path
 import structlog
 
 from stencil.extraction.layout import (
+    BBox,
     LayoutDocument,
     VisualRow,
     extract_layout_document,
@@ -102,21 +103,31 @@ def execute_model_with_trace(
     trace: dict = {"region_rows": [], "groups": [], "header": {}, "totals": {}, "dropped_items": []}
     known_labels = _model_known_labels(model)
 
+    provenance: dict = {"header": {}, "totals": {}, "items": []}
+
     # 1. Header fields
     header_values: dict[str, object] = {}
     for name, rule in model.header_fields.items():
-        raw, value = find_header_value(name, rule, page_texts, known_labels=known_labels)
+        hit: dict = {}
+        raw, value = find_header_value(name, rule, page_texts, known_labels=known_labels, hit=hit)
         header_values[name] = value
         trace["header"][name] = {"raw": raw, "value": _jsonable(value)}
         if rule.required and value is None:
             raise ModelExecutionError(f"required header field '{name}' not found (label: {rule.label!r})")
+        located = _label_value_provenance(document, hit)
+        if located is not None:
+            provenance["header"][name] = located
 
     # 2. Totals
     total_values: dict[str, Decimal | None] = {}
     for name, rule in model.totals.items():
-        raw, amount = find_total_value(name, rule, page_texts, known_labels=known_labels)
+        hit = {}
+        raw, amount = find_total_value(name, rule, page_texts, known_labels=known_labels, hit=hit)
         total_values[name] = amount
         trace["totals"][name] = {"raw": raw, "value": _jsonable(amount)}
+        located = _label_value_provenance(document, hit)
+        if located is not None:
+            provenance["totals"][name] = located
 
     # 3–6. Line items.
     if model.line_item_strategy is not None:
@@ -161,8 +172,15 @@ def execute_model_with_trace(
     for number, item in enumerate(line_items, start=1):
         item.line_number = number
 
+    provenance["items"] = _item_provenance_entries(
+        line_items, trace.pop("_item_provenance", {}), document,
+    )
+    provenance.update({"version": 1, "extraction_path": "model", "model_id": model.model_id})
+    trace["provenance"] = provenance
+
     # 7. Build canonical invoice
     invoice = _build_document(model, intake_id, header_values, total_values, line_items, document)
+    invoice._provenance = provenance
 
     # 8. Self checks (optional — skipped when producing review artifacts after a check failure)
     if not skip_self_checks:
@@ -196,17 +214,20 @@ def find_header_value(
     rule: HeaderFieldRule,
     page_texts: list[str],
     known_labels: frozenset[str] = frozenset(),
+    hit: dict | None = None,
 ) -> tuple[str | None, object]:
     """Resolve one header field exactly as the runtime does. Returns (raw, value).
 
     Shared by execute_model and the authoring verify/repair pass so authoring
     judges rules with the same semantics they will have in production.
+    ``hit``, when given, receives where the value was found (see
+    ``_find_value_by_label``) so provenance can point at the page.
     """
     if rule.literal is not None:
         raw: str | None = rule.literal
     else:
         validator = _date_validator(rule) if _is_date_field(name, rule) else None
-        raw = _find_value_by_label(rule, page_texts, known_labels=known_labels, validator=validator)
+        raw = _find_value_by_label(rule, page_texts, known_labels=known_labels, validator=validator, hit=hit)
     return raw, _convert_header_value(name, raw, rule)
 
 
@@ -215,6 +236,7 @@ def find_total_value(
     rule: HeaderFieldRule,
     page_texts: list[str],
     known_labels: frozenset[str] = frozenset(),
+    hit: dict | None = None,
 ) -> tuple[str | None, Decimal | None]:
     """Resolve one total exactly as the runtime does. Returns (raw, amount).
 
@@ -227,7 +249,7 @@ def find_total_value(
         raw: str | None = rule.literal
     else:
         validator = _amount_validator(skip_percent=skip_percent)
-        raw = _find_value_by_label(rule, page_texts, known_labels=known_labels, validator=validator)
+        raw = _find_value_by_label(rule, page_texts, known_labels=known_labels, validator=validator, hit=hit)
         if name == "tax_rate":
             # Colt-style layouts often print the rate inside the total label
             # itself, e.g. "Total VAT 25.00%" with the tax amount in the value
@@ -297,6 +319,7 @@ def _find_value_by_label(
     page_texts: list[str],
     known_labels: frozenset[str] = frozenset(),
     validator=None,
+    hit: dict | None = None,
 ) -> str | None:
     """Locate a labelled value in the rendered layout text, cell-aware.
 
@@ -333,6 +356,10 @@ def _find_value_by_label(
                     continue
                 if validator is not None and not validator(selected):
                     continue
+                if hit is not None:
+                    # Rendered line N (N >= 1) is page.visual_rows[N - 1]; line 0
+                    # is the LAYOUT PAGE banner. Enough to find the printed row.
+                    hit.update({"page_index": idx, "label_line": line_idx, "selected": selected})
                 return selected
     return None
 
@@ -812,7 +839,10 @@ def _extract_item(
         field_trace[rule.name] = {"same_as": rule.same_as, "value": _jsonable(values[rule.name])}
 
     trace["items"].append(field_trace)
-    return _line_item_from_values(values, group, emit_row)
+    item = _line_item_from_values(values, group, emit_row)
+    if item is not None and root_trace is not None and item.source_row_id:
+        root_trace.setdefault("_item_provenance", {})[item.source_row_id] = _item_provenance(model, group, emit_row)
+    return item
 
 
 def _evaluate_field(
@@ -1184,9 +1214,9 @@ def _line_item_from_values(
             return None
 
     description = values.get("description") or _default_description(group)
+    anchor_row = emit_row[0] if emit_row else group[0][0]
     source_page = values.get("source_page")
     if source_page is None:
-        anchor_row = emit_row[0] if emit_row else group[0][0]
         source_page = anchor_row.page
 
     charge_type = _safe_charge_type(values.get("charge_type"))
@@ -1205,6 +1235,7 @@ def _line_item_from_values(
         quantity=_decimal_or_none(values.get("quantity")),
         unit_rate=_decimal_or_none(values.get("unit_rate")),
         source_page=int(source_page) if source_page is not None else None,
+        source_row_id=anchor_row.row_id or None,
         confidence=0.95,
     )
 
@@ -1279,6 +1310,149 @@ def _date_or_none(value) -> date | None:
     if isinstance(value, date):
         return value
     return _parse_date(str(value))
+
+
+# ---------------------------------------------------------------------------
+# Provenance: where on the page each delivered value was read from
+# ---------------------------------------------------------------------------
+#
+# Boxes are normalized 0-1000 page coordinates, the same space the builder
+# canvas and GET /intakes/{id}/layout use, so the invoice page can draw them
+# over the reconstructed page without any further lookup. Rows are also named
+# by row_id so a client that only has the layout can highlight by id.
+
+
+def _bbox_dict(bbox: BBox | None) -> dict | None:
+    if bbox is None:
+        return None
+    return {"x0": bbox.x0, "y0": bbox.y0, "x1": bbox.x1, "y1": bbox.y1}
+
+
+def _label_value_provenance(document: LayoutDocument, hit: dict) -> dict | None:
+    """Resolve a header/total lookup hit to the label row and the value cell."""
+    if not hit:
+        return None
+    page_index = hit.get("page_index", -1)
+    if not 0 <= page_index < len(document.pages):
+        return None
+    page = document.pages[page_index]
+    rows = page.visual_rows
+    label_idx = hit.get("label_line", 0) - 1
+    if not 0 <= label_idx < len(rows):
+        return None
+    label_row = rows[label_idx]
+    selected = (hit.get("selected") or "").strip()
+
+    # The value sits on the label row or on a neighbour (table-style layouts put
+    # labels above values); look nearby in the order _value_candidates does.
+    value_row: VisualRow | None = None
+    value_box: BBox | None = None
+    for offset in (0, 1, -1, 2, -2, 3):
+        idx = label_idx + offset
+        if not 0 <= idx < len(rows) or not selected:
+            continue
+        row = rows[idx]
+        cell = next((c for c in row.cells if selected in c.text), None)
+        if cell is not None:
+            value_row, value_box = row, (cell.normalized_bbox or None)
+            break
+        if selected in row.text:
+            value_row, value_box = row, (row.normalized_bbox or None)
+            break
+    if value_row is None:
+        value_row = label_row
+    row_ids = [r.row_id for r in (label_row, value_row) if r.row_id]
+    return {
+        "page": page.page_number,
+        "row_ids": list(dict.fromkeys(row_ids)),
+        "label_box": _bbox_dict(label_row.normalized_bbox),
+        "value_box": _bbox_dict(value_box or value_row.normalized_bbox),
+    }
+
+
+def _field_sources(rule: ItemFieldRule) -> list[FieldSource]:
+    if rule.source is not None:
+        return [rule.source]
+    if rule.sources:
+        return list(rule.sources)
+    if rule.value is not None:
+        return [op.source for op in rule.value.operands if getattr(op, "kind", "extract") == "extract" and op.source]
+    return []
+
+
+def _item_provenance(
+    model: ExtractionModel,
+    group: list[tuple[VisualRow, str]],
+    emit_row: tuple[VisualRow, str] | None,
+) -> dict:
+    """Rows and per-field boxes for one emitted item, on the item's anchor page."""
+    anchor = emit_row[0] if emit_row else group[0][0]
+    item_rows = [emit_row[0]] if emit_row else [row for row, _ in group if row.page == anchor.page]
+    boxes = [row.normalized_bbox for row in item_rows if row.normalized_bbox]
+
+    fields: dict[str, dict] = {}
+    for rule in model.item_fields:
+        field_boxes: list[BBox] = []
+        field_page: int | None = None
+        for source in _field_sources(rule):
+            for row, _role in _select_rows(source, group, emit_row):
+                if field_page is not None and row.page != field_page:
+                    continue
+                box: BBox | None = None
+                bounds = _column_bounds(model, source.column) if source.column else None
+                if bounds is not None:
+                    x0, x1 = bounds
+                    cells = [
+                        c.normalized_bbox for c in row.cells
+                        if c.normalized_bbox and x0 <= (c.normalized_bbox.x0 + c.normalized_bbox.x1) / 2 <= x1
+                    ]
+                    box = BBox.union(cells) if cells else None
+                elif row.normalized_bbox:
+                    box = row.normalized_bbox
+                if box is not None:
+                    field_boxes.append(box)
+                    field_page = row.page
+        if field_boxes:
+            fields[rule.name] = {"page": field_page, "box": _bbox_dict(BBox.union(field_boxes))}
+    for rule in model.item_fields:
+        if rule.same_as and rule.same_as in fields and rule.name not in fields:
+            fields[rule.name] = fields[rule.same_as]
+
+    return {
+        "page": anchor.page,
+        "row_ids": [row.row_id for row in item_rows if row.row_id],
+        "box": _bbox_dict(BBox.union(boxes)) if boxes else None,
+        "fields": fields,
+    }
+
+
+def _item_provenance_entries(
+    line_items: list[LineItem],
+    captured: dict[str, dict],
+    document: LayoutDocument,
+) -> list[dict]:
+    """One entry per emitted item, in order, keyed by the printed row it came from.
+
+    Items the rule engine emitted carry full per-field boxes; items from a
+    declarative line-item strategy only know their row, so they get that row's
+    box and no field detail.
+    """
+    rows_by_id: dict[str, tuple[int, BBox | None]] = {
+        row.row_id: (page.page_number, row.normalized_bbox)
+        for page in document.pages
+        for row in page.visual_rows
+        if row.row_id
+    }
+    entries: list[dict] = []
+    for item in line_items:
+        entry = captured.get(item.source_row_id or "")
+        if entry is None and item.source_row_id in rows_by_id:
+            page_number, bbox = rows_by_id[item.source_row_id]
+            entry = {"page": page_number, "row_ids": [item.source_row_id], "box": _bbox_dict(bbox), "fields": {}}
+        if entry is None:
+            entry = {"page": item.source_page, "row_ids": [], "box": None, "fields": {}}
+        entries.append({"line_number": item.line_number, "source_row_id": item.source_row_id, **entry})
+    return entries
 
 
 def _trace_row(row: VisualRow, role: str) -> dict:

@@ -51,7 +51,8 @@ def write_extraction_log(invoice: ExtractedDocument, output_path: Path) -> Path:
 
 
 def write_manifest(intake_id: str, output_dir: Path, invoice: ExtractedDocument,
-                   xlsx_path: Path, json_path: Path, log_path: Path) -> Path:
+                   xlsx_path: Path, json_path: Path, log_path: Path,
+                   provenance_path: Path | None = None) -> Path:
     """Write manifest.json LAST — this is the ready signal for Temforce Bot Agent."""
     manifest = {
         "intake_id": intake_id,
@@ -72,6 +73,7 @@ def write_manifest(intake_id: str, output_dir: Path, invoice: ExtractedDocument,
             "xlsx": str(xlsx_path.name),
             "canonical_json": str(json_path.name),
             "extraction_log": str(log_path.name),
+            **({"provenance": str(provenance_path.name)} if provenance_path else {}),
         },
         "created_at": utcnow_iso(),
     }

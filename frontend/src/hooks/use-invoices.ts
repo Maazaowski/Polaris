@@ -3,6 +3,7 @@ import { api } from "@/lib/api/client";
 import type {
   ExtractionPreview,
   IntakeRecord,
+  InvoiceProvenance,
   IntakeDetail,
   InvoiceListResponse,
   MessageResponse,
@@ -78,6 +79,16 @@ export function useInvoice(intakeId: string) {
 }
 
 /** Tabular preview of a processed invoice's delivered output. */
+/** Where each delivered row and header field was read from on the PDF. */
+export function useInvoiceProvenance(intakeId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["invoices", intakeId, "provenance"],
+    queryFn: () => api.get<InvoiceProvenance>(`/invoices/${intakeId}/provenance`),
+    enabled: !!intakeId && enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useInvoicePreview(intakeId: string, enabled = true) {
   return useQuery({
     queryKey: ["invoices", intakeId, "preview"],

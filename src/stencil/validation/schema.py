@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 from stencil.fields.coercion import (
     DOCUMENT_DATE_FIELDS,
@@ -230,6 +230,11 @@ class ExtractedDocument(BaseModel):
     exceptions: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "allow"}
+
+    # Where each value was read from on the page (interpreter path), kept off
+    # the serialized document: it is written to provenance.json by the output
+    # step, not into canonical_invoice.json. See models/interpreter.py.
+    _provenance: dict[str, Any] | None = PrivateAttr(default=None)
 
     @model_validator(mode="before")
     @classmethod

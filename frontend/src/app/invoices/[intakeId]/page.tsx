@@ -1,14 +1,16 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   useInvoice,
   useInvoicePreview,
+  useInvoiceProvenance,
   useRejectInvoice,
   useCancelInvoice,
 } from "@/hooks/use-invoices";
 import { ExtractionPreviewView } from "@/components/extraction-preview";
+import { ProvenancePanel, type ProvenanceSelection } from "@/components/provenance-panel";
 import { ReconciliationPanel } from "@/components/reconciliation-panel";
 import { safeFormatDate } from "@/lib/format-date";
 import { resolveXlsxOutputFilename } from "@/lib/output-naming";
@@ -34,6 +36,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Ban,
+  FileSearch,
 } from "lucide-react";
 import type { ExtractionJob } from "@/types";
 
@@ -46,6 +49,13 @@ export default function InvoiceDetailPage({
   const { data: invoice, isLoading, isError } = useInvoice(intakeId);
   const rejectInvoice = useRejectInvoice();
   const cancelInvoice = useCancelInvoice();
+  // "Show on PDF": where each delivered value was read from.
+  const [showPdf, setShowPdf] = useState(false);
+  const [selection, setSelection] = useState<ProvenanceSelection>(null);
+  const { data: provenance } = useInvoiceProvenance(
+    intakeId,
+    invoice?.status === "completed" || invoice?.status === "completed_with_warnings",
+  );
   const confirm = useConfirm();
   const { data: preview } = useInvoicePreview(
     intakeId,
@@ -245,8 +255,51 @@ export default function InvoiceDetailPage({
       {/* The delivered rows — where the wrong one actually lives. */}
       {isDelivered && preview && (
         <section className="flex flex-col gap-2">
-          <h2 className="label-mono">Delivered rows</h2>
-          <ExtractionPreviewView preview={preview} hideReconciliation />
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="label-mono">Delivered rows</h2>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              aria-pressed={showPdf}
+              disabled={!provenance?.available}
+              title={
+                provenance && !provenance.available
+                  ? provenance.reason
+                  : "Highlight where each delivered value was read from on the PDF"
+              }
+              onClick={() => setShowPdf((v) => !v)}
+            >
+              <FileSearch className="h-4 w-4" />
+              {showPdf ? "Hide PDF" : "Show on PDF"}
+            </Button>
+          </div>
+          {provenance && !provenance.available && (
+            <p className="text-xs text-muted-foreground">{provenance.reason}</p>
+          )}
+          <ExtractionPreviewView
+            preview={preview}
+            hideReconciliation
+            selectedRow={selection?.kind === "row" ? selection.index : null}
+            onLocateRow={
+              provenance?.available
+                ? (index) => {
+                    setSelection((current) =>
+                      current?.kind === "row" && current.index === index ? null : { kind: "row", index },
+                    );
+                    setShowPdf(true);
+                  }
+                : undefined
+            }
+          />
+          {showPdf && provenance?.available && (
+            <ProvenancePanel
+              intakeId={intakeId}
+              provenance={provenance}
+              selection={selection}
+              onSelect={setSelection}
+            />
+          )}
         </section>
       )}
 

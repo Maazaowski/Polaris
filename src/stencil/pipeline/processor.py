@@ -63,6 +63,7 @@ from stencil.output.json_writer import (
     write_manifest,
 )
 from stencil.output.naming import derive_output_xlsx_name
+from stencil.output.provenance import write_provenance
 from stencil.output.review_artifacts import write_model_review_artifacts
 from stencil.output.xlsx_writer import build_output_rows, write_xlsx
 from stencil.pipeline.cancellation import check_cancelled, clear_cancel
@@ -1484,17 +1485,22 @@ def _generate_output(db: Session, intake_id: str,
     )
     json_path = write_canonical_json(invoice, output_dir / "canonical_invoice.json")
     log_path = write_extraction_log(invoice, output_dir / "extraction_log.json")
+    # Where each delivered cell was read from (template path: exact boxes; AI
+    # path: the printed rows it cited). Optional: absent when nothing is known.
+    provenance_path = write_provenance(invoice, output_dir / "provenance.json")
 
     # Manifest written LAST — this is the ready signal
     manifest_path = write_manifest(intake_id, output_dir, invoice,
-                                   xlsx_path, json_path, log_path)
+                                   xlsx_path, json_path, log_path,
+                                   provenance_path=provenance_path)
 
     crud.log_processing_step(
         db, intake_id=intake_id, step="output", status="completed",
         message=f"Output package written to {output_dir}",
         duration_ms=duration_ms,
         details={"files": [xlsx_name, "canonical_invoice.json",
-                           "extraction_log.json", "manifest.json"],
+                           "extraction_log.json", "manifest.json",
+                           *(["provenance.json"] if provenance_path else [])],
                  "duration_ms": duration_ms,
                  **_profile_log_details(profile, source="output_profile")},
     )

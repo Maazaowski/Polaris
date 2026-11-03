@@ -403,6 +403,54 @@ export interface ExtractionPreview {
   ignored_notes?: string[];
 }
 
+// ── Provenance (where each delivered value was read from) ──
+
+/** Normalized 0-1000 page coordinates, the builder canvas space. */
+export interface ProvenanceBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface ProvenanceField {
+  page: number | null;
+  box: ProvenanceBox | null;
+}
+
+/** One delivered row, index-aligned with the preview's rows. */
+export interface ProvenanceRow {
+  row_index: number;
+  line_number: number;
+  page: number | null;
+  /** Printed row id(s) this row was read from, e.g. "p2.r14". */
+  row_ids: string[];
+  box: ProvenanceBox | null;
+  fields: Record<string, ProvenanceField>;
+}
+
+export interface ProvenanceLabelValue {
+  page: number;
+  row_ids: string[];
+  label_box: ProvenanceBox | null;
+  value_box: ProvenanceBox | null;
+}
+
+export interface InvoiceProvenance {
+  available: boolean;
+  /** Why nothing is available, when `available` is false. */
+  reason?: string;
+  version?: number;
+  extraction_path?: string;
+  model_id?: string | null;
+  /** AI path: rows are cited by id, no per-field boxes. */
+  approximate?: boolean;
+  pages?: number[];
+  header?: Record<string, ProvenanceLabelValue>;
+  totals?: Record<string, ProvenanceLabelValue>;
+  rows?: ProvenanceRow[];
+}
+
 export interface OutputSpec {
   spec_id: string;
   name: string;

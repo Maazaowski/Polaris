@@ -23,6 +23,7 @@ Target length 4 to 7 minutes. Record at 1920×1080 with the browser at 125% zoom
 - Open on an Explorer window and an XLSX: "this is what the customer wants, every month, from forty suppliers".
 - Drop a Colt PDF into its folder. Cut to the queue: it appears, the timeline ticks through intake, fingerprint, routing, template, reconcile, output.
 - Open the invoice: delivered rows, the totals that reconcile, the XLSX download. Point at **Path: FREE, cost $0.00, 0 tokens**.
+- Click **Show on PDF**, then the crosshair on one row: the page appears with that row outlined and the amount cell marked. "Every number in this spreadsheet points back at the place it was printed."
 - The hook: "that was the second Colt invoice. Here is what the first one looked like" → cut to an AI-path invoice with its token count and cost. "Stencil read it once, wrote the rules, and has not paid since."
 - Close on the queue's three counters: need you, reconciled, ran free.
 

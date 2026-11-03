@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Crosshair } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ExtractionPreview } from "@/types";
 
 function fmtCell(value: string | number | boolean | null): string {
@@ -39,6 +40,8 @@ function taxMethodLabel(method: string): string {
 export function ExtractionPreviewView({
   preview,
   hideReconciliation = false,
+  selectedRow = null,
+  onLocateRow,
 }: {
   preview: ExtractionPreview;
   /**
@@ -47,8 +50,13 @@ export function ExtractionPreviewView({
    * one screen, which is what made the old dashboard read as unreliable.
    */
   hideReconciliation?: boolean;
+  /** Index of the row currently located on the PDF (provenance view). */
+  selectedRow?: number | null;
+  /** When given, every row gets a "show on the PDF" control calling this. */
+  onLocateRow?: (rowIndex: number) => void;
 }) {
   const rec = hideReconciliation ? null : preview.reconciliation;
+  const locatable = typeof onLocateRow === "function";
 
   return (
     <div className="space-y-4">
@@ -110,6 +118,11 @@ export function ExtractionPreviewView({
         <Table>
           <TableHeader>
             <TableRow>
+              {locatable && (
+                <TableHead className="w-8">
+                  <span className="sr-only">Locate on PDF</span>
+                </TableHead>
+              )}
               {preview.columns.map((c, i) => (
                 <TableHead key={`${c.header}-${i}`} className="whitespace-nowrap">
                   {c.header}
@@ -120,7 +133,30 @@ export function ExtractionPreviewView({
           <TableBody>
             {preview.rows.length ? (
               preview.rows.map((row, ri) => (
-                <TableRow key={ri}>
+                <TableRow
+                  key={ri}
+                  data-testid="delivered-row"
+                  aria-selected={locatable ? selectedRow === ri : undefined}
+                  className={cn(locatable && selectedRow === ri && "bg-primary/8")}
+                >
+                  {locatable && (
+                    <TableCell className="w-8 px-1">
+                      <button
+                        type="button"
+                        aria-label={`Show row ${ri + 1} on the PDF`}
+                        aria-pressed={selectedRow === ri}
+                        onClick={() => onLocateRow?.(ri)}
+                        className={cn(
+                          "inline-flex h-6 w-6 items-center justify-center rounded border",
+                          selectedRow === ri
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+                        )}
+                      >
+                        <Crosshair className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </TableCell>
+                  )}
                   {row.map((cell, ci) => (
                     <TableCell key={ci} className="whitespace-nowrap">
                       {fmtCell(cell)}
@@ -131,7 +167,7 @@ export function ExtractionPreviewView({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={Math.max(preview.columns.length, 1)}
+                  colSpan={Math.max(preview.columns.length + (locatable ? 1 : 0), 1)}
                   className="h-20 text-center text-muted-foreground"
                 >
                   No line items extracted.

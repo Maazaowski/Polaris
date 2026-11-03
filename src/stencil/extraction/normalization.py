@@ -682,6 +682,7 @@ def _line_items_from_labeled_service_blocks(invoice, document: LayoutDocument, h
                 tax_amount=current_tax,
                 currency=currency,
                 source_page=row.page,
+                source_row_id=row.row_id or None,
                 confidence=0.95,
             ))
             current_tax = None
@@ -733,6 +734,7 @@ def _line_items_from_summary_table(invoice, document: LayoutDocument, hints: Lin
                 tax_amount=tax_amount,
                 currency=currency,
                 source_page=row.page,
+                source_row_id=row.row_id or None,
                 confidence=0.95,
             ))
     return rebuilt
@@ -834,6 +836,7 @@ def _line_items_from_total_groups(
                 quantity=matching_ai_item.quantity if matching_ai_item else Decimal("1"),
                 unit_rate=amount,
                 source_page=group[0].page,
+                source_row_id=group[0].row_id or None,
                 confidence=matching_ai_item.confidence if matching_ai_item else 0.9,
             )
         )
@@ -999,7 +1002,8 @@ def _total_items_layout_only(groups, *, same_billing_ref: bool, id_from_footer: 
             description=_description_from_group(group), charge_type=ChargeType.RECURRING,
             amount=amount, tax_amount=None, currency="USD",
             billing_period_start=period_start, billing_period_end=period_end,
-            quantity=Decimal("1"), unit_rate=amount, source_page=group[0].page, confidence=0.9,
+            quantity=Decimal("1"), unit_rate=amount, source_page=group[0].page,
+            source_row_id=group[0].row_id or None, confidence=0.9,
         ))
     return rebuilt
 
@@ -1033,7 +1037,7 @@ def _charge_items_layout_only(groups, *, same_billing_ref: bool, id_from_footer:
                     amount=amount, tax_amount=None, currency="USD",
                     billing_period_start=period_start, billing_period_end=period_end,
                     quantity=_quantity_from_period_row(row), unit_rate=amount,
-                    source_page=row.page, confidence=0.9,
+                    source_page=row.page, source_row_id=row.row_id or None, confidence=0.9,
                 ))
                 context = []
             elif row.row_role in {"detail", "header", "tax_total"}:

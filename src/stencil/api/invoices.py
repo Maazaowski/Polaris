@@ -261,6 +261,35 @@ def download_output_file(intake_id: str, filename: str):
     return FileResponse(path=str(file_path), filename=filename)
 
 
+@router.get("/{intake_id}/provenance")
+def get_invoice_provenance(intake_id: str):
+    """Where each delivered row (and header field) was read from on the PDF.
+
+    Returns ``{"available": false, "reason": …}`` rather than 404 when nothing
+    was recorded, so the page can say why instead of showing an empty panel.
+    Boxes are normalized 0-1000 page coordinates matching ``/intakes/{id}/layout``.
+    """
+    import json as _json
+
+    safe_id = Path(intake_id).name
+    if safe_id != intake_id:
+        raise HTTPException(status_code=400, detail="Invalid intake id")
+    path = settings.completed_dir / intake_id / "provenance.json"
+    if not path.exists():
+        return {
+            "available": False,
+            "reason": (
+                "No provenance was recorded for this invoice: it was processed before "
+                "provenance existed, or the extraction path kept no page positions."
+            ),
+        }
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f"Provenance file unreadable: {exc}") from exc
+    return {"available": True, **data}
+
+
 @router.get("/{intake_id}/preview", response_model=ExtractionPreviewResponse)
 def preview_invoice_output(db: DbSession, intake_id: str):
     """Tabular preview of a processed invoice's deliverable, read from the
