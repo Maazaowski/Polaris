@@ -1,6 +1,6 @@
 {
-  "spec_id": "temforce.standard",
-  "name": "TemForce Standard (8-column)",
+  "spec_id": "standard.8col",
+  "name": "Standard (8-column)",
   "columns": [
     {"header": "EXT_SERVICEID", "source": "row.service_id", "fallback": "row.billing_reference", "width": 20},
     {"header": "EXT_BILLINGREFERENCE", "source": "row.billing_reference", "fallback": "row.service_id", "width": 20},

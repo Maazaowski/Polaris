@@ -133,7 +133,7 @@ def test_draft_maps_to_valid_supplier_profile():
     ]
     profile_dict = draft_to_supplier_profile_dict(
         {"profile": draft},
-        output_spec_id="temforce.standard",
+        output_spec_id="standard.8col",
         field_schema_id="invoice.standard",
         field_schema=fs,
         output_spec=default_output_spec(),
@@ -221,7 +221,7 @@ def test_date_only_override_survives_profile_to_authoring_draft():
     }]
     profile_dict = draft_to_supplier_profile_dict(
         {"profile": draft},
-        output_spec_id="temforce.standard",
+        output_spec_id="standard.8col",
         field_schema_id="invoice.standard",
         field_schema=fs,
     )

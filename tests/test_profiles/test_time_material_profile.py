@@ -31,7 +31,7 @@ def _profile() -> SupplierProfile:
 
 def _spec() -> OutputSpec:
     return OutputSpec(
-        spec_id="temforce.time_and_material",
+        spec_id="standard.time_and_material",
         columns=[
             {"header": "EXT_SERVICEID", "source": "row.service_id"},
             {"header": "EXT_BILLINGREFERENCE", "source": "row.billing_reference"},

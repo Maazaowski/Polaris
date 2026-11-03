@@ -21,11 +21,11 @@ import pytest
 from polaris.models.interpreter import execute_model
 from polaris.models.training import _normalize_line_items
 from polaris.output.formatting import format_deliverable_date
-from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS
+from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
 from polaris.output.xlsx_writer import build_output_rows
 from tests.corpus_utils import CorpusLayout, layout_params, read_expected_xlsx_rows
 
-OUTPUT_HEADERS = [column.xlsx_header for column in TEMFORCE_OUTPUT_COLUMNS]
+OUTPUT_HEADERS = [column.xlsx_header for column in STANDARD_OUTPUT_COLUMNS]
 SERVICE_ID_COL = OUTPUT_HEADERS.index("EXT_SERVICEID")
 AMOUNT_COL = OUTPUT_HEADERS.index("EXT_AMOUNT")
 

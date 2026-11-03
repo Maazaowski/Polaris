@@ -1,4 +1,4 @@
-"""Temforce XLSX column mapping — maps canonical invoice fields to the 8-column Temforce import format."""
+"""deliverable XLSX column mapping — maps canonical invoice fields to the standard 8-column import format."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class ColumnDef:
     transforms: tuple[str, ...] = ()
 
 
-TEMFORCE_OUTPUT_COLUMNS: list[ColumnDef] = [
+STANDARD_OUTPUT_COLUMNS: list[ColumnDef] = [
     ColumnDef(xlsx_header="EXT_SERVICEID", canonical_path="line_item.service_id", width=20,
               fallback_path="line_item.billing_reference"),
     ColumnDef(xlsx_header="EXT_BILLINGREFERENCE", canonical_path="line_item.billing_reference", width=20,

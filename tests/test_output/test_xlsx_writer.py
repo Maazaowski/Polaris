@@ -1,4 +1,4 @@
-"""Unit tests for the Temforce 8-column XLSX writer."""
+"""Unit tests for the standard 8-column XLSX writer."""
 
 from datetime import date
 from decimal import Decimal
@@ -6,7 +6,7 @@ from decimal import Decimal
 import openpyxl
 
 from polaris.output.mapper import (
-    TEMFORCE_OUTPUT_COLUMNS,
+    STANDARD_OUTPUT_COLUMNS,
     get_line_item_value,
 )
 from polaris.output.xlsx_writer import (
@@ -80,12 +80,12 @@ def _with_calculated_tax(inv: CanonicalInvoice, source: str = "auto") -> Canonic
 # ── Column definitions ───────────────────────────────────────
 
 
-class TestTemforceColumns:
+class TestStandardColumns:
     def test_exactly_8_columns(self):
-        assert len(TEMFORCE_OUTPUT_COLUMNS) == 8
+        assert len(STANDARD_OUTPUT_COLUMNS) == 8
 
     def test_column_names(self):
-        names = [c.xlsx_header for c in TEMFORCE_OUTPUT_COLUMNS]
+        names = [c.xlsx_header for c in STANDARD_OUTPUT_COLUMNS]
         assert names == [
             "EXT_SERVICEID", "EXT_BILLINGREFERENCE", "EXT_DATE", "formula",
             "EXT_AMOUNT", "EXT_ACCOUNT", "EXT_INVOICENUMBER", "EXT_TAX",
@@ -308,7 +308,7 @@ class TestXlsxOutput:
         inv = _with_calculated_tax(_invoice(line_items=[_li("850.00")], tax_rate=Decimal("0.23")))
         rows = build_output_rows(inv)
         amount_col = next(
-            i for i, col in enumerate(TEMFORCE_OUTPUT_COLUMNS)
+            i for i, col in enumerate(STANDARD_OUTPUT_COLUMNS)
             if col.xlsx_header == "EXT_AMOUNT"
         )
         assert isinstance(rows[0][amount_col], float)

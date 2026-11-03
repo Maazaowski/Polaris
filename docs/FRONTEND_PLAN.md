@@ -806,7 +806,7 @@ pywin32 or nssm             # Windows Service support
 7. **Profile editor as forms, not raw JSON** — Users should not need to write JSON to create profiles
 8. **Dashboard first** — The landing page should immediately show system health and recent activity
 9. **Supplier profiles may move to DB** — Currently JSON files; a DB-backed approach enables version history, audit trail, and multi-user access from the UI
-10. **MySQL over PostgreSQL** — Reuse existing Temforce MySQL instance rather than managing a separate database. SQLAlchemy makes this a connection string change
+10. **MySQL over PostgreSQL** — Reuse the customer's existing MySQL instance rather than managing a separate database. SQLAlchemy makes this a connection string change
 11. **Per-supplier directory paths** — Match existing Astera folder structure (`D:\Astera\Invoices\{customer_id}\{account_number}\pdf`) so the AP bot requires zero changes
 12. **Windows Service deployment** — Production runs on existing Windows Server 2025 via NSSM, auto-starts on boot, restarts on failure
 13. **Full audit logging with cost tracking** — Every invoice tracked with token usage, estimated cost, extraction path, timestamps. Dedicated logging/audit page in UI for reporting

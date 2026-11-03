@@ -29,7 +29,7 @@ def upgrade() -> None:
             sa.Column("id", sa.String(36), primary_key=True),
             sa.Column("status", sa.String(20), nullable=False, server_default="active"),
             sa.Column("supplier_name", sa.String(256), nullable=True),
-            sa.Column("output_spec_id", sa.String(128), nullable=False, server_default="temforce.standard"),
+            sa.Column("output_spec_id", sa.String(128), nullable=False, server_default="standard.8col"),
             sa.Column("field_schema_id", sa.String(128), nullable=False, server_default="invoice.standard"),
             sa.Column("conversation", sa.JSON(), nullable=False),
             sa.Column("draft_profile", sa.JSON(), nullable=True),

@@ -78,7 +78,7 @@ def test_time_material_optional_cost_fields_are_mappable():
         )
     ])
     spec = OutputSpec(
-        spec_id="temforce.timeandmaterial",
+        spec_id="standard.timeandmaterial",
         columns=[
             OutputColumn(header="EXT_PLANCOST", source="row.plan_cost"),
             OutputColumn(header="EXT_EQUIPMENTCOST", source="row.equipment_cost"),
@@ -90,8 +90,8 @@ def test_time_material_optional_cost_fields_are_mappable():
     assert build_output_rows(invoice, spec) == [[10.0, 20.0, 25.58, 144.0]]
 
 
-def test_default_spec_still_produces_temforce_eight_columns():
-    rows = build_output_rows(_invoice())  # no spec -> temforce default
+def test_default_spec_still_produces_eight_columns():
+    rows = build_output_rows(_invoice())  # no spec -> the standard default
     assert len(rows[0]) == 8
 
 
@@ -100,7 +100,7 @@ def test_diff_keys_off_the_passed_spec():
     a = _invoice(account="A100")
     b = _invoice(account="B999")
 
-    # The default (TemForce) spec includes EXT_ACCOUNT -> they differ.
+    # The default (standard) spec includes EXT_ACCOUNT -> they differ.
     assert diff_invoices(a, b).is_match is False
 
     # A custom spec that omits account -> the model is validated only on the
@@ -110,8 +110,8 @@ def test_diff_keys_off_the_passed_spec():
 
 def test_billing_reference_none_disables_service_id_fallback(monkeypatch):
     spec = OutputSpec(
-        spec_id="temforce.standard",
-        name="TemForce Standard",
+        spec_id="standard.8col",
+        name="Standard",
         columns=[
             OutputColumn(header="EXT_SERVICEID", source="row.service_id", fallback="row.billing_reference"),
             OutputColumn(
@@ -139,8 +139,8 @@ def test_billing_reference_none_disables_service_id_fallback(monkeypatch):
 
 def test_billing_reference_column_label_disables_service_id_fallback(monkeypatch):
     spec = OutputSpec(
-        spec_id="temforce.standard",
-        name="TemForce Standard",
+        spec_id="standard.8col",
+        name="Standard",
         columns=[
             OutputColumn(header="EXT_SERVICEID", source="row.service_id", fallback="row.billing_reference"),
             OutputColumn(
@@ -171,7 +171,7 @@ def test_billing_reference_column_label_disables_service_id_fallback(monkeypatch
 
 def test_profile_output_mapping_can_replace_document_date_with_row_date(monkeypatch):
     spec = OutputSpec(
-        spec_id="temforce.standard",
+        spec_id="standard.8col",
         columns=[OutputColumn(header="EXT_DATE", source="field.invoice_date")],
     )
     monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
@@ -203,7 +203,7 @@ def test_profile_output_mapping_can_replace_document_date_with_row_date(monkeypa
 
 def test_profile_output_mapping_applies_safe_transform_after_resolution(monkeypatch):
     spec = OutputSpec(
-        spec_id="temforce.standard",
+        spec_id="standard.8col",
         columns=[OutputColumn(header="EXT_ACCOUNT", source="field.account_number")],
     )
     monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
@@ -225,7 +225,7 @@ def test_profile_output_mapping_applies_safe_transform_after_resolution(monkeypa
 
 def test_profile_output_mapping_can_clear_fallback_and_wins_compatibility(monkeypatch):
     spec = OutputSpec(
-        spec_id="temforce.standard",
+        spec_id="standard.8col",
         columns=[OutputColumn(
             header="EXT_BILLINGREFERENCE",
             source="row.billing_reference",

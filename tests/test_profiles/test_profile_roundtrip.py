@@ -90,7 +90,7 @@ def _full_profile_dict() -> dict:
         "last_updated_date": "2026-01-01",
         "identity": {"canonical_name": "Roundtrip", "aliases": []},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "temforce.standard",
+        "output_spec_id": "standard.8col",
         "field_schema_id": "invoice.standard",
         "output_mapping_overrides": [
             {

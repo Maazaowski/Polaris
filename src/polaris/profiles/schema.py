@@ -367,7 +367,7 @@ class SupplierProfile(BaseModel):
     identity: SupplierIdentity
     classification: ClassificationSignals = Field(default_factory=ClassificationSignals)
     output_spec_id: str = Field(
-        default="temforce.standard", description="Which OutputSpec this profile delivers.")
+        default="standard.8col", description="Which OutputSpec this profile delivers.")
     field_schema_id: str = Field(
         default="invoice.standard", description="Which FieldSchema defines extraction fields.")
     field_overrides: list[FieldDef] = Field(

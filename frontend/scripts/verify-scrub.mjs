@@ -12,7 +12,7 @@ const base = process.env.E2E_BASE_URL || "http://localhost:3000";
 // Anything here appearing in a scrubbed page is a leak.
 const FORBIDDEN = [
   "orange", "rogers", "colt", "zayo", "eunetworks", "crowncastle", "granite",
-  "comcast", "mindtree", "singtel", "airtel", "tangoe", "lumen", "temforce",
+  "comcast", "mindtree", "singtel", "airtel", "tangoe", "lumen",
   "at&t", "atandt", "gtt", "tata", "bell",
   "82824706", "59958650", "804284200", "287291052842", "802620646",
 ];

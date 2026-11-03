@@ -9,7 +9,7 @@ _INVALID_FILENAME_CHARS = re.compile(r'[<>:"|?*\\]')
 
 
 def derive_output_xlsx_name(original_filename: str) -> str:
-    """Derive the Temforce XLSX filename from the source PDF name.
+    """Derive the deliverable XLSX filename from the source PDF name.
 
     Examples:
         Colt_Invoice.pdf -> Colt_Invoice.xlsx

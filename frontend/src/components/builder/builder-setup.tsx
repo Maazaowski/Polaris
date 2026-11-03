@@ -20,7 +20,7 @@ import { formatApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_FIELD_SCHEMA_ID = "invoice.standard";
-const DEFAULT_OUTPUT_SPEC_ID = "temforce.standard";
+const DEFAULT_OUTPUT_SPEC_ID = "standard.8col";
 
 export interface BuilderSetupProps {
   /** Pre-bound profile when the builder was launched from a profile page. */

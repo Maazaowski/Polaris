@@ -59,7 +59,7 @@ def build_preview(invoice: ExtractedDocument, spec: OutputSpec | None = None) ->
     columns = output_spec_to_columns(spec) if spec is not None else None
     column_meta = [
         {"header": c.xlsx_header, "number_format": c.number_format}
-        for c in (columns or _temforce_columns())
+        for c in (columns or _standard_columns())
     ]
 
     raw_rows = build_output_rows(invoice, spec)
@@ -171,10 +171,10 @@ def preview_for_profile(
     return payload
 
 
-def _temforce_columns():
-    from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS
+def _standard_columns():
+    from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
 
-    return TEMFORCE_OUTPUT_COLUMNS
+    return STANDARD_OUTPUT_COLUMNS
 
 
 def _reconciliation_summary(invoice: ExtractedDocument) -> dict[str, Any] | None:

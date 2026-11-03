@@ -45,7 +45,6 @@ const SUPPLIERS = [
   [/bell/gi, "Harbour"],
   [/AT&T/gi, "Summit Wireless"],
   [/ATandT/gi, "SummitWireless"],
-  [/temforce/gi, "Acme"],
 ];
 
 export async function scrubOn(page) {

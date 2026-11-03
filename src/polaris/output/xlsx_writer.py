@@ -1,4 +1,4 @@
-"""Generate Temforce-ready XLSX files from canonical invoice data."""
+"""Generate deliverable XLSX files from canonical invoice data."""
 
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -8,7 +8,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from polaris.output.mapper import (
-    TEMFORCE_OUTPUT_COLUMNS,
+    STANDARD_OUTPUT_COLUMNS,
     apply_output_transforms,
     normalize_output_value,
     output_spec_to_columns,
@@ -70,7 +70,7 @@ def _is_deliverable_adjustment(line_item: LineItem) -> bool:
 
 
 def service_line_items(invoice: CanonicalInvoice) -> list[LineItem]:
-    """Return rows that appear in the Temforce output.
+    """Return rows that appear in the deliverable.
 
     Standalone tax rows remain excluded. Standalone fee and surcharge rows are
     also excluded, but either type carrying a real service ID is delivered
@@ -297,9 +297,9 @@ def build_output_rows(invoice: CanonicalInvoice, spec: OutputSpec | None = None)
     it can be reused to compare two extractions for an exact, deliverable-level
     match (e.g. AI output vs. model output during candidate validation). The
     column set comes from ``spec`` (the customer's OutputSpec); when omitted it
-    falls back to the built-in TemForce 8-column layout.
+    falls back to the built-in standard 8-column layout.
     """
-    columns = output_spec_to_columns(spec) if spec is not None else TEMFORCE_OUTPUT_COLUMNS
+    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
     tax_rate = output_tax_rate(invoice)
     items = service_line_items(invoice)
     # Resolve delivered per-line taxes once (handles auto allocation without
@@ -340,14 +340,14 @@ def write_xlsx(
     """Write a canonical invoice to a deliverable XLSX.
 
     Columns come from ``spec`` (the customer's OutputSpec); when omitted it falls
-    back to the built-in TemForce 8-column layout. Derived columns (e.g. EXT_TAX
+    back to the built-in standard 8-column layout. Derived columns (e.g. EXT_TAX
     via ``computed.line_tax``) are resolved from the invoice automatically.
     """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Invoice Data"
 
-    columns = output_spec_to_columns(spec) if spec is not None else TEMFORCE_OUTPUT_COLUMNS
+    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
 
     # Write header row
     for col_idx, col_def in enumerate(columns, start=1):

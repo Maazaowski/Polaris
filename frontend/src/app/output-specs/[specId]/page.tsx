@@ -61,7 +61,7 @@ export default function OutputSpecEditorPage({
   const [spec, setSpec] = useState<OutputSpec>(emptySpec());
   const [saveError, setSaveError] = useState<string | null>(null);
   const [referenceSchemaId, setReferenceSchemaId] = useState("invoice.standard");
-  const [startMode, setStartMode] = useState<"blank" | "clone_temforce">("blank");
+  const [startMode, setStartMode] = useState<"blank" | "clone_standard">("blank");
   const { data: referenceSchema } = useFieldSchema(referenceSchemaId);
   const sourceOptions = useMemo(() => buildSourceOptions(referenceSchema), [referenceSchema]);
 
@@ -94,9 +94,9 @@ export default function OutputSpecEditorPage({
     }
     try {
       if (isNew) {
-        if (startMode === "clone_temforce") {
+        if (startMode === "clone_standard") {
           await cloneSpec.mutateAsync({
-            specId: "temforce.standard",
+            specId: "standard.8col",
             newSpecId: spec.spec_id,
             name: spec.name || undefined,
           });
@@ -171,11 +171,11 @@ export default function OutputSpecEditorPage({
           {isNew && (
             <div className="md:col-span-2">
               <label className="text-sm font-medium">Start from</label>
-              <Select value={startMode} onValueChange={(v) => setStartMode(v as "blank" | "clone_temforce")}>
+              <Select value={startMode} onValueChange={(v) => setStartMode(v as "blank" | "clone_standard")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="blank">Blank columns</SelectItem>
-                  <SelectItem value="clone_temforce">Clone temforce.standard</SelectItem>
+                  <SelectItem value="clone_standard">Clone standard.8col</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -194,7 +194,7 @@ export default function OutputSpecEditorPage({
         </CardContent>
       </Card>
 
-      {!(isNew && startMode === "clone_temforce") && (
+      {!(isNew && startMode === "clone_standard") && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Columns</CardTitle>

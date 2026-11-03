@@ -70,7 +70,7 @@ Models are routed by **`supplier_profile_id` + `layout_fingerprint`**. Approved 
 ## What you get
 
 - **Three ways in.** A per-supplier watched folder, a drag-and-drop Upload page, or `POST /api/v1/invoices/upload`.
-- **One deliverable contract.** An Output Spec defines the columns delivered (the historical default is an 8-column "TemForce standard" XLSX); several specs ship for wireless, time-and-material and Orange layouts, and you can define your own.
+- **One deliverable contract.** An Output Spec defines the columns delivered (the historical default is an 8-column "standard" XLSX); several specs ship for wireless, time-and-material and Orange layouts, and you can define your own.
 - **Two ways to build a template.** An AI training loop (author, execute, diff against the AI's answer, refine) and a **visual model builder** where you draw the same primitives by hand against a sample PDF. Both produce the same model JSON, run by the same interpreter.
 - **An AI profile assistant** that drafts a supplier profile from one or more invoices and an optional blueprint of the expected output.
 - **Deterministic safety nets.** Layout fingerprinting, arithmetic reconciliation against stated totals, self-checks inside each model, and a candidate/approved lifecycle with clone, rollback and retire.

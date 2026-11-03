@@ -32,7 +32,7 @@ No console errors or warnings on any page.
 The **"Tax method" line and "Setup conflicts" panel never render** on the invoice page or the model workbench.
 
 Cause: `GET /api/v1/invoices/{id}/preview` and `POST /api/v1/models/{id}/preview` both declare
-`response_model=ExtractionPreviewResponse` (`src/stencil/api/schemas.py:33`). **FastAPI silently strips any key
+`response_model=ExtractionPreviewResponse` (`src/polaris/api/schemas.py:33`). **FastAPI silently strips any key
 not declared on the response model**, so `tax_method`, `conflicts`, and `ignored_notes` are dropped before reaching
 the browser. Confirmed live — the endpoint returns only:
 

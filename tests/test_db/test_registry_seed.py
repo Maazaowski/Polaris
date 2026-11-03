@@ -10,7 +10,7 @@ def _profile(profile_id: str, *, status: str = "active") -> SupplierProfile:
         "status": status,
         "identity": {"canonical_name": "Acme", "aliases": []},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "temforce.standard",
+        "output_spec_id": "standard.8col",
         "field_schema_id": "invoice.standard",
         "delivery": {"inbound_path": "/in", "output_path": "/out"},
     })

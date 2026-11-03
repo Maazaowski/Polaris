@@ -14,7 +14,7 @@
   "classification": {
     "output_type": "standard"
   },
-  "output_spec_id": "temforce.standard",
+  "output_spec_id": "standard.8col",
   "field_schema_id": "invoice.standard",
   "field_overrides": [
     {

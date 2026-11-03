@@ -78,7 +78,7 @@ def migrate_profile_dict(old: dict) -> dict:
         "layout_description": old.get("layout_description"),
         "identity": old.get("identity") or {"canonical_name": old["profile_id"]},
         "classification": {"output_type": (old.get("classification") or {}).get("output_type", "standard")},
-        "output_spec_id": old.get("output_spec_id", "temforce.standard"),
+        "output_spec_id": old.get("output_spec_id", "standard.8col"),
         "field_schema_id": old.get("field_schema_id", "invoice.standard"),
         "field_overrides": field_overrides or [],
         "delivery": delivery,

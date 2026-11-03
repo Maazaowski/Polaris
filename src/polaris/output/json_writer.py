@@ -53,7 +53,7 @@ def write_extraction_log(invoice: ExtractedDocument, output_path: Path) -> Path:
 def write_manifest(intake_id: str, output_dir: Path, invoice: ExtractedDocument,
                    xlsx_path: Path, json_path: Path, log_path: Path,
                    provenance_path: Path | None = None) -> Path:
-    """Write manifest.json LAST — this is the ready signal for Temforce Bot Agent."""
+    """Write manifest.json LAST — this is the ready signal for the downstream import."""
     manifest = {
         "intake_id": intake_id,
         "supplier": invoice.header.supplier_name,

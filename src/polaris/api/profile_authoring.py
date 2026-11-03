@@ -49,7 +49,7 @@ PROFILE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 class CreateSessionRequest(BaseModel):
     supplier_name: str | None = None
-    output_spec_id: str = "temforce.standard"
+    output_spec_id: str = "standard.8col"
     field_schema_id: str = "invoice.standard"
     # Seed the session from an existing profile to refine its extraction hints with
     # AI; finalizing saves a new version that re-merges the source's non-AI config.

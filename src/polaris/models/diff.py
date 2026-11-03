@@ -1,6 +1,6 @@
 """Structured diff between a model's output and the AI ground truth.
 
-The diff is computed at the DELIVERED level (Temforce output rows), because
+The diff is computed at the DELIVERED level (deliverable output rows), because
 that is the contract a model must reproduce exactly. The result powers:
 - the authoring refine loop (machine-readable feedback to the AI)
 - training failure reports persisted for human review
@@ -12,14 +12,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS, output_spec_to_columns
+from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS, output_spec_to_columns
 from polaris.output.spec import OutputSpec
 from polaris.output.xlsx_writer import build_output_rows
 from polaris.validation.schema import CanonicalInvoice
 
-# Default column names (TemForce). The diff is keyed off the columns of whatever
+# Default column names (standard 8-column). The diff is keyed off the columns of whatever
 # OutputSpec the invoice will be delivered with — see ``diff_invoices``.
-OUTPUT_COLUMN_NAMES = [col.xlsx_header for col in TEMFORCE_OUTPUT_COLUMNS]
+OUTPUT_COLUMN_NAMES = [col.xlsx_header for col in STANDARD_OUTPUT_COLUMNS]
 _TEXT_COMPARE_WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -97,7 +97,7 @@ class OutputDiff:
         return "\n".join(lines)
 
 
-def _row_key(row: list, columns=TEMFORCE_OUTPUT_COLUMNS) -> tuple:
+def _row_key(row: list, columns=STANDARD_OUTPUT_COLUMNS) -> tuple:
     from polaris.output.mapper import normalize_output_value
 
     normalized = []
@@ -112,7 +112,7 @@ def _row_key(row: list, columns=TEMFORCE_OUTPUT_COLUMNS) -> tuple:
 def diff_output_rows(
     expected_rows: list[list],
     actual_rows: list[list],
-    columns=TEMFORCE_OUTPUT_COLUMNS,
+    columns=STANDARD_OUTPUT_COLUMNS,
 ) -> OutputDiff:
     """Compare two sets of delivered output rows (order-insensitive).
 
@@ -186,9 +186,9 @@ def diff_invoices(
 
     ``spec`` is the OutputSpec the invoice will be delivered with; the model is
     therefore validated against the EXACT columns it will produce, not a global
-    constant. Omitting it falls back to the built-in TemForce layout.
+    constant. Omitting it falls back to the built-in standard layout.
     """
-    columns = output_spec_to_columns(spec) if spec is not None else TEMFORCE_OUTPUT_COLUMNS
+    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
     expected_rows = build_output_rows(expected, spec)
     actual_rows = build_output_rows(actual, spec)
     return diff_output_rows(expected_rows, actual_rows, columns)

@@ -53,7 +53,7 @@ class SimpleExtractionHints(BaseModel):
     all most sources need; the rest is optional 'advanced' help for tricky
     layouts that the AI extractor can't read unaided."""
 
-    output_spec_id: str = Field(default="temforce.standard", description="Which output format to deliver")
+    output_spec_id: str = Field(default="standard.8col", description="Which output format to deliver")
     line_items_start_text: str | None = Field(
         default=None, description="Where do line items start? (text printed on the document)")
     table_header_texts: list[str] = Field(

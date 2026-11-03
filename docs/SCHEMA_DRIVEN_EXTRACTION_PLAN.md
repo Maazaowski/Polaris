@@ -3,7 +3,7 @@
 > User-defined fields for any document. Replace the hardcoded invoice-centric extraction
 > contract with a FieldSchema registry and generic `ExtractedDocument` record, while
 > preserving invoice behavior via a shipped `invoice.standard` template and unchanged
-> TemForce/corpus golden outputs.
+> corpus golden outputs.
 
 ## Context
 
@@ -101,7 +101,7 @@ flowchart TB
 
 ### 5. Output by field name
 
-`output/spec.py` + `output/mapper.py`: `OutputColumn.source` references `field.<name>` / `row.<name>` / `computed.<name>`. Keep `header.<name>` and `line_item.<name>` as back-compat aliases (document/row scope) so `temforce.standard.json` and existing specs keep working; migrate the shipped temforce spec to the new prefixes. Computed registry stays; `line_tax` reads the row `amount`-role + document `tax_rate`-role generically.
+`output/spec.py` + `output/mapper.py`: `OutputColumn.source` references `field.<name>` / `row.<name>` / `computed.<name>`. Keep `header.<name>` and `line_item.<name>` as back-compat aliases (document/row scope) so `standard.8col.json` and existing specs keep working; migrate the shipped default spec to the new prefixes. Computed registry stays; `line_tax` reads the row `amount`-role + document `tax_rate`-role generically.
 
 ### 6. Generic deterministic model
 
@@ -132,7 +132,7 @@ Profile gains `field_schema_id` (default `invoice.standard`) alongside `output_s
 - **Row scope** — all `LineItem` fields including `charge_type` (type=`enum`, role=`none`)
 - **Roles** (drive reconciliation + computed columns): `amount`, `tax`, `subtotal`, `total`, `tax_rate`, `identifier` on `service_id`/`billing_reference`, etc.
 
-**Built-in fallback:** `_builtin_invoice_standard_schema()` in loader (same pattern as `_builtin_temforce_spec()`) so tests work without the directory.
+**Built-in fallback:** `_builtin_invoice_standard_schema()` in loader (same pattern as `_builtin_standard_spec()`) so tests work without the directory.
 
 **Unit test:** `tests/test_fields/test_field_schema.py` — round-trip JSON, role coverage, field count parity with static enums in `authoring.py`.
 
@@ -233,7 +233,7 @@ Extend [`output/mapper.py`](../src/polaris/output/mapper.py) + [`output/xlsx_wri
 
 3. **`computed.line_tax`** — generic: row `amount`-role value × document `tax_rate`-role value (today's behavior)
 
-4. **Migrate shipped spec:** [`output_specs/temforce.standard.json`](../output_specs/temforce.standard.json) — update `source`/`fallback` to `row.*` / `field.*` prefixes (aliases keep old paths working until migrated)
+4. **Migrate shipped spec:** [`output_specs/standard.8col.json`](../output_specs/standard.8col.json) — update `source`/`fallback` to `row.*` / `field.*` prefixes (aliases keep old paths working until migrated)
 
 5. **Update `normalize_output_value`** numeric path set dynamically from schema types
 
@@ -354,7 +354,7 @@ Land A → B → C → D → E in sequence (invoice path end-to-end generic exce
 - [ ] **B** — ExtractedDocument model, document_io v1/v2 loader, migrate ~31 call sites, keep `canonical_invoice.json` filename
 - [ ] **C** — `build_extraction_json_schema()`, `build_extracted_document()`, wire `resolve_field_schema` in processor
 - [ ] **D** — Role-based `reconcile()` with invoice.standard parity and skip when no amount/total roles
-- [ ] **E** — `normalize_source_path` aliases (`field.`/`row.`/`header.`/`line_item.`), generic `computed.line_tax`, migrate temforce spec
+- [ ] **E** — `normalize_source_path` aliases (`field.`/`row.`/`header.`/`line_item.`), generic `computed.line_tax`, migrate the default spec
 - [ ] **F** — Dynamic `MODEL_RULES_JSON_SCHEMA`, interpreter/authoring/diff over field names; Colt corpus gate
 - [ ] **G** — Profile `field_schema_id` + field overrides, FieldDef editor UI, optional field-schemas API
 - [ ] **H** — Extend `profiles/migrate.py` for `field_schema_id` and header_mapping → label_hint overrides

@@ -14,7 +14,7 @@ from pathlib import Path
 import structlog
 from openpyxl import load_workbook
 
-from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS, output_spec_to_columns
+from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS, output_spec_to_columns
 from polaris.output.spec import OutputSpec
 
 logger = structlog.get_logger()
@@ -84,7 +84,7 @@ def load_blueprint_context(path: str | Path, spec: OutputSpec | None, *, sample_
     positionally so headerless or odd legacy exports can still provide examples.
     """
     workbook_path = Path(path)
-    columns = output_spec_to_columns(spec) if spec is not None else list(TEMFORCE_OUTPUT_COLUMNS)
+    columns = output_spec_to_columns(spec) if spec is not None else list(STANDARD_OUTPUT_COLUMNS)
     spec_headers = [_norm_header(c.xlsx_header) for c in columns]
     sheet_name, all_rows = _workbook_rows(workbook_path)
     warnings: list[str] = []

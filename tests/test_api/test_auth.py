@@ -36,7 +36,7 @@ def user_db():
     db = SessionLocal()
     db.add(
         User(
-            email="admin@temforce.com",
+            email="admin@example.com",
             username="Admin",
             password_hash=auth.hash_password("pilot-pass-1"),
             role="admin",
@@ -65,7 +65,7 @@ def test_login_sets_cookie_and_me_works(user_db):
         assert client.get("/api/v1/settings").status_code == 401
         assert client.get("/api/v1/auth/me").status_code == 401
 
-        bad = client.post("/api/v1/auth/login", json={"email": "admin@temforce.com", "password": "wrong"})
+        bad = client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "wrong"})
         assert bad.status_code == 401
         assert bad.json()["detail"] == "Invalid email or password"
         # Unknown email returns the SAME generic error (no enumeration).
@@ -75,11 +75,11 @@ def test_login_sets_cookie_and_me_works(user_db):
 
         ok = client.post(
             "/api/v1/auth/login",
-            json={"email": "Admin@Temforce.com", "password": "pilot-pass-1"},  # case-insensitive email
+            json={"email": "Admin@example.com", "password": "pilot-pass-1"},  # case-insensitive email
         )
         assert ok.status_code == 200
         payload = ok.json()
-        assert payload["email"] == "admin@temforce.com"
+        assert payload["email"] == "admin@example.com"
         assert payload["username"] == "Admin"
         assert payload["role"] == "admin"
         assert payload["is_admin"] is True
@@ -87,14 +87,14 @@ def test_login_sets_cookie_and_me_works(user_db):
 
         me = client.get("/api/v1/auth/me")
         assert me.status_code == 200
-        assert me.json()["email"] == "admin@temforce.com"
+        assert me.json()["email"] == "admin@example.com"
         # Gated endpoints now work with the session cookie.
         assert client.get("/api/v1/settings").status_code == 200
 
 
 def test_logout_invalidates_session(user_db):
     with TestClient(app) as client:
-        client.post("/api/v1/auth/login", json={"email": "admin@temforce.com", "password": "pilot-pass-1"})
+        client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "pilot-pass-1"})
         assert client.get("/api/v1/auth/me").status_code == 200
         token = client.cookies.get(auth.SESSION_COOKIE)
 
@@ -111,18 +111,18 @@ def test_health_and_root_stay_open(user_db):
 
 
 def test_bootstrap_admin_only_when_table_empty(monkeypatch):
-    monkeypatch.setattr(settings, "admin_email", "boot@temforce.com")
+    monkeypatch.setattr(settings, "admin_email", "boot@example.com")
     monkeypatch.setattr(settings, "admin_password", "boot-pass")
     db = SessionLocal()
     try:
         auth.bootstrap_admin(db)
         assert auth.user_count(db) == 1
         # Second boot is a no-op even with different env creds.
-        monkeypatch.setattr(settings, "admin_email", "other@temforce.com")
+        monkeypatch.setattr(settings, "admin_email", "other@example.com")
         auth.bootstrap_admin(db)
         assert auth.user_count(db) == 1
         user = db.query(User).one()
-        assert user.email == "boot@temforce.com"
+        assert user.email == "boot@example.com"
         assert user.role == "admin"
         assert user.is_active is True
         assert user.password_hash != "boot-pass"  # hashed, never plaintext
@@ -141,7 +141,7 @@ def test_inactive_user_cannot_login(user_db):
     with TestClient(app) as client:
         res = client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@temforce.com", "password": "pilot-pass-1"},
+            json={"email": "admin@example.com", "password": "pilot-pass-1"},
         )
         assert res.status_code == 401
 
@@ -149,7 +149,7 @@ def test_inactive_user_cannot_login(user_db):
 def _login_admin(client: TestClient) -> None:
     res = client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@temforce.com", "password": "pilot-pass-1"},
+        json={"email": "admin@example.com", "password": "pilot-pass-1"},
     )
     assert res.status_code == 200
 
@@ -160,7 +160,7 @@ def test_admin_can_create_update_and_deactivate_users(user_db):
         created = client.post(
             "/api/v1/users",
             json={
-                "email": "operator@temforce.com",
+                "email": "operator@example.com",
                 "username": "Operator",
                 "password": "operator-pass-1",
                 "role": "user",
@@ -187,7 +187,7 @@ def test_admin_can_create_update_and_deactivate_users(user_db):
 def test_non_admin_cannot_manage_users(user_db):
     user_db.add(
         User(
-            email="operator@temforce.com",
+            email="operator@example.com",
             username="Operator",
             password_hash=auth.hash_password("operator-pass-1"),
             role="user",
@@ -198,7 +198,7 @@ def test_non_admin_cannot_manage_users(user_db):
     with TestClient(app) as client:
         res = client.post(
             "/api/v1/auth/login",
-            json={"email": "operator@temforce.com", "password": "operator-pass-1"},
+            json={"email": "operator@example.com", "password": "operator-pass-1"},
         )
         assert res.status_code == 200
         assert client.get("/api/v1/users").status_code == 403
@@ -229,7 +229,7 @@ def test_session_expiry_rejected(user_db):
 
 def test_change_password_self_service(user_db):
     with TestClient(app) as client:
-        client.post("/api/v1/auth/login", json={"email": "admin@temforce.com", "password": "pilot-pass-1"})
+        client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "pilot-pass-1"})
 
         # Wrong current password is rejected.
         bad = client.post(
@@ -264,9 +264,9 @@ def test_change_password_self_service(user_db):
         client.post("/api/v1/auth/logout")
         assert client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@temforce.com", "password": "pilot-pass-1"},
+            json={"email": "admin@example.com", "password": "pilot-pass-1"},
         ).status_code == 401
         assert client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@temforce.com", "password": "new-pass-123"},
+            json={"email": "admin@example.com", "password": "new-pass-123"},
         ).status_code == 200

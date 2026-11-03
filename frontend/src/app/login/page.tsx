@@ -72,7 +72,6 @@ export default function LoginPage() {
             <li className="flex items-center gap-2.5"><span aria-hidden="true">✓</span>Every delivered cell points back at the PDF</li>
           </ul>
         </div>
-        <span className="relative z-10 text-[12px] text-muted-foreground">Internal tool · TemForce</span>
       </section>
 
       {/* Right: the form. */}

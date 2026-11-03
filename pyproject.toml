@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "polaris"
 version = "0.1.0"
-description = "AI invoice extraction layer for Temforce"
+description = "Polaris: AI invoice extraction with reusable templates"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

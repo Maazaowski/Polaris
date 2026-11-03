@@ -30,7 +30,7 @@ def _source_profile() -> SupplierProfile:
         "status": "active",
         "identity": {"canonical_name": "Acme Corp", "aliases": ["ACME", "Acme Inc"]},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "temforce.standard",
+        "output_spec_id": "standard.8col",
         "field_schema_id": "invoice.standard",
         "field_overrides": [
             {
@@ -152,7 +152,7 @@ def test_scoped_field_path_selects_row_field_without_name_ambiguity():
 
     authored = draft_to_supplier_profile_dict(
         draft,
-        output_spec_id="temforce.standard",
+        output_spec_id="standard.8col",
         field_schema_id="invoice.standard",
         field_schema=default_field_schema(),
     )
@@ -288,7 +288,7 @@ def test_initial_authoring_extraction_uses_selected_field_schema(tmp_path, monke
         id="session-1",
         field_schema_id="custom.selected",
         source_profile_id=None,
-        output_spec_id="temforce.standard",
+        output_spec_id="standard.8col",
     )
     invoice = SimpleNamespace(id="invoice-1", artifact_dir=str(artifact_dir), has_expected=False)
     selected_schema = SimpleNamespace(schema_id="custom.selected")
@@ -349,7 +349,7 @@ def test_authoring_queue_serializes_turns_in_order(isolated_db, monkeypatch):
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard",
         )
         crud.add_authoring_invoice(
@@ -386,7 +386,7 @@ def test_cancel_authoring_revokes_all_session_runners_and_resets_state(isolated_
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard",
         )
         invoice = crud.add_authoring_invoice(
@@ -444,7 +444,7 @@ def test_delete_uploaded_authoring_invoice_removes_artifacts_and_preview(isolate
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard",
         )
         artifact_dir = tmp_path / "authoring" / session.id / "inv1"
@@ -480,7 +480,7 @@ def test_delete_authoring_invoice_rejects_finalized_or_busy_sessions(isolated_db
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard",
         )
         artifact_dir = tmp_path / "authoring" / session.id / "inv1"
@@ -534,7 +534,7 @@ def test_reextract_with_draft_includes_new_uploaded_samples(isolated_db, tmp_pat
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard", draft_profile={"profile": {}},
         )
         done_dir = tmp_path / "done"
@@ -586,7 +586,7 @@ def test_authoring_reextract_can_continue_after_one_sample_fails(isolated_db, tm
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="temforce.standard",
+            db, supplier_name="Acme", output_spec_id="standard.8col",
             field_schema_id="invoice.standard", draft_profile={"profile": {}},
         )
         failed_dir = tmp_path / "failed"

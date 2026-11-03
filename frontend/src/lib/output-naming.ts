@@ -1,4 +1,4 @@
-/** Derive Temforce XLSX filename from the source PDF name (mirrors backend). */
+/** Derive deliverable XLSX filename from the source PDF name (mirrors backend). */
 
 export function deriveOutputXlsxName(originalFilename: string): string {
   const base = originalFilename.split(/[/\\]/).pop()?.trim() ?? "";

@@ -91,7 +91,7 @@ export default function OutputSpecsPage() {
                       Edit
                     </Button>
                   </Link>
-                  {spec.spec_id !== "temforce.standard" && (
+                  {spec.spec_id !== "standard.8col" && (
                     <Button
                       variant="destructive"
                       size="sm"

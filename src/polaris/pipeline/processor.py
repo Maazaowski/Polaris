@@ -1127,7 +1127,7 @@ def _model_matches_ai(
     """Return (is_exact_match, reason).
 
     The model is a valid substitute for AI only if it produces the EXACT same
-    delivered output — every Temforce column of every row.
+    delivered output — every delivered column of every row.
     """
     diff = diff_invoices(ai_invoice, model_invoice)
     return diff.is_match, diff.summary()

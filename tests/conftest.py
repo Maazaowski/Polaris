@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 def _assert_testing_this_checkout() -> None:
     """Fail loudly if `import polaris` resolves outside this repo.
 
-    This project has been renamed three times (ExtractForce -> DatWick -> Stencil -> Polaris).
+    This project has carried other package names before this one.
     Stale `pip install -e .` entries for the OLD package names stay in the venv
     and sort ahead of `polaris` on sys.path, so `import polaris` can silently
     resolve to a sibling checkout — the whole suite then green-lights code that
@@ -27,7 +27,7 @@ def _assert_testing_this_checkout() -> None:
             f"`import polaris` resolves to {actual}, "
             f"not this checkout's {repo_src}. "
             "A stale editable install is shadowing it. Fix with: "
-            "`pip uninstall -y stencil datwick extractforce && pip install -e .`"
+            "`pip uninstall -y <that package> && pip install -e .`"
         )
 
 

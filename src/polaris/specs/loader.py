@@ -1,6 +1,6 @@
 """Load and cache output specification JSONs (the customer deliverable contracts).
 
-Mirrors ``polaris.profiles.loader``. The default ``temforce.standard`` spec
+Mirrors ``polaris.profiles.loader``. The default ``standard.8col`` spec
 is always guaranteed to exist (built in code) so the system works on a fresh
 install or in tests where the ``output_specs/`` directory may be absent.
 """
@@ -15,20 +15,20 @@ from polaris.output.spec import OutputColumn, OutputSpec
 
 logger = structlog.get_logger()
 
-DEFAULT_OUTPUT_SPEC_ID = "temforce.standard"
+DEFAULT_OUTPUT_SPEC_ID = "standard.8col"
 
 _VALID_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 _specs_cache: dict[str, OutputSpec] = {}
 
 
-def _builtin_temforce_spec() -> OutputSpec:
-    """In-code fallback equal to the shipped temforce.standard spec."""
-    from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS
+def _builtin_standard_spec() -> OutputSpec:
+    """In-code fallback equal to the shipped standard.8col spec."""
+    from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
 
     return OutputSpec(
         spec_id=DEFAULT_OUTPUT_SPEC_ID,
-        name="TemForce Standard (8-column)",
+        name="Standard (8-column)",
         columns=[
             OutputColumn(
                 header=c.xlsx_header,
@@ -37,7 +37,7 @@ def _builtin_temforce_spec() -> OutputSpec:
                 width=c.width,
                 number_format=c.number_format,
             )
-            for c in TEMFORCE_OUTPUT_COLUMNS
+            for c in STANDARD_OUTPUT_COLUMNS
         ],
     )
 
@@ -63,7 +63,7 @@ def load_all_output_specs(specs_dir: Path | None = None) -> dict[str, OutputSpec
             logger.error("output_specs.parse_failed", spec_id=row.spec_id, error=str(e))
 
     if DEFAULT_OUTPUT_SPEC_ID not in specs:
-        specs[DEFAULT_OUTPUT_SPEC_ID] = _builtin_temforce_spec()
+        specs[DEFAULT_OUTPUT_SPEC_ID] = _builtin_standard_spec()
 
     _specs_cache = specs
     logger.info("output_specs.loaded_all", count=len(specs))
@@ -103,7 +103,7 @@ def get_output_spec(spec_id: str | None) -> OutputSpec:
         load_all_output_specs()
     if spec_id and spec_id in _specs_cache:
         return _specs_cache[spec_id]
-    return _specs_cache.get(DEFAULT_OUTPUT_SPEC_ID) or _builtin_temforce_spec()
+    return _specs_cache.get(DEFAULT_OUTPUT_SPEC_ID) or _builtin_standard_spec()
 
 
 def default_output_spec() -> OutputSpec:

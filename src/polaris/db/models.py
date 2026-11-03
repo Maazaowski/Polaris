@@ -269,7 +269,7 @@ class ProfileAuthoringSession(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)  # active|running|finalized
     supplier_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    output_spec_id: Mapped[str] = mapped_column(String(128), default="temforce.standard")
+    output_spec_id: Mapped[str] = mapped_column(String(128), default="standard.8col")
     field_schema_id: Mapped[str] = mapped_column(String(128), default="invoice.standard")
     phase: Mapped[str] = mapped_column(String(32), default="setup")
     inferred_category: Mapped[str | None] = mapped_column(String(32), nullable=True)

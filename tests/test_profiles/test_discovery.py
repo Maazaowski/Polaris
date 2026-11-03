@@ -29,7 +29,7 @@ def test_discovery_scopes_blueprint_identifiers_to_invoice_account():
 
 def test_orange_french_fixed_line_invoice_is_wireless_family():
     spec = OutputSpec(
-        spec_id="temforce.orange",
+        spec_id="standard.orange",
         columns=[OutputColumn(header="EXT_AMOUNT", source="row.amount")],
     )
 

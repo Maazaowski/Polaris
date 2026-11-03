@@ -66,10 +66,10 @@ Invoice PDF (Inbound Folder)
 6. OUTPUT GENERATION — XLSX + canonical JSON + extraction log
   |
   v
-7. PACKAGE & MANIFEST — manifest.json written LAST (ready signal for Temforce Bot)
+7. PACKAGE & MANIFEST — manifest.json written LAST (ready signal for the downstream import)
   |
   v
-8. TEMFORCE BOT AGENT (External) — Validates and posts to Temforce
+8. DOWNSTREAM IMPORT (External) — Validates and posts to the customer's system
 ```
 
 ---
@@ -82,7 +82,7 @@ Invoice PDF (Inbound Folder)
 | File watcher | Python watchdog |
 | AI API | OpenAI Responses API (gpt-4o, Structured Outputs) |
 | Schema validation | Pydantic v2 |
-| Database | MySQL (existing Temforce instance) via SQLAlchemy + Alembic |
+| Database | MySQL (the customer's existing instance) via SQLAlchemy + Alembic |
 | Task queue | Celery + Redis |
 | Excel generation | openpyxl |
 | PDF utilities | pymupdf |
@@ -220,7 +220,7 @@ src/polaris/
 - Rule-based extraction engine (header regex, table parsing, value mapping)
 - Full routing logic (fingerprint match -> model; no match -> AI)
 - Model confidence fallback to AI path
-- XLSX generation (openpyxl, Temforce-ready format)
+- XLSX generation (openpyxl, deliverable format)
 - Canonical JSON + extraction log + manifest writer
 
 ### Phase 5: Reconciliation & Exceptions — COMPLETED
@@ -258,10 +258,10 @@ src/polaris/
 3. **Model fallback to AI** — low confidence triggers AI re-extraction, handles layout drift
 4. **Extraction models are versioned** — layout changes create new versions, old ones retire
 5. **Human approval gate** — AI-generated models start as "draft", require approval before production use
-6. **AI is extraction only** — never approves invoices. Temforce is the truth layer
+6. **AI is extraction only** — never approves invoices. the customer's system of record is the truth layer
 7. **Deterministic code for all math** — reconciliation, tax allocation, XLSX generation are NOT AI
 8. **Canonical JSON as intermediate** — both paths produce the same schema, downstream is path-agnostic
-9. **Manifest-last write** — manifest.json is the "ready" signal to Temforce Bot Agent
+9. **Manifest-last write** — manifest.json is the "ready" signal to the downstream import
 10. **Exception-first** — uncertain results route to exception queue, never silently succeed
 11. **Database-agnostic** — SQLAlchemy ORM allows switching between PostgreSQL and MySQL via connection string
 12. **Per-supplier directory paths** — matches existing Astera folder structure (`{customer_id}/{account_number}/pdf`) so the AP bot requires no changes

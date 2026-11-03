@@ -6,7 +6,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ── Legacy environment names ─────────────────────────────────────────────────
-# The product was renamed from Stencil to Polaris. Deployments and shells that
+# Earlier releases read ST_* variables. Deployments and shells that
 # still export ST_* variables keep working: every ST_X present in the process
 # environment or in .env is copied to POLARIS_X when that name is not set.
 _LEGACY_PREFIX = "ST_"

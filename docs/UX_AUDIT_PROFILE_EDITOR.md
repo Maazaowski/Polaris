@@ -117,7 +117,7 @@ Several of these fields **also** carry a hint line, so the example is duplicated
 ---
 
 ## Housekeeping note
-A throwaway admin `reviewer@temforce.com` (password `review-pass-123`) was created
+A throwaway admin `reviewer@example.com` (password `review-pass-123`) was created
 to drive the Playwright login and could not be auto-removed (Docker stopped before
 cleanup). Delete it on next stack start:
-`DELETE FROM users WHERE email='reviewer@temforce.com';`
+`DELETE FROM users WHERE email='reviewer@example.com';`

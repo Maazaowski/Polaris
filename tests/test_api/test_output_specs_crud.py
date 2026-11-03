@@ -55,11 +55,11 @@ def test_create_list_get_update_delete_output_spec(client):
 
 def test_clone_output_spec(client):
     clone = client.post(
-        "/api/v1/output-specs/temforce.standard/clone",
-        json={"new_spec_id": "temforce.copy", "name": "TemForce Copy"},
+        "/api/v1/output-specs/standard.8col/clone",
+        json={"new_spec_id": "standard.copy", "name": "Standard Copy"},
     )
     assert clone.status_code == 201, clone.text
-    assert clone.json()["spec_id"] == "temforce.copy"
+    assert clone.json()["spec_id"] == "standard.copy"
     assert len(clone.json()["columns"]) == 8
 
 

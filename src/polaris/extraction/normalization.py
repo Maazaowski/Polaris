@@ -942,7 +942,7 @@ def _charge_line_items_from_total_groups(
 # Layout-only grouped line items — the deterministic primitive a MODEL replays.
 # The AI ground-truth path (apply_layout_profile_hints) derives service_id +
 # amount from the SAME groups, so a model carrying a grouping strategy
-# reproduces the delivered (Temforce) columns by construction.
+# reproduces the delivered columns by construction.
 # ---------------------------------------------------------------------------
 
 GROUPING_GRANULARITIES = {"per_total_group", "per_charge_row"}

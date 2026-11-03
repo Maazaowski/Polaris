@@ -21,8 +21,8 @@ from polaris.db.models import AuthSession, User
 from polaris.db.session import SessionLocal
 from polaris.main import app
 
-ADMIN = ("boss@temforce.com", "admin-pass-1")
-MEMBER = ("member@temforce.com", "member-pass-1")
+ADMIN = ("boss@example.com", "admin-pass-1")
+MEMBER = ("member@example.com", "member-pass-1")
 
 
 @pytest.fixture(autouse=True)

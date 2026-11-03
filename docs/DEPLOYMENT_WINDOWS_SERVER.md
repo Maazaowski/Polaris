@@ -1,7 +1,7 @@
 # Polaris — Deployment Guide (Windows Server 2025)
 
 How to deploy Polaris on a **Windows Server 2025** machine using
-**WSL2 + Docker Engine**, connecting to Temforce's **existing MySQL** instance.
+**WSL2 + Docker Engine**, connecting to the customer's **existing MySQL** instance.
 
 > **Why not Docker Desktop?** Docker Desktop is only supported on Windows 10/11,
 > not Windows Server. The Linux container stack runs under **WSL2 + Docker
@@ -23,7 +23,7 @@ The stack runs as Docker containers inside a WSL2 Linux distro:
 | `frontend`| Web UI (Next.js) | 3000 |
 
 **Not** in Docker:
-- **MySQL** — uses Temforce's existing instance (the bundled MySQL container is removed).
+- **MySQL** — uses the customer's existing instance (the bundled MySQL container is removed).
 - Invoice files — live on a Windows drive, mounted into the containers.
 
 ---
@@ -80,7 +80,7 @@ docker run hello-world              # sanity check — should print a success me
 
 ## 4. Existing MySQL instance
 
-> ### ⚠️ Details to confirm with Temforce infra (Denis)
+> ### ⚠️ Details to confirm with the customer's infrastructure team
 > Fill these in before continuing. Replace the `<...>` placeholders throughout
 > this guide with the confirmed values.
 >
@@ -259,7 +259,7 @@ All commands run from `~/Polaris` inside the Ubuntu shell.
 | Check status | `docker compose ps` |
 
 **Backups:** the `polaris` MySQL schema (models + audit data) is covered by
-Temforce's existing MySQL backups — *confirm with infra*. The `/data` folder
+the customer's existing MySQL backups — *confirm with infra*. The `/data` folder
 (archived PDFs + completed outputs) lives on the Windows drive and should be
 included in the server's file backup.
 

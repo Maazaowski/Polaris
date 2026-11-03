@@ -550,7 +550,7 @@ function emptyProfile(): SupplierProfile {
     classification: {
       output_type: "standard",
     },
-    output_spec_id: "temforce.standard",
+    output_spec_id: "standard.8col",
     field_schema_id: "invoice.standard",
     field_overrides: [],
     output_mapping_overrides: [],
@@ -1494,7 +1494,7 @@ export default function ProfileEditorPage({
                 <Field label="Output Spec" hint="The columns delivered in the output file.">
                   <Select
                     value={profile.output_spec_id}
-                    onValueChange={(v) => update("output_spec_id", v || "temforce.standard")}
+                    onValueChange={(v) => update("output_spec_id", v || "standard.8col")}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select output spec" />

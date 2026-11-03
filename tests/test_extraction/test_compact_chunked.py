@@ -1522,7 +1522,7 @@ def test_period_context_carries_across_page_boundary_until_next_anchor():
     assert rows[1]["bp1"] == "31/07/2026"
 
 
-def test_granite_compact_rows_map_to_temforce_output():
+def test_granite_compact_rows_map_to_standard_output():
     raw = compact_to_legacy_raw(
         {
             "h": {
@@ -1542,7 +1542,7 @@ def test_granite_compact_rows_map_to_temforce_output():
     )
     doc = build_extracted_from_ai_raw(raw, intake_id="granite", metadata=_metadata())
     spec = OutputSpec(
-        spec_id="temforce.test",
+        spec_id="standard.test",
         columns=[
             OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
             OutputColumn(header="EXT_BILLINGREFERENCE", source="row.billing_reference"),
@@ -1594,7 +1594,7 @@ def test_compact_charge_type_filters_fee_and_surcharge_output_rows():
     )
     doc = build_extracted_from_ai_raw(raw, intake_id="att", metadata=_metadata())
     spec = OutputSpec(
-        spec_id="temforce.test",
+        spec_id="standard.test",
         columns=[
             OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
             OutputColumn(header="EXT_AMOUNT", source="row.amount"),

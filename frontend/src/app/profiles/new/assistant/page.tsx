@@ -83,7 +83,7 @@ export default function ProfileAssistantPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState("");
   const [supplierName, setSupplierName] = useState("");
-  const [outputSpecId, setOutputSpecId] = useState("temforce.standard");
+  const [outputSpecId, setOutputSpecId] = useState("standard.8col");
   const [fieldSchemaId, setFieldSchemaId] = useState("invoice.standard");
   const [categoryOverride, setCategoryOverride] = useState("");
   const { data: outputSpecs } = useOutputSpecs();

@@ -37,7 +37,7 @@ def _profile(profile_id: str, *, status: str = "active", accounts=None) -> Suppl
         "status": status,
         "identity": {"canonical_name": profile_id, "aliases": []},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "temforce.standard",
+        "output_spec_id": "standard.8col",
         "field_schema_id": "invoice.standard",
         "delivery": {"accounts": accounts or []},
     })
