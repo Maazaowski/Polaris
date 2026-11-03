@@ -68,12 +68,21 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Call sites pass `render={<Link …/>}` or `render={<a download …/>}` to get a
+  // button-styled link. Base UI expects to be told when the rendered element is
+  // not a real <button>, otherwise it warns on every render and keeps native
+  // button semantics on an anchor. Default that flag from the render prop so no
+  // call site has to remember it.
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      render={render}
+      nativeButton={nativeButton ?? render === undefined}
       {...props}
     />
   )

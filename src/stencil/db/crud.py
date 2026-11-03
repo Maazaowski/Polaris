@@ -1154,6 +1154,32 @@ def delete_intake(db: Session, intake_id: str) -> bool:
     return True
 
 
+def update_model_fingerprint(
+    db: Session,
+    model_id: str,
+    *,
+    layout_fingerprint: str,
+    layout_family_key: str | None,
+    updated_by: str | None = None,
+) -> ExtractionModelRecord | None:
+    """Re-key a model to a recomputed layout fingerprint (status unchanged)."""
+    record = db.get(ExtractionModelRecord, model_id)
+    if record is None:
+        return None
+    record.layout_fingerprint = layout_fingerprint
+    record.layout_family_key = layout_family_key
+    new_json = dict(record.model_json or {})
+    new_json["layout_fingerprint"] = layout_fingerprint
+    new_json["layout_family_key"] = layout_family_key
+    if updated_by:
+        record.updated_by = updated_by
+        new_json["updated_by"] = updated_by
+    record.model_json = new_json
+    db.commit()
+    db.refresh(record)
+    return record
+
+
 def delete_extraction_model(db: Session, model_id: str) -> bool:
     record = db.get(ExtractionModelRecord, model_id)
     if record is None:

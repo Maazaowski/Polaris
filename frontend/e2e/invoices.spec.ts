@@ -87,7 +87,9 @@ test.describe("invoice queue", () => {
   });
 
   test("pagination advances and the page can be deep-linked", async ({ page }) => {
-    const next = page.getByRole("button", { name: /next/i });
+    // Exact name: a loose /next/i also matches the "Open Next.js Dev Tools" button
+    // that `next dev` injects, which is a strict-mode violation.
+    const next = page.getByRole("button", { name: "Next", exact: true });
     test.skip(!(await next.isEnabled().catch(() => false)), "only one page of results");
 
     const firstCellBefore = await page.locator("tbody tr").first().innerText();
