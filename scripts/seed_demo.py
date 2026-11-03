@@ -1,4 +1,4 @@
-"""Turn an empty Stencil database into a convincing demo in under a minute, with no AI key.
+"""Turn an empty Polaris database into a convincing demo in under a minute, with no AI key.
 
 The golden corpus under ``tests/fixtures/corpus/`` holds real invoices for two
 layouts plus a committed ``model.json`` that reproduces their deliverables
@@ -6,7 +6,7 @@ offline. This script loads those layouts the way an operator would have built
 them up over a month:
 
 1. the corpus profiles go into the DB through the profile loader, activated,
-   each with an inbound/output folder under ``ST_DATA_DIR``;
+   each with an inbound/output folder under ``POLARIS_DATA_DIR``;
 2. each corpus model is registered and approved for its profile, keyed by the
    fingerprint the *current* fingerprinter computes for its first invoice;
 3. every corpus PDF runs through the real pipeline synchronously, so it lands as
@@ -16,13 +16,13 @@ them up over a month:
    curves and the monthly breakdown has two months.
 
 Idempotent: re-running keeps existing profiles, models and intakes and only
-fills gaps. ``--reset`` (needs ``ST_DEBUG=true``) purges intakes and the
+fills gaps. ``--reset`` (needs ``POLARIS_DEBUG=true``) purges intakes and the
 work-dir lifecycle folders first, exactly like the Settings danger-zone purge.
 
-Usage (from the repo root, with ST_DATABASE_URL etc. pointing at the stack):
+Usage (from the repo root, with POLARIS_DATABASE_URL etc. pointing at the stack):
 
     python scripts/seed_demo.py            # fill gaps only
-    python scripts/seed_demo.py --reset    # purge intakes first (ST_DEBUG only)
+    python scripts/seed_demo.py --reset    # purge intakes first (POLARIS_DEBUG only)
     python scripts/seed_demo.py --dry-run  # print the plan, write nothing
 """
 
@@ -41,7 +41,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from stencil.clock import utcnow  # noqa: E402
+from polaris.clock import utcnow  # noqa: E402
 
 CORPUS_ROOT = REPO_ROOT / "tests" / "fixtures" / "corpus"
 DEMO_LAYOUTS: tuple[str, ...] = ("colt.standard", "eunetworks.standard")
@@ -86,9 +86,9 @@ class SeedReport:
 
 
 def load_layout(layout_id: str) -> DemoLayout:
-    from stencil.models.schema import ExtractionModel
-    from stencil.profiles.migrate import migrate_profile_dict
-    from stencil.profiles.schema import SupplierProfile
+    from polaris.models.schema import ExtractionModel
+    from polaris.profiles.migrate import migrate_profile_dict
+    from polaris.profiles.schema import SupplierProfile
 
     root = CORPUS_ROOT / layout_id
     profile_path = root / "profile.json"
@@ -115,7 +115,7 @@ def load_layout(layout_id: str) -> DemoLayout:
 
 def supplier_folder(profile) -> Path:
     """``<data_dir>/<CanonicalName>`` — the per-supplier root the watcher and delivery use."""
-    from stencil.config import settings
+    from polaris.config import settings
 
     name = "".join(ch for ch in profile.identity.canonical_name if ch.isalnum() or ch in "-_")
     return settings.data_dir / (name or profile.profile_id)
@@ -137,7 +137,7 @@ def prepare_profile(profile) -> tuple[Path, Path]:
 
 
 def ensure_profile(profile, *, dry_run: bool) -> None:
-    from stencil.profiles.loader import save_profile
+    from polaris.profiles.loader import save_profile
 
     inbound, output = prepare_profile(profile)
     if dry_run:
@@ -153,7 +153,7 @@ def ensure_profile(profile, *, dry_run: bool) -> None:
 
 
 def compute_fingerprint(pdf: Path, profile) -> tuple[str, str]:
-    from stencil.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
+    from polaris.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
 
     fingerprint, features = fingerprint_pdf(pdf, profile=profile)
     family_key = compute_layout_family_key(
@@ -167,9 +167,9 @@ def compute_fingerprint(pdf: Path, profile) -> tuple[str, str]:
 def ensure_approved_model(db, layout: DemoLayout, *, fingerprint: str, family_key: str,
                           created_from_intake: str | None) -> tuple[str, str]:
     """Register the corpus model as approved for its profile. Returns (model_id, action)."""
-    from stencil.db import crud
-    from stencil.models.registry import approve_model, save_model
-    from stencil.models.schema import ModelStatus
+    from polaris.db import crud
+    from polaris.models.registry import approve_model, save_model
+    from polaris.models.schema import ModelStatus
 
     profile_id = layout.profile.profile_id
     existing = crud.find_model_by_profile(db, profile_id, status="approved")
@@ -211,7 +211,7 @@ def ensure_approved_model(db, layout: DemoLayout, *, fingerprint: str, family_ke
 def existing_intake_for(db, pdf: Path, profile_id: str):
     from sqlalchemy import select
 
-    from stencil.db.models import IntakeRecord
+    from polaris.db.models import IntakeRecord
 
     stmt = (
         select(IntakeRecord)
@@ -227,7 +227,7 @@ def existing_intake_for(db, pdf: Path, profile_id: str):
 
 def ingest(db, pdf: Path, profile_id: str) -> str:
     """Register the PDF as a watcher intake (the corpus file is copied, never moved)."""
-    from stencil.intake.service import process_new_pdf
+    from polaris.intake.service import process_new_pdf
 
     return process_new_pdf(db, pdf, intake_source="watcher", supplier_profile_id=profile_id)
 
@@ -240,7 +240,7 @@ def disable_live_events() -> None:
     publish spends seconds failing to connect, which turns a 20-second seed into
     a ten-minute one.
     """
-    from stencil.pipeline import processor
+    from polaris.pipeline import processor
 
     def _noop(*args, **kwargs) -> None:
         return None
@@ -251,7 +251,7 @@ def disable_live_events() -> None:
 
 def run_pipeline(db, intake_id: str, profile_id: str) -> str | None:
     """Run steps 2-6 synchronously. Returns an error message on failure, else None."""
-    from stencil.pipeline.processor import continue_pipeline
+    from polaris.pipeline.processor import continue_pipeline
 
     try:
         continue_pipeline(db, intake_id, profile_id=profile_id, mode="production")
@@ -275,11 +275,11 @@ def spread_timestamps(db, intake_ids: list[str], *, now: datetime | None = None,
     """
     from sqlalchemy import select
 
-    from stencil.db.models import ExtractionJob, IntakeRecord, ProcessingLog
+    from polaris.db.models import ExtractionJob, IntakeRecord, ProcessingLog
 
     if not intake_ids:
         return
-    reference = now or utcnow()  # DB timestamps are naive UTC (stencil.clock)
+    reference = now or utcnow()  # DB timestamps are naive UTC (polaris.clock)
     rng = random.Random(seed)
     # Oldest first so the queue order follows the corpus order.
     offsets = sorted((rng.uniform(0.5, days - 0.5) for _ in intake_ids), reverse=True)
@@ -309,12 +309,12 @@ def spread_timestamps(db, intake_ids: list[str], *, now: datetime | None = None,
 
 
 def reset_intakes(db) -> tuple[int, int]:
-    from stencil import runtime_settings
-    from stencil.db import crud
-    from stencil.intake.cleanup import purge_work_dir_artifacts
+    from polaris import runtime_settings
+    from polaris.db import crud
+    from polaris.intake.cleanup import purge_work_dir_artifacts
 
     if not bool(runtime_settings.runtime_value("debug")):
-        raise SystemExit("--reset needs ST_DEBUG=true (it purges every intake, like the Settings danger zone)")
+        raise SystemExit("--reset needs POLARIS_DEBUG=true (it purges every intake, like the Settings danger zone)")
     deleted = crud.purge_all_intakes(db)
     removed = purge_work_dir_artifacts()
     return deleted, removed
@@ -327,8 +327,8 @@ def reset_intakes(db) -> tuple[int, int]:
 
 def seed(*, reset: bool = False, dry_run: bool = False, layouts: tuple[str, ...] = DEMO_LAYOUTS,
          now: datetime | None = None) -> SeedReport:
-    from stencil.config import settings
-    from stencil.db.session import SessionLocal
+    from polaris.config import settings
+    from polaris.db.session import SessionLocal
 
     report = SeedReport()
     demo_layouts = [load_layout(layout_id) for layout_id in layouts]
@@ -345,7 +345,7 @@ def seed(*, reset: bool = False, dry_run: bool = False, layouts: tuple[str, ...]
             settings.ensure_directories()
             # The API seeds the field schema / output spec on boot; a database the
             # API has never started against needs them before the output step.
-            from stencil.db.seed import seed_registries_from_disk
+            from polaris.db.seed import seed_registries_from_disk
 
             seed_registries_from_disk()
             disable_live_events()
@@ -402,10 +402,10 @@ def seed(*, reset: bool = False, dry_run: bool = False, layouts: tuple[str, ...]
 
 
 def summarize(report: SeedReport, *, dry_run: bool) -> str:
-    from stencil.config import settings
-    from stencil.db import crud
-    from stencil.db.models import ExtractionJob, IntakeRecord
-    from stencil.db.session import SessionLocal
+    from polaris.config import settings
+    from polaris.db import crud
+    from polaris.db.models import ExtractionJob, IntakeRecord
+    from polaris.db.session import SessionLocal
 
     lines: list[str] = []
     if dry_run:
@@ -465,7 +465,7 @@ def _quiet_logging() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     parser.add_argument("--reset", action="store_true",
-                        help="purge every intake and the work-dir lifecycle folders first (needs ST_DEBUG=true)")
+                        help="purge every intake and the work-dir lifecycle folders first (needs POLARIS_DEBUG=true)")
     parser.add_argument("--dry-run", action="store_true", help="print what would happen, write nothing")
     parser.add_argument("--verbose", action="store_true", help="keep the pipeline's structured logs")
     args = parser.parse_args(argv)

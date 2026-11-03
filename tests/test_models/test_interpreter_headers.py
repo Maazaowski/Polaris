@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from stencil.extraction.layout import extract_layout_document, render_layout_text
-from stencil.models.interpreter import _find_value_by_label
-from stencil.models.schema import HeaderFieldRule
+from polaris.extraction.layout import extract_layout_document, render_layout_text
+from polaris.models.interpreter import _find_value_by_label
+from polaris.models.schema import HeaderFieldRule
 
 EUNETWORKS_PDF = Path(
-    r"C:\Stencil\Sample Data\EUNetworks\A837737\pdf\A837737 - IE-SI53564.pdf"
+    r"C:\Polaris\Sample Data\EUNetworks\A837737\pdf\A837737 - IE-SI53564.pdf"
 )
 
 

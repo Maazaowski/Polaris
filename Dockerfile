@@ -1,4 +1,4 @@
-# ── Stencil Backend ──────────────────────────────────
+# ── Polaris Backend ──────────────────────────────────
 FROM python:3.12-slim AS backend
 
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --timeout 120 --retries 10 \
         "pydantic==2.11.1" \
         "pydantic-core==2.33.0" && \
-    mkdir -p src/stencil && touch src/stencil/__init__.py && \
+    mkdir -p src/polaris && touch src/polaris/__init__.py && \
     pip install --no-cache-dir --timeout 120 --retries 10 .
 
 # Copy the real application code (cheap layers that change often).
@@ -40,14 +40,14 @@ RUN pip install --no-cache-dir --no-deps -e .
 # Create operational state directories (overridden by the /work bind mount in
 # Docker; these are just a fallback for non-mounted runs). Supplier folders live
 # under the separate /data mount and are created on demand.
-RUN mkdir -p stencil_work/inbound \
-             stencil_work/processing \
-             stencil_work/completed \
-             stencil_work/exceptions \
-             stencil_work/archive \
+RUN mkdir -p polaris_work/inbound \
+             polaris_work/processing \
+             polaris_work/completed \
+             polaris_work/exceptions \
+             polaris_work/archive \
              extraction_models
 
 EXPOSE 8000
 
 # Run with uvicorn
-CMD ["uvicorn", "stencil.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "polaris.main:app", "--host", "0.0.0.0", "--port", "8000"]

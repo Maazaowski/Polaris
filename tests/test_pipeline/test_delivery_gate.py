@@ -10,9 +10,9 @@ from decimal import Decimal
 
 import pytest
 
-from stencil.config import settings
-from stencil.pipeline.processor import _unverified_large_document_blockers
-from stencil.validation.schema import (
+from polaris.config import settings
+from polaris.pipeline.processor import _unverified_large_document_blockers
+from polaris.validation.schema import (
     ExtractedDocument,
     ExtractionMetadata,
     ExtractionPath,
@@ -67,7 +67,7 @@ def test_the_threshold_is_inclusive_at_its_boundary():
 def test_an_unverifiable_document_is_not_blocked():
     """No reconcilable totals is the normal state for a document with no arithmetic.
 
-    Blocking it would make the gate unusable the moment Stencil handles
+    Blocking it would make the gate unusable the moment Polaris handles
     something other than invoices.
     """
     assert _unverified_large_document_blockers(_invoice(656), None) == []

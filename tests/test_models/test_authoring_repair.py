@@ -3,9 +3,9 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.models.authoring import _verify_and_repair_rules
-from stencil.models.interpreter import find_header_value, find_total_value
-from stencil.models.schema import ExtractionModel, HeaderFieldRule
+from polaris.models.authoring import _verify_and_repair_rules
+from polaris.models.interpreter import find_header_value, find_total_value
+from polaris.models.schema import ExtractionModel, HeaderFieldRule
 
 
 def _row(row_id: str, *cells: tuple[str, int, int]) -> str:

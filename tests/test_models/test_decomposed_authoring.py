@@ -6,15 +6,15 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from stencil.models import authoring
-from stencil.profiles.schema import (
+from polaris.models import authoring
+from polaris.profiles.schema import (
     AdvancedHints,
     ClassificationSignals,
     LineItemHints,
     SupplierIdentity,
     SupplierProfile,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -100,7 +100,7 @@ def test_non_grouped_layout_makes_two_section_calls(monkeypatch):
 
 
 def test_section_schemas_are_restricted_and_strict():
-    from stencil.fields.loader import default_field_schema
+    from polaris.fields.loader import default_field_schema
 
     fs = default_field_schema()
     scalars = authoring._section_schema(fs, "scalars")["schema"]

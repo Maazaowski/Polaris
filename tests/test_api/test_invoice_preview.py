@@ -10,11 +10,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from stencil.config import settings
-from stencil.db.models import Base, IntakeRecord
-from stencil.db.session import get_db
-from stencil.main import app
-from stencil.validation.schema import (
+from polaris.config import settings
+from polaris.db.models import Base, IntakeRecord
+from polaris.db.session import get_db
+from polaris.main import app
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

@@ -26,7 +26,7 @@ export default function GlobalError({
           textAlign: "center",
         }}
       >
-        <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Stencil failed to start</h1>
+        <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Polaris failed to start</h1>
         <p style={{ color: "#666", maxWidth: "32rem", fontSize: "0.875rem" }}>
           The application shell could not render. Reload the page; if this
           persists, check that the backend API is reachable.

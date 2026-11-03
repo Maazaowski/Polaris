@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from stencil.extraction.layout import (
+from polaris.extraction.layout import (
     BBox,
     LayoutCell,
     LayoutDocument,
@@ -10,15 +10,15 @@ from stencil.extraction.layout import (
     VisualRow,
     extract_layout_document,
 )
-from stencil.extraction.normalization import (
+from polaris.extraction.normalization import (
     _apply_value_pattern,
     _child_service_id_by_row,
     _value_from_group_pattern,
     apply_layout_profile_hints,
 )
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles.schema import LineItemHints, SupplierProfile
-from stencil.validation.schema import (
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.schema import LineItemHints, SupplierProfile
+from polaris.validation.schema import (
     SYNTHETIC_INVOICE_DATE_WARNING,
     CanonicalInvoice,
     ChargeType,
@@ -1429,8 +1429,8 @@ def test_child_identifier_is_inert_for_other_preferences():
 
 
 def test_excluded_total_read_from_labelled_layout_row():
-    from stencil.extraction.normalization import _apply_excluded_total_hints
-    from stencil.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+    from polaris.extraction.normalization import _apply_excluded_total_hints
+    from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
 
     document = LayoutDocument(pages=[_page(4, [
         _srow(4, 0, "detail", [_cell("ACCOUNT LEVEL CHARGES", "text", x0=30, x1=200)]),
@@ -1457,8 +1457,8 @@ def test_excluded_total_read_from_labelled_layout_row():
 
 
 def test_excluded_total_absent_label_is_a_no_op():
-    from stencil.extraction.normalization import _apply_excluded_total_hints
-    from stencil.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+    from polaris.extraction.normalization import _apply_excluded_total_hints
+    from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
 
     document = LayoutDocument(pages=[_page(4, [
         _srow(4, 0, "detail", [_cell("SERVICE LEVEL ACTIVITY", "text", x0=30, x1=200)]),

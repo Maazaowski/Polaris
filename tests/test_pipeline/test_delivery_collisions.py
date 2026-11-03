@@ -7,7 +7,7 @@ wrote the same path and only the last one survived.  Naming is fixed in
 cannot quietly destroy data again.
 """
 
-from stencil.pipeline.processor import _deliver_without_clobbering
+from polaris.pipeline.processor import _deliver_without_clobbering
 
 
 def _write(path, content: bytes):

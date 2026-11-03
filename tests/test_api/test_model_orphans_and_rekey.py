@@ -2,12 +2,12 @@
 
 from fastapi.testclient import TestClient
 
-from stencil.db import crud
-from stencil.db import session as db_session
-from stencil.db.models import IntakeRecord, SupplierProfileRecord
-from stencil.main import app
-from stencil.models import registry
-from stencil.models.schema import ExtractionModel
+from polaris.db import crud
+from polaris.db import session as db_session
+from polaris.db.models import IntakeRecord, SupplierProfileRecord
+from polaris.main import app
+from polaris.models import registry
+from polaris.models.schema import ExtractionModel
 
 
 def _seed_model(db, *, model_id: str, profile_id: str, intake_id: str | None) -> None:
@@ -55,8 +55,8 @@ def test_rekey_endpoint_updates_the_fingerprint(isolated_db, tmp_path, monkeypat
     pdf.parent.mkdir(parents=True)
     pdf.write_bytes(b"%PDF-1.4 stub")
 
-    import stencil.fingerprint.fingerprinter as fp
-    import stencil.profiles.loader as loader
+    import polaris.fingerprint.fingerprinter as fp
+    import polaris.profiles.loader as loader
 
     monkeypatch.setattr(fp, "fingerprint_pdf", lambda path, *, profile=None, max_pages=30: ("sha256:new", object()))
     monkeypatch.setattr(fp, "compute_layout_family_key", lambda *a, **k: "family:new")

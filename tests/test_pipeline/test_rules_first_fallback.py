@@ -7,9 +7,9 @@ therefore required to return ``None`` rather than raise.
 
 import pytest
 
-from stencil.models.sample_authoring import SampleAuthoringOutcome
-from stencil.pipeline import processor
-from stencil.profiles.schema import (
+from polaris.models.sample_authoring import SampleAuthoringOutcome
+from polaris.pipeline import processor
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,
@@ -27,7 +27,7 @@ def _profile() -> SupplierProfile:
 @pytest.fixture()
 def db(isolated_db):
     """A throwaway session — the fallback paths still write a processing log."""
-    from stencil.db.session import SessionLocal
+    from polaris.db.session import SessionLocal
 
     session = SessionLocal()
     try:
@@ -83,7 +83,7 @@ def test_an_outcome_with_no_invoice_falls_back(db, tmp_path, monkeypatch):
     (True, 8, False),
 ])
 def test_the_gate_decides_whether_this_runs_at_all(enabled, pages, expected):
-    from stencil.models.sample_authoring import should_author_from_sample
+    from polaris.models.sample_authoring import should_author_from_sample
 
     assert should_author_from_sample(
         pages, _profile(), enabled=enabled, min_pages=100,

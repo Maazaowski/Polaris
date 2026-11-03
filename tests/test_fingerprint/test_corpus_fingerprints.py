@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from stencil.fingerprint.fingerprinter import (
+from polaris.fingerprint.fingerprinter import (
     LayoutFeatures,
     _legacy_structural_tokens,
     fingerprint_pdf,

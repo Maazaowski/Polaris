@@ -2,9 +2,9 @@
 
 from decimal import Decimal
 
-from stencil.llm import client as llm_client
-from stencil.llm import default_model, models_for, normalize_provider
-from stencil.pricing import estimate_cost_usd
+from polaris.llm import client as llm_client
+from polaris.llm import default_model, models_for, normalize_provider
+from polaris.pricing import estimate_cost_usd
 
 # --- provider catalog ----------------------------------------------------------
 
@@ -171,9 +171,9 @@ def test_refusal_yields_empty_content():
 
 
 def test_settings_response_masks_keys_and_switches_provider(monkeypatch):
-    import stencil.api.settings as api_settings
-    from stencil import runtime_settings as rs
-    from stencil.config import settings
+    import polaris.api.settings as api_settings
+    from polaris import runtime_settings as rs
+    from polaris.config import settings
 
     monkeypatch.setattr(settings, "anthropic_api_key", "sk-ant-env")
     monkeypatch.setattr(settings, "secret_key", "")  # in-app storage off

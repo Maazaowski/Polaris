@@ -26,9 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from sqlalchemy import select  # noqa: E402
 
-from stencil.db.models import ExtractionModelRecord  # noqa: E402
-from stencil.db.session import SessionLocal  # noqa: E402
-from stencil.models.registry import rekey_model_fingerprint  # noqa: E402
+from polaris.db.models import ExtractionModelRecord  # noqa: E402
+from polaris.db.session import SessionLocal  # noqa: E402
+from polaris.models.registry import rekey_model_fingerprint  # noqa: E402
 
 
 def _short(value: str | None, n: int = 18) -> str:

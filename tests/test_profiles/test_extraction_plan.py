@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from stencil.extraction.layout import (
+from polaris.extraction.layout import (
     BBox,
     LayoutCell,
     LayoutDocument,
@@ -9,12 +9,12 @@ from stencil.extraction.layout import (
     PDFTextScan,
     VisualRow,
 )
-from stencil.extraction.plan_executor import (
+from polaris.extraction.plan_executor import (
     execute_extraction_plan,
     resolve_plan_page_numbers,
 )
-from stencil.profiles.plan import effective_extraction_plan
-from stencil.profiles.schema import (
+from polaris.profiles.plan import effective_extraction_plan
+from polaris.profiles.schema import (
     ExtractionPlan,
     ReconciliationRule,
     RegionRule,
@@ -22,7 +22,7 @@ from stencil.profiles.schema import (
     SupplierProfile,
     ValueExpression,
 )
-from stencil.profiles.validation import grade_authoring_evidence
+from polaris.profiles.validation import grade_authoring_evidence
 
 
 def _row(page: int, index: int, text: str, values: list[str]) -> VisualRow:

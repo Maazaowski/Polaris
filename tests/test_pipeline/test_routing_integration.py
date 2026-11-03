@@ -23,18 +23,18 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.config import settings
-from stencil.db import crud
-from stencil.db.models import Base, ExtractionJob, ProcessingLog
-from stencil.extraction.extractor import ExtractionResult, build_canonical_invoice
-from stencil.fingerprint.fingerprinter import fingerprint_pdf
-from stencil.intake.service import process_new_pdf
-from stencil.models.authoring import AuthoringResult
-from stencil.models.registry import approve_model, find_candidate_model, save_model
-from stencil.models.schema import ExtractionModel, ModelStatus
-from stencil.pipeline.processor import _generate_output, continue_pipeline
-from stencil.profiles import loader as profiles_loader
-from stencil.profiles.schema import (
+from polaris.config import settings
+from polaris.db import crud
+from polaris.db.models import Base, ExtractionJob, ProcessingLog
+from polaris.extraction.extractor import ExtractionResult, build_canonical_invoice
+from polaris.fingerprint.fingerprinter import fingerprint_pdf
+from polaris.intake.service import process_new_pdf
+from polaris.models.authoring import AuthoringResult
+from polaris.models.registry import approve_model, find_candidate_model, save_model
+from polaris.models.schema import ExtractionModel, ModelStatus
+from polaris.pipeline.processor import _generate_output, continue_pipeline
+from polaris.profiles import loader as profiles_loader
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,
@@ -100,9 +100,9 @@ def work_dirs(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def no_events(monkeypatch):
     """Pipeline events go to Redis — irrelevant here."""
-    monkeypatch.setattr("stencil.pipeline.processor.publish_event", lambda *a, **k: None)
-    monkeypatch.setattr("stencil.pipeline.processor.publish_completed", lambda *a, **k: None)
-    monkeypatch.setattr("stencil.pipeline.processor.publish_failed", lambda *a, **k: None)
+    monkeypatch.setattr("polaris.pipeline.processor.publish_event", lambda *a, **k: None)
+    monkeypatch.setattr("polaris.pipeline.processor.publish_completed", lambda *a, **k: None)
+    monkeypatch.setattr("polaris.pipeline.processor.publish_failed", lambda *a, **k: None)
 
 
 def _make_profile(status: str) -> SupplierProfile:
@@ -139,9 +139,9 @@ def fake_ai(monkeypatch):
                                 tokens_output=50, duration_ms=10,
                                 ai_model_name="fake-ai")
 
-    monkeypatch.setattr("stencil.pipeline.processor.extract_invoice", fake_extract_invoice)
+    monkeypatch.setattr("polaris.pipeline.processor.extract_invoice", fake_extract_invoice)
     monkeypatch.setattr(
-        "stencil.pipeline.processor.apply_layout_profile_hints",
+        "polaris.pipeline.processor.apply_layout_profile_hints",
         lambda *a, **k: None,
     )
     return calls
@@ -177,9 +177,9 @@ def fake_engine(monkeypatch):
     def fake_execute(model, pdf_path, intake_id, document=None):
         return _canned_invoice(intake_id, model.layout_fingerprint)
 
-    monkeypatch.setattr("stencil.models.training.author_extraction_model", fake_author)
-    monkeypatch.setattr("stencil.models.training.execute_model", fake_execute)
-    monkeypatch.setattr("stencil.pipeline.processor.execute_model", fake_execute)
+    monkeypatch.setattr("polaris.models.training.author_extraction_model", fake_author)
+    monkeypatch.setattr("polaris.models.training.execute_model", fake_execute)
+    monkeypatch.setattr("polaris.pipeline.processor.execute_model", fake_execute)
 
 
 def _ingest(db, tmp_path) -> str:
@@ -317,10 +317,10 @@ def test_production_without_profile_uses_ai_only(db, tmp_path, monkeypatch, fake
         profiles_loader._profiles_cache["other.v1"].identity, "canonical_name", "OtherCo"
     )
 
-    from stencil.classification.classifier import ClassificationResult
+    from polaris.classification.classifier import ClassificationResult
 
     monkeypatch.setattr(
-        "stencil.pipeline.processor.classify_invoice",
+        "polaris.pipeline.processor.classify_invoice",
         lambda pdf_path: ClassificationResult(
             supplier_name="TestCo", output_type="standard", confidence=0.9,
         ),
@@ -338,7 +338,7 @@ def test_production_without_profile_uses_ai_only(db, tmp_path, monkeypatch, fake
 
 
 def crud_record(db):
-    from stencil.db import crud
+    from polaris.db import crud
 
     return crud.find_model_by_profile(db, PROFILE_ID)
 

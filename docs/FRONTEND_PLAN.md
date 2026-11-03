@@ -1,8 +1,8 @@
-# Stencil Frontend Plan
+# Polaris Frontend Plan
 
 ## Overview
 
-A web application that provides a management interface for Stencil's invoice extraction pipeline. Users can upload invoices, create/edit supplier profiles, manage extraction models, monitor pipeline activity, review exceptions, and track system health — all connected to the FastAPI backend.
+A web application that provides a management interface for Polaris's invoice extraction pipeline. Users can upload invoices, create/edit supplier profiles, manage extraction models, monitor pipeline activity, review exceptions, and track system health — all connected to the FastAPI backend.
 
 ---
 
@@ -452,7 +452,7 @@ TypeScript types mirror the backend Pydantic models exactly. This ensures the fr
 ### Key Type Definitions
 
 ```typescript
-// types/invoice.ts — mirrors stencil.validation.schema
+// types/invoice.ts — mirrors polaris.validation.schema
 
 type ChargeType = 'recurring' | 'one_time' | 'tax' | 'fee' | 'credit'
                 | 'adjustment' | 'surcharge' | 'usage' | 'unknown';
@@ -519,7 +519,7 @@ interface ExtractionJob {
 ```
 
 ```typescript
-// types/profile.ts — mirrors stencil.profiles.schema
+// types/profile.ts — mirrors polaris.profiles.schema
 
 interface SupplierIdentity {
   canonical_name: string;
@@ -751,7 +751,7 @@ The frontend plan requires these additions to the existing backend:
 ### New Files
 
 ```
-src/stencil/
+src/polaris/
   api/
     __init__.py
     router.py              # Main API router, includes all sub-routers
@@ -839,10 +839,10 @@ The primary deployment target is an existing Windows Server 2025 machine with an
 │  File system:                                                    │
 │    D:\Astera\Invoices\{customer_id}\{account_number}\pdf  (in)  │
 │    D:\Astera\Invoices\{customer_id}\{account_number}\xls  (out) │
-│    D:\Stencil\archive\                                      │
-│    D:\Stencil\exceptions\                                   │
-│    D:\Stencil\supplier_profiles\                            │
-│    D:\Stencil\extraction_models\                            │
+│    D:\Polaris\archive\                                      │
+│    D:\Polaris\exceptions\                                   │
+│    D:\Polaris\supplier_profiles\                            │
+│    D:\Polaris\extraction_models\                            │
 └──────────────────────────────────────────────────────────────────┘
 
 Services auto-start on boot and restart on failure.
@@ -870,7 +870,7 @@ For local development, a Docker Compose setup is also available:
 │                   └──────────────┘  └───────────────┘   │
 │                                                          │
 │  Shared volumes:                                         │
-│    - stencil_data/                                  │
+│    - polaris_data/                                  │
 │    - supplier_profiles/                                  │
 │    - extraction_models/                                  │
 └──────────────────────────────────────────────────────────┘

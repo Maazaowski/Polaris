@@ -4,9 +4,9 @@ Cover the scorers, the dataset reader, and report round-trip/compare. A stubbed
 AI client exercises a runner without OpenAI; live runs are opt-in via the UI.
 """
 
-from stencil.evals import report, scoring
-from stencil.evals.runners import CaseResult
-from stencil.output.mapper import ColumnDef
+from polaris.evals import report, scoring
+from polaris.evals.runners import CaseResult
+from polaris.output.mapper import ColumnDef
 
 _COLUMNS = [
     ColumnDef(xlsx_header="EXT_SERVICEID", canonical_path="line_item.service_id", width=20),
@@ -317,8 +317,8 @@ def test_baseline_pointer_persists_and_validates_completed_run(tmp_path, monkeyp
 
 
 def test_run_suite_records_kind_and_captured_baseline(tmp_path, monkeypatch):
-    from stencil import runtime_settings
-    from stencil.evals import dataset, runners
+    from polaris import runtime_settings
+    from polaris.evals import dataset, runners
 
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     monkeypatch.setattr(runtime_settings, "openai_model_extraction", lambda: "gpt-5.5")
@@ -355,8 +355,8 @@ def test_run_suite_records_kind_and_captured_baseline(tmp_path, monkeypatch):
 def test_render_report_html(tmp_path, monkeypatch):
     """The HTML report carries the shared prompt template, a layout group with its
     profile.json, and the case rows — enough to attribute a failure to prompt vs profile."""
-    from stencil import runtime_settings
-    from stencil.evals.report_html import render_report_html
+    from polaris import runtime_settings
+    from polaris.evals.report_html import render_report_html
 
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     monkeypatch.setattr(
@@ -398,8 +398,8 @@ def test_render_report_html(tmp_path, monkeypatch):
 def test_run_suite_concurrency_runs_every_case_once(tmp_path, monkeypatch):
     import threading
 
-    from stencil import runtime_settings
-    from stencil.evals import dataset, runners
+    from polaris import runtime_settings
+    from polaris.evals import dataset, runners
 
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     monkeypatch.setattr(runtime_settings, "openai_model_extraction", lambda: "gpt-5.5")
@@ -435,8 +435,8 @@ def test_endpoint_forbidden_when_debug_off(monkeypatch):
     """Evals expose prompts/outputs — must 403 outside debug mode (incl. the report)."""
     from fastapi.testclient import TestClient
 
-    from stencil.api import evals as api_evals
-    from stencil.main import app
+    from polaris.api import evals as api_evals
+    from polaris.main import app
 
     monkeypatch.setattr(
         api_evals.runtime_settings, "runtime_value",
@@ -450,9 +450,9 @@ def test_endpoint_forbidden_when_debug_off(monkeypatch):
 def test_baseline_api_and_current_start_capture(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from stencil.api import evals as api_evals
-    from stencil.main import app
-    from stencil.tasks import worker
+    from polaris.api import evals as api_evals
+    from polaris.main import app
+    from polaris.tasks import worker
 
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     monkeypatch.setattr(api_evals.settings, "work_dir", tmp_path)
@@ -531,8 +531,8 @@ def test_compare_classifies_and_sorts_regressions_first(tmp_path, monkeypatch):
 def test_run_suite_streams_partial_cases_while_running(tmp_path, monkeypatch):
     """Each finished case is persisted immediately so a live poll (read_run) can
     show it before the run completes and run.json is written."""
-    from stencil import runtime_settings
-    from stencil.evals import dataset, runners
+    from polaris import runtime_settings
+    from polaris.evals import dataset, runners
 
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     monkeypatch.setattr(runtime_settings, "openai_model_extraction", lambda: "gpt-5.5")
@@ -570,15 +570,15 @@ def test_run_suite_cancel_skips_unstarted_cases(tmp_path, monkeypatch):
     monkeypatch.setattr(report.settings, "work_dir", tmp_path)
     from pathlib import Path as PathT
 
-    from stencil.evals import runners
-    from stencil.evals.dataset import EvalCase
+    from polaris.evals import runners
+    from polaris.evals.dataset import EvalCase
 
     cases = [
         EvalCase(case_id=f"l/x{i}", layout_id="l", pdf_path=PathT(f"x{i}.pdf"),
                  profile_path=PathT("p.json"), expected_xlsx_path=PathT(f"x{i}.xlsx"))
         for i in range(3)
     ]
-    monkeypatch.setattr("stencil.evals.dataset.discover_cases", lambda *a, **k: cases)
+    monkeypatch.setattr("polaris.evals.dataset.discover_cases", lambda *a, **k: cases)
 
     calls = []
 

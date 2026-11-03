@@ -1,4 +1,4 @@
-# Stencil video series: plan
+# Polaris video series: plan
 
 Eight weekly parts, each on one feature or module, each short enough to watch over coffee. The through-line for the whole series is one sentence: **the first invoice from a layout pays for AI, every invoice after it is free.** Every episode should land back on that sentence.
 
@@ -11,12 +11,12 @@ Target length 4 to 7 minutes. Record at 1920×1080 with the browser at 125% zoom
 1. **A valid AI key** saved in Settings (OpenAI or Anthropic). Episodes 2, 4, 5 and 7 need it. The key on file today is dead.
 2. **Demo data that looks alive.** Either keep the current dev database (rich, but the top of the queue is a wall of failed Granite intakes from the dead key) or reset with the Danger zone and seed. A `seed_demo.py` script (see the audit) is the cleanest path: two suppliers, approved templates, twenty processed invoices across a month so Insights has curves.
 3. **Run the Docker stack, not `next dev`,** for recording. Routes are pre-built, so there is no first-visit compile stutter on camera.
-4. **Supplier folders on screen.** Have `C:\Stencil\<Supplier>\pdf` open in Explorer next to the browser for the drop-a-file moments.
+4. **Supplier folders on screen.** Have `C:\Polaris\<Supplier>\pdf` open in Explorer next to the browser for the drop-a-file moments.
 5. **One real invoice pair per layout.** The corpus Colt invoices work today: eight PDFs, same layout, approved template. Keep two aside for "the second one is free".
 
 ## The episodes
 
-### Part 1: What Stencil is, in five minutes
+### Part 1: What Polaris is, in five minutes
 
 *Module: the whole product. Pure demo, no configuration.*
 
@@ -24,7 +24,7 @@ Target length 4 to 7 minutes. Record at 1920×1080 with the browser at 125% zoom
 - Drop a Colt PDF into its folder. Cut to the queue: it appears, the timeline ticks through intake, fingerprint, routing, template, reconcile, output.
 - Open the invoice: delivered rows, the totals that reconcile, the XLSX download. Point at **Path: FREE, cost $0.00, 0 tokens**.
 - Click **Show on PDF**, then the crosshair on one row: the page appears with that row outlined and the amount cell marked. "Every number in this spreadsheet points back at the place it was printed."
-- The hook: "that was the second Colt invoice. Here is what the first one looked like" → cut to an AI-path invoice with its token count and cost. "Stencil read it once, wrote the rules, and has not paid since."
+- The hook: "that was the second Colt invoice. Here is what the first one looked like" → cut to an AI-path invoice with its token count and cost. "Polaris read it once, wrote the rules, and has not paid since."
 - Close on the queue's three counters: need you, reconciled, ran free.
 
 Prep: approved Colt template (done), a processed AI-path invoice to contrast with.
@@ -51,7 +51,7 @@ Prep: valid key, debug mode on, one invoice from a supplier that does not exist 
 
 Prep: none beyond the current data.
 
-### Part 4: Teaching Stencil a layout (AI training loop)
+### Part 4: Teaching Polaris a layout (AI training loop)
 
 *Module: training, candidate models, approval.*
 
@@ -78,7 +78,7 @@ Prep: valid key is not required for the builder itself; the eval-folder scoring 
 *Module: exception queue, reconciliation, layout drift, reject and regenerate.*
 
 - Show a variance exception: the line items do not add up to the stated total; open it, see the partial output, resolve or retry.
-- Show layout drift: a supplier changed their invoice; the fingerprint no longer matches; Stencil falls back to AI and flags it instead of delivering wrong numbers silently.
+- Show layout drift: a supplier changed their invoice; the fingerprint no longer matches; Polaris falls back to AI and flags it instead of delivering wrong numbers silently.
 - Clone the template to retrain, approve the new version, roll back if needed; versions tab.
 - Mention the re-key script for the case where *you* changed the profile, not the supplier.
 

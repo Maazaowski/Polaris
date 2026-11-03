@@ -1,6 +1,6 @@
 """Unit tests for the deterministic instruction compiler."""
 
-from stencil.extraction.instructions import (
+from polaris.extraction.instructions import (
     NOTE_OVERRIDE,
     STRUCTURED_WINS,
     compile_instructions,

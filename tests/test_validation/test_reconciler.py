@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from stencil.validation.reconciler import reconcile
-from stencil.validation.schema import (
+from polaris.validation.reconciler import reconcile
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -70,7 +70,7 @@ def _li(amount: str, charge_type: str = "recurring", **kw) -> LineItem:
 # Pin the variance threshold so tests don't depend on .env / runtime settings.
 @pytest.fixture(autouse=True)
 def _mock_settings():
-    from stencil import runtime_settings
+    from polaris import runtime_settings
 
     real = runtime_settings.runtime_value
 
@@ -79,7 +79,7 @@ def _mock_settings():
             return 0.01  # 1%
         return real(name)
 
-    with patch("stencil.validation.reconciler.runtime_settings.runtime_value", side_effect=fake):
+    with patch("polaris.validation.reconciler.runtime_settings.runtime_value", side_effect=fake):
         yield
 
 
@@ -138,7 +138,7 @@ class TestPerfectMatch:
         # Invoice-level-only tax under the default (auto) mode: the delivered
         # EXT_TAX is allocated across lines and must sum to the stated tax, so no
         # "delivered EXT_TAX" mismatch is raised.
-        from stencil.output.xlsx_writer import delivered_tax_sum
+        from polaris.output.xlsx_writer import delivered_tax_sum
 
         items = [_li("600.00", "recurring"), _li("400.00", "recurring", line_number=2)]
         inv = _make_invoice(
@@ -484,8 +484,8 @@ class TestUncoercedTotals:
 def _anchored_schema():
     """Default schema with the subtotal + document tax fields given printed
     labels — i.e. a profile that 'configures' reconciliation anchors."""
-    from stencil.fields.loader import default_field_schema
-    from stencil.fields.schema import FieldSchema
+    from polaris.fields.loader import default_field_schema
+    from polaris.fields.schema import FieldSchema
 
     base = default_field_schema()
     fields = []
@@ -499,8 +499,8 @@ def _anchored_schema():
 
 
 def _tax_included_subtotal_schema():
-    from stencil.fields.loader import default_field_schema
-    from stencil.fields.schema import FieldSchema
+    from polaris.fields.loader import default_field_schema
+    from polaris.fields.schema import FieldSchema
 
     base = default_field_schema()
     fields = []
@@ -569,8 +569,8 @@ def test_anchored_flags_tax_mismatch_from_per_line_tax():
 
 def _excluded_total_schema():
     """Base schema plus a document field flagged as an excluded section total."""
-    from stencil.fields.loader import default_field_schema, merge_field_schema
-    from stencil.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+    from polaris.fields.loader import default_field_schema, merge_field_schema
+    from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
 
     override = FieldDef(
         name="total_account_level_charges",

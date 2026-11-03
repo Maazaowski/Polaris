@@ -1,8 +1,8 @@
-# Stencil Backend Plan
+# Polaris Backend Plan
 
 ## Overview
 
-Stencil is a hybrid AI invoice extraction system. AI generates reusable extraction models for new PDF layouts; known layouts use those models directly with zero AI cost. This document covers the backend services, pipeline, and data layer.
+Polaris is a hybrid AI invoice extraction system. AI generates reusable extraction models for new PDF layouts; known layouts use those models directly with zero AI cost. This document covers the backend services, pipeline, and data layer.
 
 **Target milestone:** June 30, 2026 — Standard invoice production POC pilot.
 
@@ -101,7 +101,7 @@ Production environment uses per-customer/supplier directory paths matching the e
 D:\Astera\Invoices\
   {customer_id}\
     {account_number}\
-      pdf\                    # Inbound PDFs (Stencil watches these)
+      pdf\                    # Inbound PDFs (Polaris watches these)
       xls\                    # Output XLSX + JSON (AP bot picks up from here)
 ```
 
@@ -128,7 +128,7 @@ Alternative: `pywin32` for native Python Windows Service integration.
 ## Project Structure (Backend)
 
 ```
-src/stencil/
+src/polaris/
   __init__.py
   main.py                     # FastAPI app entry point
   config.py                   # Settings (Pydantic BaseSettings)

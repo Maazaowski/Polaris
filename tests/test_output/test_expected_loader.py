@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 from openpyxl import Workbook
 
-from stencil.models.diff import diff_output_rows
-from stencil.output.expected_loader import load_blueprint_context, load_expected_rows
-from stencil.output.mapper import output_spec_to_columns
-from stencil.specs.loader import default_output_spec
+from polaris.models.diff import diff_output_rows
+from polaris.output.expected_loader import load_blueprint_context, load_expected_rows
+from polaris.output.mapper import output_spec_to_columns
+from polaris.specs.loader import default_output_spec
 
 
 def _write_xlsx(path: Path, headers: list[str], rows: list[list]) -> None:

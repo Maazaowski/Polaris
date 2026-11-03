@@ -5,14 +5,14 @@ test that depended on it would silently skip in CI, which is exactly how the
 30-page cap survived.
 """
 
-from stencil.extraction.layout import (
+from polaris.extraction.layout import (
     BBox,
     LayoutCell,
     LayoutDocument,
     LayoutPage,
     VisualRow,
 )
-from stencil.extraction.page_roles import classify_pages
+from polaris.extraction.page_roles import classify_pages
 
 
 def _cell(text: str, x0: float, index: int, row_index: int) -> LayoutCell:
@@ -198,7 +198,7 @@ def test_end_to_end_through_real_pdf_parsing(tmp_path):
     """
     import fitz
 
-    from stencil.extraction.layout import extract_layout_document
+    from polaris.extraction.layout import extract_layout_document
 
     path = tmp_path / "structured.pdf"
     doc = fitz.open()

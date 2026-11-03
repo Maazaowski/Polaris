@@ -1,7 +1,7 @@
 """Registry CRUD round-trip + disk seeder idempotency (DB-backed config)."""
 
-from stencil.profiles.loader import delete_profile, get_profile, save_profile
-from stencil.profiles.schema import SupplierProfile
+from polaris.profiles.loader import delete_profile, get_profile, save_profile
+from polaris.profiles.schema import SupplierProfile
 
 
 def _profile(profile_id: str, *, status: str = "active") -> SupplierProfile:
@@ -33,7 +33,7 @@ def test_profile_crud_round_trip(isolated_db):
 
 
 def test_seed_is_idempotent(isolated_db):
-    from stencil.db.seed import seed_registries_from_disk
+    from polaris.db.seed import seed_registries_from_disk
 
     first = seed_registries_from_disk()
     # Builtin field schema + output spec are committed and seed into the empty DB.

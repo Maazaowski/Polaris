@@ -1,6 +1,6 @@
-from stencil.config import settings
-from stencil.db import session as db_session
-from stencil.intake.service import process_new_pdf
+from polaris.config import settings
+from polaris.db import session as db_session
+from polaris.intake.service import process_new_pdf
 
 
 def test_supplier_watcher_intake_preserves_original_pdf(isolated_db, tmp_path, monkeypatch):

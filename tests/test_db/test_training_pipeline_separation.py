@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base, ExtractionJob, IntakeRecord
+from polaris.db import crud
+from polaris.db.models import Base, ExtractionJob, IntakeRecord
 
 
 @pytest.fixture()
@@ -111,9 +111,9 @@ def test_ai_cost_breakdown_attributes_training_extraction(db):
 def test_gate_never_extracts_for_unprocessed_samples(db, tmp_path, monkeypatch):
     """The training-set gate is polled in the web request thread — it must report
     staged-but-unprocessed samples as 'pending' and NEVER trigger AI extraction."""
-    from stencil.models import training
-    from stencil.models.schema import ExtractionModel
-    from stencil.profiles.schema import (
+    from polaris.models import training
+    from polaris.models.schema import ExtractionModel
+    from polaris.profiles.schema import (
         ClassificationSignals,
         SupplierIdentity,
         SupplierProfile,
@@ -167,8 +167,8 @@ def test_training_run_lifecycle(db):
 
 
 def test_deleting_model_clears_stale_training_runs(db):
-    from stencil.models import registry
-    from stencil.models.schema import ExtractionModel
+    from polaris.models import registry
+    from polaris.models.schema import ExtractionModel
 
     registry.save_model(
         db,

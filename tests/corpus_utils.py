@@ -19,7 +19,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from stencil.evals.dataset import read_expected_xlsx_rows  # noqa: F401  (re-exported for tests)
+from polaris.evals.dataset import read_expected_xlsx_rows  # noqa: F401  (re-exported for tests)
 
 CORPUS_ROOT = Path(__file__).resolve().parent / "fixtures" / "corpus"
 
@@ -48,12 +48,12 @@ class CorpusLayout:
         return self.root / "expected" / f"{pdf.stem}.xlsx"
 
     def load_profile(self):
-        from stencil.profiles.schema import SupplierProfile
+        from polaris.profiles.schema import SupplierProfile
 
         return SupplierProfile.model_validate_json(self.profile_path.read_text(encoding="utf-8"))
 
     def load_model(self):
-        from stencil.models.schema import ExtractionModel
+        from polaris.models.schema import ExtractionModel
 
         return ExtractionModel.model_validate_json(self.model_path.read_text(encoding="utf-8"))
 
@@ -68,8 +68,8 @@ def load_corpus_profile(name: str):
     ``supplier_profiles/`` registry holds only client data (not committed), so it
     seeds zero profiles in CI. The corpus snapshots are the canonical fixtures.
     """
-    from stencil.profiles.migrate import migrate_profile_dict
-    from stencil.profiles.schema import SupplierProfile
+    from polaris.profiles.migrate import migrate_profile_dict
+    from polaris.profiles.schema import SupplierProfile
 
     path = CORPUS_ROOT / name / "profile.json"
     return SupplierProfile.model_validate(migrate_profile_dict(json.loads(path.read_text(encoding="utf-8"))))
@@ -113,4 +113,4 @@ def pdf_params() -> list:
     return params
 
 
-# read_expected_xlsx_rows is re-exported from stencil.evals.dataset (see import above).
+# read_expected_xlsx_rows is re-exported from polaris.evals.dataset (see import above).

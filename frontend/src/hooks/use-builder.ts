@@ -395,7 +395,7 @@ export interface EvalFolderResult {
   files_total: number;
 }
 
-/** Score a draft model against a whole eval-case folder (ST_DEBUG only): per-file
+/** Score a draft model against a whole eval-case folder (POLARIS_DEBUG only): per-file
  * matched/expected row counts, the same diff the eval runner uses, at $0. */
 export function useEvalFolder() {
   return useMutation({

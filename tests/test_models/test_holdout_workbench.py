@@ -12,17 +12,17 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db.models import Base
-from stencil.extraction.layout import LayoutDocument
-from stencil.models import registry, training
-from stencil.models.authoring import AuthoringResult
-from stencil.models.schema import ExtractionModel
-from stencil.profiles.schema import (
+from polaris.db.models import Base
+from polaris.extraction.layout import LayoutDocument
+from polaris.models import registry, training
+from polaris.models.authoring import AuthoringResult
+from polaris.models.schema import ExtractionModel
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -182,7 +182,7 @@ def test_holdout_survives_reauthoring(db, monkeypatch, tmp_path):
 
     def fake_save(_db, model):
         saved.append(model)
-        from stencil.models.registry import SaveModelResult
+        from polaris.models.registry import SaveModelResult
         return SaveModelResult(model_id=model.model_id, action="created", persisted_status="candidate")
 
     monkeypatch.setattr(training, "save_model", fake_save)
@@ -219,7 +219,7 @@ def test_holdout_validates_after_success_without_blocking_save(db, monkeypatch, 
 
     def fake_save(_db, model):
         saved.append(model)
-        from stencil.models.registry import SaveModelResult
+        from polaris.models.registry import SaveModelResult
         return SaveModelResult(model_id=model.model_id, action="created", persisted_status="candidate")
 
     monkeypatch.setattr(training, "author_extraction_model", fake_author)

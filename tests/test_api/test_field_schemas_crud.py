@@ -4,8 +4,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from stencil.config import settings
-from stencil.main import app
+from polaris.config import settings
+from polaris.main import app
 
 
 @pytest.fixture

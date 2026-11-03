@@ -1,9 +1,9 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.extraction.evidence import align_invoice_to_layout
-from stencil.extraction.layout import BBox, LayoutCell, LayoutDocument, LayoutPage, VisualRow
-from stencil.validation.schema import (
+from polaris.extraction.evidence import align_invoice_to_layout
+from polaris.extraction.layout import BBox, LayoutCell, LayoutDocument, LayoutPage, VisualRow
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

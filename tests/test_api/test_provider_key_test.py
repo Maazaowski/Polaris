@@ -3,9 +3,9 @@
 import httpx
 from fastapi.testclient import TestClient
 
-from stencil import secrets
-from stencil.llm import probe
-from stencil.main import app
+from polaris import secrets
+from polaris.llm import probe
+from polaris.main import app
 
 
 class _Response:
@@ -57,7 +57,7 @@ def test_endpoint_uses_the_configured_key_and_never_returns_it(isolated_db, monk
         probe, "probe_provider_key",
         lambda provider, key, **kw: probe.ProbeResult(provider, key == "sk-live-secret", 200, "Key accepted.", 3),
     )
-    import stencil.api.settings as settings_api
+    import polaris.api.settings as settings_api
 
     monkeypatch.setattr(settings_api, "probe_provider_key", probe.probe_provider_key)
 

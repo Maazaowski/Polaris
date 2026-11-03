@@ -12,9 +12,9 @@ from decimal import Decimal
 import fitz
 import pytest
 
-from stencil.extraction.layout import extract_layout_document, pdf_page_count
-from stencil.models.interpreter import execute_model
-from stencil.models.schema import (
+from polaris.extraction.layout import extract_layout_document, pdf_page_count
+from polaris.models.interpreter import execute_model
+from polaris.models.schema import (
     ExtractionModel,
     FieldSource,
     FieldTransform,

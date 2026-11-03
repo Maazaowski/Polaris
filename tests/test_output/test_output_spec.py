@@ -3,17 +3,17 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.fields.loader import default_field_schema
-from stencil.models.diff import diff_invoices
-from stencil.output.spec import OutputColumn, OutputSpec
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles.schema import AdvancedHints, LineItemHints, SupplierIdentity, SupplierProfile
-from stencil.specs.loader import (
+from polaris.fields.loader import default_field_schema
+from polaris.models.diff import diff_invoices
+from polaris.output.spec import OutputColumn, OutputSpec
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.schema import AdvancedHints, LineItemHints, SupplierIdentity, SupplierProfile
+from polaris.specs.loader import (
     resolve_output_spec,
     validate_output_spec,
     validate_profile_output_mapping,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -121,7 +121,7 @@ def test_billing_reference_none_disables_service_id_fallback(monkeypatch):
             ),
         ],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
 
     profile = SupplierProfile(
         profile_id="granite.test",
@@ -150,7 +150,7 @@ def test_billing_reference_column_label_disables_service_id_fallback(monkeypatch
             ),
         ],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
 
     profile = SupplierProfile(
         profile_id="granite.test",
@@ -174,7 +174,7 @@ def test_profile_output_mapping_can_replace_document_date_with_row_date(monkeypa
         spec_id="temforce.standard",
         columns=[OutputColumn(header="EXT_DATE", source="field.invoice_date")],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
     profile = SupplierProfile(
         profile_id="acme.billing-date",
         identity=SupplierIdentity(canonical_name="Acme"),
@@ -206,7 +206,7 @@ def test_profile_output_mapping_applies_safe_transform_after_resolution(monkeypa
         spec_id="temforce.standard",
         columns=[OutputColumn(header="EXT_ACCOUNT", source="field.account_number")],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
     profile = SupplierProfile(
         profile_id="orange.account",
         identity=SupplierIdentity(canonical_name="Orange"),
@@ -232,7 +232,7 @@ def test_profile_output_mapping_can_clear_fallback_and_wins_compatibility(monkey
             fallback="row.service_id",
         )],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
     profile = SupplierProfile(
         profile_id="acme.billing-reference",
         identity=SupplierIdentity(canonical_name="Acme"),
@@ -260,7 +260,7 @@ def test_profile_output_mapping_validation_rejects_unknown_duplicate_and_ambiguo
             OutputColumn(header="DATE", source="field.due_date"),
         ],
     )
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
     profile = SupplierProfile(
         profile_id="acme.invalid",
         identity=SupplierIdentity(canonical_name="Acme"),

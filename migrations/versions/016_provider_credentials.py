@@ -1,6 +1,6 @@
 """Add provider_credentials table (encrypted LLM API keys).
 
-Stores each LLM provider's API key encrypted at rest (Fernet/ST_SECRET_KEY). Kept
+Stores each LLM provider's API key encrypted at rest (Fernet/POLARIS_SECRET_KEY). Kept
 separate from runtime_settings so the ciphertext never rides in the general
 settings JSON blob.
 

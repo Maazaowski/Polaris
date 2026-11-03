@@ -5,11 +5,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base
-from stencil.extraction.normalization import build_grouped_line_items, has_grouping_policy
-from stencil.models.schema import ExtractionModel, LineItemStrategy
-from stencil.profiles.schema import LineItemHints
+from polaris.db import crud
+from polaris.db.models import Base
+from polaris.extraction.normalization import build_grouped_line_items, has_grouping_policy
+from polaris.models.schema import ExtractionModel, LineItemStrategy
+from polaris.profiles.schema import LineItemHints
 
 
 @pytest.fixture()
@@ -46,7 +46,7 @@ def test_build_grouped_line_items_returns_empty_without_policy():
 
 
 def _empty_doc():
-    from stencil.extraction.layout import LayoutDocument
+    from polaris.extraction.layout import LayoutDocument
     return LayoutDocument(pages=[])
 
 
@@ -72,8 +72,8 @@ def test_model_carries_line_item_strategy():
 
 
 def test_authoring_attaches_strategy_for_grouped_profile():
-    from stencil.models.authoring import _apply_grouping_strategy
-    from stencil.profiles.schema import (
+    from polaris.models.authoring import _apply_grouping_strategy
+    from polaris.profiles.schema import (
         AdvancedHints,
         ClassificationSignals,
         DocumentStructure,
@@ -106,8 +106,8 @@ def test_authoring_attaches_strategy_for_grouped_profile():
 
 
 def test_authoring_skips_strategy_without_policy():
-    from stencil.models.authoring import _apply_grouping_strategy
-    from stencil.profiles.schema import (
+    from polaris.models.authoring import _apply_grouping_strategy
+    from polaris.profiles.schema import (
         ClassificationSignals,
         SupplierIdentity,
         SupplierProfile,

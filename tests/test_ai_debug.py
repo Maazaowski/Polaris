@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stencil import ai_debug
+from polaris import ai_debug
 
 
 def _response(content='{"ok": 1}'):
@@ -116,8 +116,8 @@ def test_endpoint_forbidden_when_debug_off(monkeypatch):
     """Prompts must never be exposed in production — the API gates on debug."""
     from fastapi.testclient import TestClient
 
-    from stencil.api import ai_debug as api_ai_debug
-    from stencil.main import app
+    from polaris.api import ai_debug as api_ai_debug
+    from polaris.main import app
 
     monkeypatch.setattr(
         api_ai_debug.runtime_settings, "runtime_value",

@@ -6,15 +6,15 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
-from stencil.extraction.layout import LayoutDocument
-from stencil.fields.loader import default_field_schema
-from stencil.output.spec import OutputColumn, OutputSpec
-from stencil.profiles.authoring import (
+from polaris.extraction.layout import LayoutDocument
+from polaris.fields.loader import default_field_schema
+from polaris.output.spec import OutputColumn, OutputSpec
+from polaris.profiles.authoring import (
     draft_to_supplier_profile_dict,
     supplier_profile_to_draft,
 )
-from stencil.profiles.schema import SupplierProfile
-from stencil.validation.schema import (
+from polaris.profiles.schema import SupplierProfile
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -112,7 +112,7 @@ def test_finalize_merge_preserves_non_ai_config_as_new_version():
         draft, output_spec_id=prof.output_spec_id, field_schema_id=prof.field_schema_id,
         field_schema=default_field_schema(),
     )
-    from stencil.api.profile_authoring import _merge_source_profile_config
+    from polaris.api.profile_authoring import _merge_source_profile_config
 
     merged = _merge_source_profile_config(prof, authored)
     merged["version"] = prof.version + 1
@@ -161,7 +161,7 @@ def test_scoped_field_path_selects_row_field_without_name_ambiguity():
 
 
 def test_edit_merge_uses_complete_authored_mapping_list_and_legacy_omission_preserves():
-    from stencil.api.profile_authoring import _merge_source_profile_config
+    from polaris.api.profile_authoring import _merge_source_profile_config
 
     source = _source_profile()
     reset = _merge_source_profile_config(source, {"output_mapping_overrides": []})
@@ -175,10 +175,10 @@ def test_edit_merge_uses_complete_authored_mapping_list_and_legacy_omission_pres
 def test_edit_with_ai_endpoints_and_tasks_are_wired():
     import inspect
 
-    from stencil.api.profile_authoring import CreateSessionRequest
-    from stencil.db.crud import create_authoring_session
-    from stencil.profiles import authoring_runtime
-    from stencil.tasks.worker import authoring_reextract_task  # noqa: F401
+    from polaris.api.profile_authoring import CreateSessionRequest
+    from polaris.db.crud import create_authoring_session
+    from polaris.profiles import authoring_runtime
+    from polaris.tasks.worker import authoring_reextract_task  # noqa: F401
 
     assert "source_profile_id" in CreateSessionRequest.model_fields
     assert "source_profile_id" in inspect.signature(create_authoring_session).parameters
@@ -189,7 +189,7 @@ def test_edit_with_ai_endpoints_and_tasks_are_wired():
 def test_authoring_preview_and_blueprint_diff_use_effective_output_mapping(
     tmp_path, monkeypatch,
 ):
-    from stencil.profiles import authoring_runtime
+    from polaris.profiles import authoring_runtime
 
     spec = OutputSpec(
         spec_id="date.mapping",
@@ -199,7 +199,7 @@ def test_authoring_preview_and_blueprint_diff_use_effective_output_mapping(
         ],
     )
     monkeypatch.setattr(authoring_runtime, "get_output_spec", lambda _spec_id: spec)
-    monkeypatch.setattr("stencil.specs.loader.get_output_spec", lambda _spec_id: spec)
+    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
     monkeypatch.setattr(authoring_runtime, "get_field_schema", lambda _schema_id: default_field_schema())
 
     invoice = CanonicalInvoice(
@@ -255,7 +255,7 @@ def test_authoring_preview_and_blueprint_diff_use_effective_output_mapping(
 
 
 def test_authoring_preview_keeps_failed_samples_visible(monkeypatch):
-    from stencil.profiles import authoring_runtime
+    from polaris.profiles import authoring_runtime
 
     sample = SimpleNamespace(
         id="sample-1",
@@ -279,7 +279,7 @@ def test_authoring_preview_keeps_failed_samples_visible(monkeypatch):
 
 
 def test_initial_authoring_extraction_uses_selected_field_schema(tmp_path, monkeypatch):
-    from stencil.profiles import authoring_runtime
+    from polaris.profiles import authoring_runtime
 
     artifact_dir = tmp_path / "sample"
     artifact_dir.mkdir()
@@ -312,7 +312,7 @@ def test_initial_authoring_extraction_uses_selected_field_schema(tmp_path, monke
 def test_authoring_turn_auto_reextracts_refine_turns_with_existing_draft():
     import inspect
 
-    from stencil.profiles.authoring_runtime import run_turn
+    from polaris.profiles.authoring_runtime import run_turn
 
     source = inspect.getsource(run_turn)
     assert "previous_draft = session.draft_profile" in source
@@ -325,10 +325,10 @@ def test_authoring_turn_auto_reextracts_refine_turns_with_existing_draft():
 
 
 def test_authoring_queue_serializes_turns_in_order(isolated_db, monkeypatch):
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.profiles import authoring_runtime
-    from stencil.tasks.worker import _run_authoring_queue
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.profiles import authoring_runtime
+    from polaris.tasks.worker import _run_authoring_queue
 
     seen: list[str] = []
 
@@ -371,10 +371,10 @@ def test_authoring_queue_serializes_turns_in_order(isolated_db, monkeypatch):
 
 
 def test_cancel_authoring_revokes_all_session_runners_and_resets_state(isolated_db, monkeypatch):
-    from stencil.api.profile_authoring import cancel_session_authoring
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.tasks import worker
+    from polaris.api.profile_authoring import cancel_session_authoring
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.tasks import worker
 
     revoked: list[tuple[list[str], bool]] = []
     monkeypatch.setattr(
@@ -418,8 +418,8 @@ def test_cancel_authoring_revokes_all_session_runners_and_resets_state(isolated_
 
 
 def test_authoring_dispatch_uses_job_id_as_celery_task_id(monkeypatch):
-    from stencil.api.profile_authoring import _enqueue_runner
-    from stencil.tasks import worker
+    from polaris.api.profile_authoring import _enqueue_runner
+    from polaris.tasks import worker
 
     dispatched = []
     monkeypatch.setattr(
@@ -434,10 +434,10 @@ def test_authoring_dispatch_uses_job_id_as_celery_task_id(monkeypatch):
 
 
 def test_delete_uploaded_authoring_invoice_removes_artifacts_and_preview(isolated_db, tmp_path, monkeypatch):
-    from stencil.api.profile_authoring import delete_invoice
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.profiles import authoring_runtime
+    from polaris.api.profile_authoring import delete_invoice
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.profiles import authoring_runtime
 
     monkeypatch.setattr(authoring_runtime.settings, "work_dir", tmp_path)
 
@@ -470,10 +470,10 @@ def test_delete_uploaded_authoring_invoice_removes_artifacts_and_preview(isolate
 def test_delete_authoring_invoice_rejects_finalized_or_busy_sessions(isolated_db, tmp_path, monkeypatch):
     from fastapi import HTTPException
 
-    from stencil.api.profile_authoring import delete_invoice
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.profiles import authoring_runtime
+    from polaris.api.profile_authoring import delete_invoice
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.profiles import authoring_runtime
 
     monkeypatch.setattr(authoring_runtime.settings, "work_dir", tmp_path)
 
@@ -513,9 +513,9 @@ def test_delete_authoring_invoice_rejects_finalized_or_busy_sessions(isolated_db
 def test_reextract_with_draft_includes_new_uploaded_samples(isolated_db, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.profiles import authoring_runtime
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.profiles import authoring_runtime
 
     extracted: list[str] = []
     parsed: list[str] = []
@@ -567,9 +567,9 @@ def test_reextract_with_draft_includes_new_uploaded_samples(isolated_db, tmp_pat
 def test_authoring_reextract_can_continue_after_one_sample_fails(isolated_db, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from stencil.db import crud
-    from stencil.db.session import SessionLocal
-    from stencil.profiles import authoring_runtime
+    from polaris.db import crud
+    from polaris.db.session import SessionLocal
+    from polaris.profiles import authoring_runtime
 
     monkeypatch.setattr(authoring_runtime, "_preview_profile_from_draft", lambda session, draft: SimpleNamespace())
     monkeypatch.setattr(authoring_runtime, "resolve_merged_field_schema", lambda profile: SimpleNamespace())

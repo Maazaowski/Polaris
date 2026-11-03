@@ -1,6 +1,6 @@
 /**
  * TypeScript type definitions matching backend Pydantic schemas.
- * Keep in sync with: src/stencil/api/schemas.py, validation/schema.py
+ * Keep in sync with: src/polaris/api/schemas.py, validation/schema.py
  */
 
 // ── Enums ──────────────────────────────────────────────────

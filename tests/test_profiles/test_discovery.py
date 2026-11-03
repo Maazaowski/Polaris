@@ -1,6 +1,6 @@
-from stencil.extraction.layout import PageTextScan, PDFTextScan
-from stencil.output.spec import OutputColumn, OutputSpec
-from stencil.profiles.discovery import (
+from polaris.extraction.layout import PageTextScan, PDFTextScan
+from polaris.output.spec import OutputColumn, OutputSpec
+from polaris.profiles.discovery import (
     BlueprintSignature,
     _candidate_plan,
     _discover_invoice,

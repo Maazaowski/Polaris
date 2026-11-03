@@ -147,7 +147,7 @@ export default function EvalsPage() {
       setLabel("");
       toast.success("Eval run started.");
     } catch {
-      toast.error("Could not start the run (is ST_DEBUG on?).");
+      toast.error("Could not start the run (is POLARIS_DEBUG on?).");
     }
   }
 

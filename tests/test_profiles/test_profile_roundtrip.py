@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from stencil.evals.dataset import eval_corpus_dir
-from stencil.profiles.migrate import migrate_profile_dict
-from stencil.profiles.schema import LineItemHints, SupplierProfile
+from polaris.evals.dataset import eval_corpus_dir
+from polaris.profiles.migrate import migrate_profile_dict
+from polaris.profiles.schema import LineItemHints, SupplierProfile
 
 # The advanced knobs that used to be silently dropped by the editor allowlist.
 _ADVANCED_HINT_FIELDS = {

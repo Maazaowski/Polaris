@@ -13,10 +13,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base, IntakeRecord
-from stencil.models import registry
-from stencil.models.schema import ExtractionModel
+from polaris.db import crud
+from polaris.db.models import Base, IntakeRecord
+from polaris.models import registry
+from polaris.models.schema import ExtractionModel
 
 
 @pytest.fixture()
@@ -60,8 +60,8 @@ def _seed(db: Session, *, intake_id: str = "intake-1", with_pdf: bool = True) ->
 
 def _stub_fingerprinter(monkeypatch, new_hash: str = "sha256:new"):
     """Stand in for pymupdf + the profile store; the test is about the re-key contract."""
-    import stencil.fingerprint.fingerprinter as fp
-    import stencil.profiles.loader as loader
+    import polaris.fingerprint.fingerprinter as fp
+    import polaris.profiles.loader as loader
 
     calls: list[tuple[Path, object]] = []
 

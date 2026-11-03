@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from stencil.fingerprint.fingerprinter import (
+from polaris.fingerprint.fingerprinter import (
     LayoutFeatures,
     _is_label,
     _is_table_header,
@@ -130,7 +130,7 @@ class TestComputeFingerprint:
         assert compute_fingerprint_legacy(f1) == compute_fingerprint_legacy(f2)
 
     def test_font_sizes_do_not_change_profile_hash(self):
-        from stencil.fingerprint.fingerprinter import (
+        from polaris.fingerprint.fingerprinter import (
             LayoutSpan,
             ResolvedFingerprintConfig,
             compute_fingerprint_profile,
@@ -177,7 +177,7 @@ class TestComputeFingerprint:
 
 
 class TestExtractLayoutFeatures:
-    @patch("stencil.fingerprint.fingerprinter.fitz")
+    @patch("polaris.fingerprint.fingerprinter.fitz")
     def test_extracts_features_from_pdf(self, mock_fitz):
         blocks = [
             _make_text_block(
@@ -205,7 +205,7 @@ class TestExtractLayoutFeatures:
         assert 10.0 in features.font_sizes_used
         doc.close.assert_called_once()
 
-    @patch("stencil.fingerprint.fingerprinter.fitz")
+    @patch("polaris.fingerprint.fingerprinter.fitz")
     def test_max_pages_respected(self, mock_fitz):
         pages = [_mock_page([]) for _ in range(5)]
         doc = _mock_doc(pages)
@@ -221,7 +221,7 @@ class TestExtractLayoutFeatures:
 
 
 class TestFingerprintPdf:
-    @patch("stencil.fingerprint.fingerprinter.fitz")
+    @patch("polaris.fingerprint.fingerprinter.fitz")
     def test_returns_fingerprint_and_features(self, mock_fitz):
         blocks = [
             _make_text_block(

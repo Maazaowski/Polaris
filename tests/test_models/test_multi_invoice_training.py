@@ -7,21 +7,21 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base
-from stencil.extraction.layout import LayoutDocument
-from stencil.extraction.prompts import build_authoring_user_prompt
-from stencil.models import registry, training
-from stencil.models.authoring import AuthoringResult
-from stencil.models.registry import SaveModelResult
-from stencil.models.schema import ExtractionModel, LineItemStrategy
-from stencil.models.training import TrainingExample
-from stencil.profiles.schema import (
+from polaris.db import crud
+from polaris.db.models import Base
+from polaris.extraction.layout import LayoutDocument
+from polaris.extraction.prompts import build_authoring_user_prompt
+from polaris.models import registry, training
+from polaris.models.authoring import AuthoringResult
+from polaris.models.registry import SaveModelResult
+from polaris.models.schema import ExtractionModel, LineItemStrategy
+from polaris.models.training import TrainingExample
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -419,7 +419,7 @@ def test_load_training_example_populates_fingerprint_during_training_load(db, mo
     invoice_dir.mkdir(parents=True)
     (invoice_dir / "original.pdf").write_bytes(b"%PDF-1.4\n")
 
-    from stencil.fingerprint import fingerprinter
+    from polaris.fingerprint import fingerprinter
 
     monkeypatch.setattr(
         fingerprinter,
@@ -460,7 +460,7 @@ def test_load_training_example_rejects_mixed_fingerprint(db, monkeypatch, tmp_pa
     invoice_dir.mkdir(parents=True)
     (invoice_dir / "original.pdf").write_bytes(b"%PDF-1.4\n")
 
-    from stencil.fingerprint import fingerprinter
+    from polaris.fingerprint import fingerprinter
 
     monkeypatch.setattr(
         fingerprinter,

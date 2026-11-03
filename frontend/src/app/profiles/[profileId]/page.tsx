@@ -427,7 +427,7 @@ function humanizeFieldName(name: string): string {
 // A supplier's only per-field config is "what does this output value look like on
 // the invoice?". We derive that set from the OutputSpec's columns (not the whole
 // 34-field schema). This MUST mirror normalize_source_path in
-// src/stencil/output/mapper.py so the UI resolves the same fields the writer does.
+// src/polaris/output/mapper.py so the UI resolves the same fields the writer does.
 
 const BARE_TOTAL_FIELDS = new Set([
   "subtotal",

@@ -2,10 +2,10 @@
 
 from decimal import Decimal
 
-from stencil.fields.schema import FieldDef, FieldRole, FieldSchema, FieldScope, FieldType
-from stencil.fields.schema_builder import build_extraction_json_schema
-from stencil.validation.reconciler import reconcile
-from stencil.validation.schema import ExtractedDocument, ExtractionMetadata, ExtractionPath
+from polaris.fields.schema import FieldDef, FieldRole, FieldSchema, FieldScope, FieldType
+from polaris.fields.schema_builder import build_extraction_json_schema
+from polaris.validation.reconciler import reconcile
+from polaris.validation.schema import ExtractedDocument, ExtractionMetadata, ExtractionPath
 
 
 def _purchase_order_schema() -> FieldSchema:

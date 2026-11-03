@@ -4,8 +4,8 @@ import json
 from datetime import date
 from decimal import Decimal
 
-from stencil.output.preview import build_preview
-from stencil.validation.schema import (
+from polaris.output.preview import build_preview
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

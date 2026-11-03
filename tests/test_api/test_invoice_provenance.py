@@ -4,8 +4,8 @@ import json
 
 from fastapi.testclient import TestClient
 
-from stencil.config import settings
-from stencil.main import app
+from polaris.config import settings
+from polaris.main import app
 
 
 def test_absent_provenance_is_reported_not_404(tmp_path, monkeypatch):

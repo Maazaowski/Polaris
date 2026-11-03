@@ -37,7 +37,7 @@ export default function EvalCaseDetailPage({
       </Link>
 
       {detail.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-      {detail.isError && <p className="text-sm text-destructive">Could not load this case (is ST_DEBUG on?).</p>}
+      {detail.isError && <p className="text-sm text-destructive">Could not load this case (is POLARIS_DEBUG on?).</p>}
 
       {data && (
         <Card>

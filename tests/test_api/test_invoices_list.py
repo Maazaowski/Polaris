@@ -8,9 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from stencil.db.models import Base, ExtractionJob, IntakeRecord
-from stencil.db.session import get_db
-from stencil.main import app
+from polaris.db.models import Base, ExtractionJob, IntakeRecord
+from polaris.db.session import get_db
+from polaris.main import app
 
 
 @pytest.fixture()

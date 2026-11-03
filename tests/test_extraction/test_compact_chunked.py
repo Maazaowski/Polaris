@@ -3,10 +3,10 @@ from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
-from stencil import runtime_settings
-from stencil.config import settings
-from stencil.extraction import extractor
-from stencil.extraction.compact_chunked import (
+from polaris import runtime_settings
+from polaris.config import settings
+from polaris.extraction import extractor
+from polaris.extraction.compact_chunked import (
     CandidateRow,
     LayoutChunk,
     LayoutRowLine,
@@ -28,13 +28,13 @@ from stencil.extraction.compact_chunked import (
     detect_candidate_rows,
     merge_compact_rows,
 )
-from stencil.fields.loader import default_field_schema, merge_field_schema
-from stencil.fields.schema import FieldDef, FieldScope, FieldType
-from stencil.output.spec import OutputColumn, OutputSpec
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles.schema import ExtractionPlan, RowContextRule
-from stencil.validation.document_io import build_extracted_from_ai_raw
-from stencil.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ExtractionMetadata, ExtractionPath
+from polaris.fields.loader import default_field_schema, merge_field_schema
+from polaris.fields.schema import FieldDef, FieldScope, FieldType
+from polaris.output.spec import OutputColumn, OutputSpec
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.schema import ExtractionPlan, RowContextRule
+from polaris.validation.document_io import build_extracted_from_ai_raw
+from polaris.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ExtractionMetadata, ExtractionPath
 
 
 class _FakeCompletions:
@@ -1845,11 +1845,11 @@ class TestMeasuredConfidence:
     """
 
     def test_every_candidate_extracted_scores_one(self):
-        from stencil.extraction.compact_chunked import _completeness_warnings
+        from polaris.extraction.compact_chunked import _completeness_warnings
         assert _completeness_warnings([_c("A"), _c("B")], [{"s": "A"}, {"s": "B"}], []) == []
 
     def test_a_missing_candidate_is_named_in_the_warning(self):
-        from stencil.extraction.compact_chunked import _completeness_warnings
+        from polaris.extraction.compact_chunked import _completeness_warnings
         warnings = _completeness_warnings([_c("A"), _c("B")], [{"s": "A"}], [_c("B")])
         assert len(warnings) == 1
         assert "Missing 1 candidate row" in warnings[0]
@@ -1862,7 +1862,7 @@ class TestMeasuredConfidence:
 
 
 def _c(service_id: str):
-    from stencil.extraction.compact_chunked import CandidateRow
+    from polaris.extraction.compact_chunked import CandidateRow
     return CandidateRow(
         row_id=f"p1.r{service_id}", service_id=service_id, page=1, evidence="",
     )
@@ -1877,14 +1877,14 @@ class TestScalarContextSelection:
 
     @staticmethod
     def _rows(pages_and_text):
-        from stencil.extraction.compact_chunked import LayoutRowLine
+        from polaris.extraction.compact_chunked import LayoutRowLine
         return [
             LayoutRowLine(page=page, row_id=f"p{page}.r{i}", text=text)
             for i, (page, text) in enumerate(pages_and_text)
         ]
 
     def test_context_pages_win_over_the_positional_fallback(self):
-        from stencil.extraction.compact_chunked import _scalar_context_rows
+        from polaris.extraction.compact_chunked import _scalar_context_rows
 
         rows = self._rows([(n, f"row on page {n}") for n in range(1, 21)])
         selected = _scalar_context_rows(rows, None, context_pages={7, 19})
@@ -1892,7 +1892,7 @@ class TestScalarContextSelection:
         assert {row.page for row in selected} == {7, 19}
 
     def test_without_a_page_map_it_falls_back_to_the_old_rule(self):
-        from stencil.extraction.compact_chunked import _scalar_context_rows
+        from polaris.extraction.compact_chunked import _scalar_context_rows
 
         rows = self._rows([(n, f"row on page {n}") for n in range(1, 21)])
         selected = _scalar_context_rows(rows, None, context_pages=None)
@@ -1902,7 +1902,7 @@ class TestScalarContextSelection:
 
     def test_profile_markers_are_always_included(self):
         """An explicitly configured marker must survive page selection."""
-        from stencil.extraction.compact_chunked import _scalar_context_rows
+        from polaris.extraction.compact_chunked import _scalar_context_rows
 
         rows = self._rows([(9, "Billing Account Number 12345"), (10, "unrelated")])
         profile = {"advanced": {"document_structure": {"detail_start_marker": "Billing Account"}}}
@@ -1911,5 +1911,5 @@ class TestScalarContextSelection:
         assert [row.page for row in selected] == [9]
 
     def test_no_rows_in_no_rows_out(self):
-        from stencil.extraction.compact_chunked import _scalar_context_rows
+        from polaris.extraction.compact_chunked import _scalar_context_rows
         assert _scalar_context_rows([], None, context_pages={1}) == []

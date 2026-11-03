@@ -19,18 +19,18 @@ from pathlib import Path
 
 import pytest
 
-from stencil.config import settings
-from stencil.extraction.evidence import build_model_authoring_evidence
-from stencil.extraction.extractor import build_canonical_invoice, extract_invoice
-from stencil.extraction.layout import extract_layout_document, render_layout_text
-from stencil.extraction.normalization import apply_layout_profile_hints
-from stencil.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
-from stencil.models.authoring import author_extraction_model
-from stencil.models.diff import diff_invoices
-from stencil.models.interpreter import execute_model
-from stencil.models.training import _normalize_line_items
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles import loader as profiles_loader
+from polaris.config import settings
+from polaris.extraction.evidence import build_model_authoring_evidence
+from polaris.extraction.extractor import build_canonical_invoice, extract_invoice
+from polaris.extraction.layout import extract_layout_document, render_layout_text
+from polaris.extraction.normalization import apply_layout_profile_hints
+from polaris.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
+from polaris.models.authoring import author_extraction_model
+from polaris.models.diff import diff_invoices
+from polaris.models.interpreter import execute_model
+from polaris.models.training import _normalize_line_items
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles import loader as profiles_loader
 from tests.corpus_utils import CorpusLayout, layout_params
 from tests.test_models.test_corpus_extraction import _compare_to_summary, _compare_to_xlsx
 
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.authoring
 @pytest.fixture(autouse=True)
 def _require_openai_key():
     if not settings.openai_api_key:
-        pytest.skip("authoring suite needs ST_OPENAI_API_KEY")
+        pytest.skip("authoring suite needs POLARIS_OPENAI_API_KEY")
 
 
 @pytest.fixture

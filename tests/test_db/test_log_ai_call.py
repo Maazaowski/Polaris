@@ -4,8 +4,8 @@ that aborted an otherwise-successful extraction)."""
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from stencil.db import crud
-from stencil.db.session import SessionLocal
+from polaris.db import crud
+from polaris.db.session import SessionLocal
 
 
 def test_log_ai_call_swallows_db_error_and_keeps_session_usable(isolated_db):

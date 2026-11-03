@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base, ExtractionJob, IntakeRecord
+from polaris.db import crud
+from polaris.db.models import Base, ExtractionJob, IntakeRecord
 
 
 @pytest.fixture()

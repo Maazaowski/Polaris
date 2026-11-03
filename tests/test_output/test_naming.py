@@ -2,7 +2,7 @@
 
 import pytest
 
-from stencil.output.naming import derive_output_xlsx_name
+from polaris.output.naming import derive_output_xlsx_name
 
 
 class TestDeriveOutputXlsxName:

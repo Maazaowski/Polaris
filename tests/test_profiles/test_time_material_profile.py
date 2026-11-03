@@ -3,15 +3,15 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from stencil.extraction.instructions import compile_instructions
-from stencil.extraction.layout import BBox, LayoutDocument, LayoutPage, VisualRow
-from stencil.extraction.normalization import apply_layout_profile_hints
-from stencil.fields.loader import _builtin_invoice_standard_schema, merge_field_schema
-from stencil.output.spec import OutputSpec
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles.schema import SupplierProfile
-from stencil.specs.loader import validate_spec_against_schema
-from stencil.validation.schema import (
+from polaris.extraction.instructions import compile_instructions
+from polaris.extraction.layout import BBox, LayoutDocument, LayoutPage, VisualRow
+from polaris.extraction.normalization import apply_layout_profile_hints
+from polaris.fields.loader import _builtin_invoice_standard_schema, merge_field_schema
+from polaris.output.spec import OutputSpec
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.schema import SupplierProfile
+from polaris.specs.loader import validate_spec_against_schema
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from stencil.models.interpreter import execute_model
-from stencil.models.schema import ExtractionModel
-from stencil.output.provenance import build_provenance, write_provenance
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.validation.schema import (
+from polaris.models.interpreter import execute_model
+from polaris.models.schema import ExtractionModel
+from polaris.output.provenance import build_provenance, write_provenance
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

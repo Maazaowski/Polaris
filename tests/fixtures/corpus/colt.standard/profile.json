@@ -164,7 +164,7 @@
     "min_validation_successes": 3,
     "require_reconciliation": true
   },
-  "owner": "stencil",
+  "owner": "polaris",
   "created_date": "2026-05-20",
   "last_updated_date": "2026-06-24"
 }

@@ -1,7 +1,7 @@
-"""Run the Stencil pipeline end-to-end without Celery.
+"""Run the Polaris pipeline end-to-end without Celery.
 
 Usage:
-    python run_pipeline.py                     # Start file watcher (drop PDFs into stencil_data/inbound/)
+    python run_pipeline.py                     # Start file watcher (drop PDFs into polaris_data/inbound/)
     python run_pipeline.py path/to/invoice.pdf # Process a single PDF directly
 """
 
@@ -11,9 +11,9 @@ from pathlib import Path
 # Ensure src is on the path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from stencil.config import settings
-from stencil.db.session import SessionLocal
-from stencil.pipeline.processor import process_invoice
+from polaris.config import settings
+from polaris.db.session import SessionLocal
+from polaris.pipeline.processor import process_invoice
 
 
 def process_single(pdf_path: Path):
@@ -55,8 +55,8 @@ def start_watcher():
 
     In dev mode (no Celery), processes PDFs synchronously in the watcher thread.
     """
-    from stencil.intake.watcher import resolve_profile_watch_dir, start_profile_watcher_sync
-    from stencil.profiles.loader import get_active_profiles
+    from polaris.intake.watcher import resolve_profile_watch_dir, start_profile_watcher_sync
+    from polaris.profiles.loader import get_active_profiles
 
     settings.ensure_directories()
 
@@ -67,7 +67,7 @@ def start_watcher():
         if inbound:
             watched.append(f"  {p.profile_id}: {inbound}")
 
-    print("Stencil Profile Watcher (dev mode, sync)")
+    print("Polaris Profile Watcher (dev mode, sync)")
     print(f"  Global inbound: {settings.inbound_dir.resolve()}")
     if watched:
         print(f"  Active profile directories ({len(watched)}):")

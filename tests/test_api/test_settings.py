@@ -2,12 +2,12 @@
 
 from fastapi.testclient import TestClient
 
-from stencil.config import settings
-from stencil.main import app
+from polaris.config import settings
+from polaris.main import app
 
 
 def _clear_runtime_cache(monkeypatch):
-    import stencil.runtime_settings as runtime_settings
+    import polaris.runtime_settings as runtime_settings
 
     monkeypatch.setattr(runtime_settings, "_cache", None)
     monkeypatch.setattr(runtime_settings, "_cache_loaded_at", 0.0)
@@ -64,7 +64,7 @@ def test_worker_concurrency_persists_and_round_trips(isolated_db, monkeypatch):
 
 
 def test_worker_concurrency_save_resizes_running_worker(isolated_db, monkeypatch):
-    import stencil.api.settings as api_settings
+    import polaris.api.settings as api_settings
 
     _clear_runtime_cache(monkeypatch)
     monkeypatch.setattr(settings, "worker_concurrency", 2)
@@ -84,7 +84,7 @@ def test_worker_concurrency_save_resizes_running_worker(isolated_db, monkeypatch
 
 
 def test_llm_provider_and_key_status_round_trip(isolated_db, monkeypatch):
-    import stencil.api.settings as api_settings
+    import polaris.api.settings as api_settings
 
     _clear_runtime_cache(monkeypatch)
     monkeypatch.setattr(api_settings.secrets, "provider_key_status", lambda: {"openai": True, "anthropic": True})
@@ -113,7 +113,7 @@ def test_llm_provider_and_key_status_round_trip(isolated_db, monkeypatch):
 
 
 def test_provider_key_endpoint_rejects_without_secret_key(isolated_db, monkeypatch):
-    import stencil.api.settings as api_settings
+    import polaris.api.settings as api_settings
 
     _clear_runtime_cache(monkeypatch)
     monkeypatch.setattr(api_settings.secrets, "secret_storage_enabled", lambda: False)
@@ -123,7 +123,7 @@ def test_provider_key_endpoint_rejects_without_secret_key(isolated_db, monkeypat
     response = client.put("/api/v1/settings/keys", json={"provider": "anthropic", "api_key": "sk-ant"})
 
     assert response.status_code == 400
-    assert "ST_SECRET_KEY" in response.json()["detail"]
+    assert "POLARIS_SECRET_KEY" in response.json()["detail"]
 
 
 def test_settings_rejects_unknown_llm_provider(isolated_db, monkeypatch):

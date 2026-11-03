@@ -10,28 +10,28 @@ from sqlalchemy.pool import StaticPool
 
 
 def _assert_testing_this_checkout() -> None:
-    """Fail loudly if `import stencil` resolves outside this repo.
+    """Fail loudly if `import polaris` resolves outside this repo.
 
-    This project has been renamed twice (ExtractForce -> DatWick -> Stencil).
+    This project has been renamed three times (ExtractForce -> DatWick -> Stencil -> Polaris).
     Stale `pip install -e .` entries for the OLD package names stay in the venv
-    and sort ahead of `stencil` on sys.path, so `import stencil` can silently
+    and sort ahead of `polaris` on sys.path, so `import polaris` can silently
     resolve to a sibling checkout — the whole suite then green-lights code that
     is not the code under review. Cheap check, expensive bug.
     """
-    import stencil
+    import polaris
 
     repo_src = (Path(__file__).resolve().parent.parent / "src").resolve()
-    actual = Path(stencil.__file__).resolve().parent.parent
+    actual = Path(polaris.__file__).resolve().parent.parent
     if actual != repo_src:
         raise RuntimeError(
-            f"`import stencil` resolves to {actual}, "
+            f"`import polaris` resolves to {actual}, "
             f"not this checkout's {repo_src}. "
             "A stale editable install is shadowing it. Fix with: "
-            "`pip uninstall -y datwick extractforce && pip install -e .`"
+            "`pip uninstall -y stencil datwick extractforce && pip install -e .`"
         )
 
 
-# Must run before anything imports stencil modules for real.
+# Must run before anything imports polaris modules for real.
 _assert_testing_this_checkout()
 
 
@@ -42,8 +42,8 @@ def _setup_registry_db() -> None:
     Runs at import time (before collection) because module-level code such as
     ``extractor.EXTRACTION_JSON_SCHEMA = default_field_schema()`` reads the DB.
     """
-    from stencil.db import session as db_session
-    from stencil.db.models import Base
+    from polaris.db import session as db_session
+    from polaris.db.models import Base
 
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -54,7 +54,7 @@ def _setup_registry_db() -> None:
     db_session.engine = engine
     db_session.SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
-    from stencil.db.seed import seed_registries_from_disk
+    from polaris.db.seed import seed_registries_from_disk
 
     seed_registries_from_disk()
 
@@ -69,9 +69,9 @@ import pytest  # noqa: E402
 def isolated_db(monkeypatch):
     """A clean, empty in-memory profile/registry DB for a single test (no seeded
     profiles), so registry-driven tests can assert exact state."""
-    from stencil.db import session as db_session
-    from stencil.db.models import Base
-    from stencil.profiles import loader as ploader
+    from polaris.db import session as db_session
+    from polaris.db.models import Base
+    from polaris.profiles import loader as ploader
 
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool

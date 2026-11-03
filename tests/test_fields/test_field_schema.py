@@ -1,6 +1,6 @@
 """Tests for field schema registry."""
 
-from stencil.fields.loader import (
+from polaris.fields.loader import (
     AUTHORING_HEADER_FIELD_NAMES,
     AUTHORING_ITEM_FIELD_NAMES,
     AUTHORING_TOTAL_FIELD_NAMES,
@@ -10,7 +10,7 @@ from stencil.fields.loader import (
     load_all_field_schemas,
     merge_field_schema,
 )
-from stencil.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
 
 
 def test_builtin_invoice_schema_id():

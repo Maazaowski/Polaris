@@ -3,8 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.models.authoring_context import _row_signature, sample_representative_rows
-from stencil.validation.schema import (
+from polaris.models.authoring_context import _row_signature, sample_representative_rows
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

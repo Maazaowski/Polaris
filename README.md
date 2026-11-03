@@ -1,8 +1,8 @@
-# Stencil
+# Polaris
 
 **AI-powered invoice extraction that learns.** Drop a supplier's PDF invoice in a folder and get back the exact spreadsheet your downstream system expects. The first invoice from a new layout is read by AI; every invoice after that is read by a reusable template at **zero AI cost**.
 
-Stencil replaces hand-built, per-supplier report templates (the Astera ReportMiner style of ETL) with a hybrid system: AI **authors** a declarative extraction model once per layout, and a generic **interpreter** runs that model on every subsequent invoice. No supplier-specific code, no per-invoice AI bill.
+Polaris replaces hand-built, per-supplier report templates (the Astera ReportMiner style of ETL) with a hybrid system: AI **authors** a declarative extraction model once per layout, and a generic **interpreter** runs that model on every subsequent invoice. No supplier-specific code, no per-invoice AI bill.
 
 ---
 
@@ -81,17 +81,17 @@ Models are routed by **`supplier_profile_id` + `layout_fingerprint`**. Approved 
 
 Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine) and an OpenAI or Anthropic API key.
 
-The base `docker-compose.yml` is the **production** topology: it expects an external MySQL via `ST_DATABASE_URL`. For a laptop, layer the **dev overlay**, which adds a local MySQL container.
+The base `docker-compose.yml` is the **production** topology: it expects an external MySQL via `POLARIS_DATABASE_URL`. For a laptop, layer the **dev overlay**, which adds a local MySQL container.
 
 ```bash
-git clone <this repo> stencil && cd stencil
+git clone <this repo> polaris && cd polaris
 
 cp .env.example .env
 # Edit .env:
-#   ST_OPENAI_API_KEY=sk-…          (or set a key later in Settings → AI Configuration)
-#   ST_ADMIN_EMAIL / ST_ADMIN_PASSWORD   first admin, created on first boot
-#   ST_HOST_DATA_DIR   Windows/host folder with supplier subfolders (default C:\Stencil)
-#   ST_HOST_WORK_DIR   host folder for operational state      (default C:\StencilWork)
+#   POLARIS_OPENAI_API_KEY=sk-…          (or set a key later in Settings → AI Configuration)
+#   POLARIS_ADMIN_EMAIL / POLARIS_ADMIN_PASSWORD   first admin, created on first boot
+#   POLARIS_HOST_DATA_DIR   Windows/host folder with supplier subfolders (default C:\Polaris)
+#   POLARIS_HOST_WORK_DIR   host folder for operational state      (default C:\PolarisWork)
 
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
@@ -103,7 +103,7 @@ Then open <http://localhost:3000> and sign in with the admin you set. The API is
 | Update | `git pull && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` |
 | Logs | `docker compose logs -f backend worker watcher` |
 | Stop | `docker compose down` (data stays in the `mysql_data` volume and host folders) |
-| Production | `docker compose up -d` with `ST_DATABASE_URL` pointing at the real MySQL; see [docs/DEPLOYMENT_WINDOWS_SERVER.md](docs/DEPLOYMENT_WINDOWS_SERVER.md) |
+| Production | `docker compose up -d` with `POLARIS_DATABASE_URL` pointing at the real MySQL; see [docs/DEPLOYMENT_WINDOWS_SERVER.md](docs/DEPLOYMENT_WINDOWS_SERVER.md) |
 
 Containers: `backend` (API, runs `alembic upgrade head` on start), `worker` (Celery, the pipeline), `watcher` (folder watcher), `redis`, `frontend`, and `mysql` in the dev overlay.
 
@@ -119,15 +119,15 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d mysql redis
 python -m venv .venv && .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env                                 # fill in the key + admin
-export ST_DATABASE_URL=mysql+pymysql://stencil:stencil@127.0.0.1:3307/stencil
+export POLARIS_DATABASE_URL=mysql+pymysql://polaris:polaris@127.0.0.1:3307/polaris
 alembic upgrade head
-uvicorn stencil.main:app --reload                    # :8000
+uvicorn polaris.main:app --reload                    # :8000
 
 # Pipeline worker (separate terminal, same env)
-celery -A stencil.tasks.worker worker --loglevel=info --pool=solo   # --pool=solo on Windows
+celery -A polaris.tasks.worker worker --loglevel=info --pool=solo   # --pool=solo on Windows
 
 # Folder watcher (optional, separate terminal)
-python -m stencil.intake.watcher
+python -m polaris.intake.watcher
 
 # Frontend
 cd frontend && npm install && npm run dev            # :3000, proxies /api/v1 to :8000
@@ -144,7 +144,7 @@ python run_pipeline.py                       # dev watcher: processes drops sync
 
 ## First run: from empty database to first invoice
 
-**Want a populated app first, with no AI key?** The demo seeder turns an empty database into a month of history in a few seconds, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `ST_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes first (it needs `ST_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
+**Want a populated app first, with no AI key?** The demo seeder turns an empty database into a month of history in a few seconds, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `POLARIS_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes first (it needs `POLARIS_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
 
 ```bash
 python scripts/seed_demo.py --reset
@@ -154,24 +154,24 @@ python scripts/seed_demo.py --reset
 
 ```bash
 # Native: a second MySQL beside the dev one (its own volume), then migrate and seed into it.
-docker run -d --name stencil-demo-mysql -p 3308:3306 -v stencil_demo_mysql_data:/var/lib/mysql   -e MYSQL_ROOT_PASSWORD=stencil -e MYSQL_DATABASE=stencil_demo -e MYSQL_USER=stencil -e MYSQL_PASSWORD=stencil mysql:8.0
-export ST_DATABASE_URL=mysql+pymysql://stencil:stencil@127.0.0.1:3308/stencil_demo        ST_REDIS_URL=redis://127.0.0.1:6379/1 ST_DATA_DIR=C:/Stencil-demo ST_WORK_DIR=C:/StencilDemo
+docker run -d --name polaris-demo-mysql -p 3308:3306 -v polaris_demo_mysql_data:/var/lib/mysql   -e MYSQL_ROOT_PASSWORD=polaris -e MYSQL_DATABASE=polaris_demo -e MYSQL_USER=polaris -e MYSQL_PASSWORD=polaris mysql:8.0
+export POLARIS_DATABASE_URL=mysql+pymysql://polaris:polaris@127.0.0.1:3308/polaris_demo        POLARIS_REDIS_URL=redis://127.0.0.1:6379/1 POLARIS_DATA_DIR=C:/Polaris-demo POLARIS_WORK_DIR=C:/PolarisDemo
 alembic upgrade head && python scripts/seed_demo.py
-# then start the API, worker and frontend with the same variables; the first admin comes from ST_ADMIN_EMAIL/PASSWORD.
+# then start the API, worker and frontend with the same variables; the first admin comes from POLARIS_ADMIN_EMAIL/PASSWORD.
 
 # Docker: a separate Compose project gets its own MySQL volume, so it starts empty.
-COMPOSE_PROJECT_NAME=stencil-demo MYSQL_DATABASE=stencil_demo   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-docker compose -p stencil-demo exec backend python scripts/seed_demo.py
+COMPOSE_PROJECT_NAME=polaris-demo MYSQL_DATABASE=polaris_demo   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -p polaris-demo exec backend python scripts/seed_demo.py
 ```
 
-Stop the dev stack first in the Docker variant; both publish the same ports. Provider keys are encrypted with `ST_SECRET_KEY`, so a key saved in one database can be carried to another only when both stacks share that secret.
+Stop the dev stack first in the Docker variant; both publish the same ports. Provider keys are encrypted with `POLARIS_SECRET_KEY`, so a key saved in one database can be carried to another only when both stacks share that secret.
 
 To go from empty to a first invoice by hand instead:
 
-1. **Sign in** with `ST_ADMIN_EMAIL` / `ST_ADMIN_PASSWORD`. The bootstrap only runs while the users table is empty; manage people afterwards under **System → Users**.
-2. **Add an AI key** under **Settings → AI Configuration** if you did not put one in `.env`. Keys are stored encrypted in MySQL (`ST_SECRET_KEY`), and you can switch provider between OpenAI and Anthropic there.
+1. **Sign in** with `POLARIS_ADMIN_EMAIL` / `POLARIS_ADMIN_PASSWORD`. The bootstrap only runs while the users table is empty; manage people afterwards under **System → Users**.
+2. **Add an AI key** under **Settings → AI Configuration** if you did not put one in `.env`. Keys are stored encrypted in MySQL (`POLARIS_SECRET_KEY`), and you can switch provider between OpenAI and Anthropic there.
 3. **Add a supplier.** **Suppliers → Add supplier** opens the AI profile assistant: pick the output spec and field schema, drop one or more of that supplier's invoices, and let it draft the profile. Save it, then activate it.
-4. **Map a folder.** Under **Suppliers → Accounts**, assign the on-disk folder `<customer>/<account>/pdf` to the profile. The watcher picks up the folder within `ST_WATCHER_REGISTRY_RESCAN_SECONDS`.
+4. **Map a folder.** Under **Suppliers → Accounts**, assign the on-disk folder `<customer>/<account>/pdf` to the profile. The watcher picks up the folder within `POLARIS_WATCHER_REGISTRY_RESCAN_SECONDS`.
 5. **Process invoices.** Drop PDFs in the folder or use **Work → Upload**. Watch the timeline on the invoice page.
 6. **Cut a template.** From the profile's **Training** tab, upload a few training invoices, or build one by hand in **Templates → Build model**. When a candidate matches the AI's output exactly and passes its self-checks, **approve** it.
 7. **Watch the cost go to zero.** Invoices with that layout now show *Using approved model (zero AI cost)* in their timeline, and the queue's "ran free" counter climbs.
@@ -191,7 +191,7 @@ To go from empty to a first invoice by hand instead:
                       candidate model, same fingerprint   → AI + side-by-side validation of the candidate
                       active profile, unknown fingerprint → AI + a "layout drift" exception
                       no profile                          → AI classification, then AI extraction
-                    Very long documents (ST_BLOCKING_CHECK_PAGE_THRESHOLD pages) try rules first,
+                    Very long documents (POLARIS_BLOCKING_CHECK_PAGE_THRESHOLD pages) try rules first,
                     authored from a page sample, and only read every page if the rules do not reconcile.
 
  4a. TEMPLATE       the interpreter executes the model JSON: header fields by label-relative
@@ -204,11 +204,11 @@ To go from empty to a first invoice by hand instead:
 
  4c. TRAINING       on a profile in `training` status the AI output is ground truth; the authoring
                     loop writes rules, runs them, diffs the delivered rows, and refines up to
-                    ST_MODEL_AUTHORING_MAX_ATTEMPTS. A candidate is saved only on an exact match.
+                    POLARIS_MODEL_AUTHORING_MAX_ATTEMPTS. A candidate is saved only on an exact match.
                     The intake still delivers the AI output even if authoring fails.
 
  5. RECONCILE       line items are summed and compared with the stated totals; variance above
-                    ST_RECONCILIATION_VARIANCE_THRESHOLD lands the invoice in Needs review.
+                    POLARIS_RECONCILIATION_VARIANCE_THRESHOLD lands the invoice in Needs review.
 
  6. OUTPUT          work_dir/completed/<intake_id>/
                       <original name>.xlsx      the deliverable, in the profile's output spec
@@ -235,7 +235,7 @@ To go from empty to a first invoice by hand instead:
   5. a human approves it in the UI          5. cost: $0.00
 ```
 
-**Lifecycle.** `candidate → approved → retired`, with `failed_validation` for candidates that could not reproduce the AI output. A candidate is validated side by side against the AI on live invoices until it has `ST_MODEL_VALIDATION_REQUIRED_SUCCESSES` wins; `ST_MODEL_VALIDATION_MAX_FAILURES` failures flag it. Approved models can be cloned to retrain (a new version), rolled back, or retired. Every change records who did it.
+**Lifecycle.** `candidate → approved → retired`, with `failed_validation` for candidates that could not reproduce the AI output. A candidate is validated side by side against the AI on live invoices until it has `POLARIS_MODEL_VALIDATION_REQUIRED_SUCCESSES` wins; `POLARIS_MODEL_VALIDATION_MAX_FAILURES` failures flag it. Approved models can be cloned to retrain (a new version), rolled back, or retired. Every change records who did it.
 
 **Two authoring paths, one interpreter.**
 
@@ -251,7 +251,7 @@ python scripts/refingerprint_models.py --apply      # write the recomputed finge
 
 ## The three configuration layers
 
-Stencil is domain-agnostic by design. Supplier knowledge never lives in code; it lives in three kinds of data, all editable in the UI and stored in MySQL.
+Polaris is domain-agnostic by design. Supplier knowledge never lives in code; it lives in three kinds of data, all editable in the UI and stored in MySQL.
 
 | Layer | What it holds | Where |
 |---|---|---|
@@ -268,12 +268,12 @@ The JSON files under `supplier_profiles/`, `field_schemas/` and `output_specs/` 
 Two roots, kept separate on purpose.
 
 ```
-ST_DATA_DIR   (Docker: /data, host default C:\Stencil)        supplier data only
+POLARIS_DATA_DIR   (Docker: /data, host default C:\Polaris)        supplier data only
   <Supplier>/pdf/        inbound invoices for that account (watched)
   <Supplier>/xls/        delivered spreadsheets
   Invoices/              the <customer>/<account>/*.pdf tree the Accounts view scans
 
-ST_WORK_DIR   (Docker: /work, host default C:\StencilWork)    operational state
+POLARIS_WORK_DIR   (Docker: /work, host default C:\PolarisWork)    operational state
   inbound/               uploads land here before intake
   processing/            in flight
   completed/<id>/        output packages (see step 6 above)
@@ -283,9 +283,9 @@ ST_WORK_DIR   (Docker: /work, host default C:\StencilWork)    operational state
   evals/, ai_debug/, builder_samples/, previews/   debug and tooling state
 ```
 
-The dev reset in **Settings → Danger zone** wipes the work-dir lifecycle folders and intake tables. It never touches `ST_DATA_DIR`.
+The dev reset in **Settings → Danger zone** wipes the work-dir lifecycle folders and intake tables. It never touches `POLARIS_DATA_DIR`.
 
-The **Accounts** view does not walk the disk during a request (that hangs on large bind mounts). A Celery task scans `ST_ACCOUNTS_SCAN_DIR` into a snapshot; the page reads the snapshot and recomputes each account's mapped/unmapped/conflict/missing state against the live profiles, so assigning a profile shows immediately.
+The **Accounts** view does not walk the disk during a request (that hangs on large bind mounts). A Celery task scans `POLARIS_ACCOUNTS_SCAN_DIR` into a snapshot; the page reads the snapshot and recomputes each account's mapped/unmapped/conflict/missing state against the live profiles, so assigning a profile shows immediately.
 
 ## The UI
 
@@ -311,7 +311,7 @@ Three sections, reachable from the rail on the left or the command palette (`Ctr
 | | `/users`, `/account` | Admin user management; your own password and session. |
 | | `/ai-calls`, `/evals` | Debug only: captured prompts and responses; the eval harness. |
 
-Auth is a single layer: the user login. Sessions are HTTP-only cookies whose hash is stored in `auth_sessions` (`ST_SESSION_TTL_DAYS`). Roles are `user` and `admin`; anything destructive or credential-touching requires admin. There is no machine API key on `/api/v1`; a service that calls the API signs in like a person.
+Auth is a single layer: the user login. Sessions are HTTP-only cookies whose hash is stored in `auth_sessions` (`POLARIS_SESSION_TTL_DAYS`). Roles are `user` and `admin`; anything destructive or credential-touching requires admin. There is no machine API key on `/api/v1`; a service that calls the API signs in like a person.
 
 ## API
 
@@ -353,42 +353,42 @@ npm run test:e2e                     # Playwright against a running stack (see f
 
 **Eval cases** (`eval_cases/<layout>/`): the larger labelled set the Evals page scores. Same folder shape plus `expected/*.xlsx` answer keys. The eval runner and the pipeline share one post-processing path, so a PDF plus a profile gives the same deliverable from either entry point.
 
-**CI** (`.github/workflows/ci.yml`) runs four offline jobs on every push and pull request: `backend-lint`, `backend-test`, `frontend` (lint + build) and `docker-build`. AI authoring snapshots are refreshed on demand with `.github/workflows/authoring-manual.yml`, which needs the `ST_OPENAI_API_KEY` repository secret and hands back the `model.json` files as an artifact for review.
+**CI** (`.github/workflows/ci.yml`) runs four offline jobs on every push and pull request: `backend-lint`, `backend-test`, `frontend` (lint + build) and `docker-build`. AI authoring snapshots are refreshed on demand with `.github/workflows/authoring-manual.yml`, which needs the `POLARIS_OPENAI_API_KEY` repository secret and hands back the `model.json` files as an artifact for review.
 
 ## Configuration reference
 
-All settings use the `ST_` prefix and come from the environment or `.env` (`src/stencil/config.py`). Values marked *runtime* can also be changed in **Settings** and are then stored in MySQL and applied live.
+All settings use the `ST_` prefix and come from the environment or `.env` (`src/polaris/config.py`). Values marked *runtime* can also be changed in **Settings** and are then stored in MySQL and applied live.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ST_DATABASE_URL` | `mysql+pymysql://stencil:stencil@localhost:3306/stencil` | MySQL. Required in production; the Docker dev overlay sets it for you. |
-| `ST_REDIS_URL` | `redis://localhost:6379/0` | Celery broker and live-event pub/sub. |
-| `ST_SECRET_KEY` | empty | Fernet key that encrypts provider API keys stored in the DB. Generate once and keep. |
-| `ST_ADMIN_EMAIL`, `ST_ADMIN_PASSWORD` | empty | First admin, created only while the users table is empty. |
-| `ST_SESSION_TTL_DAYS` | `7` | Login session lifetime. |
-| `ST_LLM_PROVIDER` | `openai` | `openai` or `anthropic` (*runtime*). |
-| `ST_OPENAI_API_KEY`, `ST_ANTHROPIC_API_KEY` | empty | Environment fallback; a key saved in Settings wins. |
-| `ST_OPENAI_MODEL_EXTRACTION` / `_CLASSIFICATION` / `_MODEL_GENERATION` | `gpt-5.5` | Model per task (*runtime*). Used for either provider. |
-| `ST_OPENAI_MAX_OUTPUT_TOKENS` | `32768` | Must cover reasoning plus the JSON. |
-| `ST_AI_EXTRACTION_MODE` | `compact_chunked` | Chunked layout-text extraction; `legacy` sends whole pages. |
-| `ST_EXTRACTION_SEND_PAGE_IMAGES` | `true` | Attach page images only for pages with under `ST_EXTRACTION_MIN_PAGE_TEXT_CHARS` characters. |
-| `ST_CONFIDENCE_THRESHOLD` | `0.75` | Minimum classification confidence (*runtime*). |
-| `ST_RECONCILIATION_VARIANCE_THRESHOLD` | `0.01` | Max line-item vs total variance before "needs review" (*runtime*). |
-| `ST_MODEL_AUTHORING_MAX_ATTEMPTS` | `3` | Author → execute → diff retries per training invoice. |
-| `ST_MODEL_VALIDATION_REQUIRED_SUCCESSES` / `_MAX_FAILURES` | `3` / `3` | Candidate validation policy (*runtime*). |
-| `ST_BLOCKING_CHECK_PAGE_THRESHOLD` | `100` | Page count above which rules are tried before reading every page. |
-| `ST_WORKER_CONCURRENCY` | `2` | Parallel pipeline jobs per worker (*runtime*). |
-| `ST_DATA_DIR`, `ST_WORK_DIR` | `stencil_data`, `stencil_work` | The two roots above (Docker: `/data`, `/work`). |
-| `ST_ACCOUNTS_SCAN_DIR` | `<data_dir>/Invoices` | Root the Accounts scan walks. `ST_ACCOUNTS_SYNC_TTL_HOURS` (`12`) controls the startup refresh. |
-| `ST_WATCHER_POLL_INTERVAL`, `ST_WATCHER_STABLE_SECONDS` | `1.0`, `3.0` | Watcher timing (*runtime*). `ST_WATCHER_REGISTRY_RESCAN_SECONDS` (`15`) re-reads profiles for new folders. |
-| `ST_MAX_UPLOAD_BYTES` | `100 MB` | Upload size cap. |
-| `ST_DEBUG` | `false` | Enables the purge endpoint, Danger zone, AI-call capture and the Evals page (*runtime*, admin only). |
-| `ST_LOG_LEVEL`, `ST_LOG_FORMAT` | `INFO`, `json` | structlog output. |
-| `ST_PROFILE_DISCOVERY_*` | shadow on | A newer profile-authoring engine running alongside the current one during rollout. Leave as is unless working on it. |
+| `POLARIS_DATABASE_URL` | `mysql+pymysql://polaris:polaris@localhost:3306/polaris` | MySQL. Required in production; the Docker dev overlay sets it for you. |
+| `POLARIS_REDIS_URL` | `redis://localhost:6379/0` | Celery broker and live-event pub/sub. |
+| `POLARIS_SECRET_KEY` | empty | Fernet key that encrypts provider API keys stored in the DB. Generate once and keep. |
+| `POLARIS_ADMIN_EMAIL`, `POLARIS_ADMIN_PASSWORD` | empty | First admin, created only while the users table is empty. |
+| `POLARIS_SESSION_TTL_DAYS` | `7` | Login session lifetime. |
+| `POLARIS_LLM_PROVIDER` | `openai` | `openai` or `anthropic` (*runtime*). |
+| `POLARIS_OPENAI_API_KEY`, `POLARIS_ANTHROPIC_API_KEY` | empty | Environment fallback; a key saved in Settings wins. |
+| `POLARIS_OPENAI_MODEL_EXTRACTION` / `_CLASSIFICATION` / `_MODEL_GENERATION` | `gpt-5.5` | Model per task (*runtime*). Used for either provider. |
+| `POLARIS_OPENAI_MAX_OUTPUT_TOKENS` | `32768` | Must cover reasoning plus the JSON. |
+| `POLARIS_AI_EXTRACTION_MODE` | `compact_chunked` | Chunked layout-text extraction; `legacy` sends whole pages. |
+| `POLARIS_EXTRACTION_SEND_PAGE_IMAGES` | `true` | Attach page images only for pages with under `POLARIS_EXTRACTION_MIN_PAGE_TEXT_CHARS` characters. |
+| `POLARIS_CONFIDENCE_THRESHOLD` | `0.75` | Minimum classification confidence (*runtime*). |
+| `POLARIS_RECONCILIATION_VARIANCE_THRESHOLD` | `0.01` | Max line-item vs total variance before "needs review" (*runtime*). |
+| `POLARIS_MODEL_AUTHORING_MAX_ATTEMPTS` | `3` | Author → execute → diff retries per training invoice. |
+| `POLARIS_MODEL_VALIDATION_REQUIRED_SUCCESSES` / `_MAX_FAILURES` | `3` / `3` | Candidate validation policy (*runtime*). |
+| `POLARIS_BLOCKING_CHECK_PAGE_THRESHOLD` | `100` | Page count above which rules are tried before reading every page. |
+| `POLARIS_WORKER_CONCURRENCY` | `2` | Parallel pipeline jobs per worker (*runtime*). |
+| `POLARIS_DATA_DIR`, `POLARIS_WORK_DIR` | `polaris_data`, `polaris_work` | The two roots above (Docker: `/data`, `/work`). |
+| `POLARIS_ACCOUNTS_SCAN_DIR` | `<data_dir>/Invoices` | Root the Accounts scan walks. `POLARIS_ACCOUNTS_SYNC_TTL_HOURS` (`12`) controls the startup refresh. |
+| `POLARIS_WATCHER_POLL_INTERVAL`, `POLARIS_WATCHER_STABLE_SECONDS` | `1.0`, `3.0` | Watcher timing (*runtime*). `POLARIS_WATCHER_REGISTRY_RESCAN_SECONDS` (`15`) re-reads profiles for new folders. |
+| `POLARIS_MAX_UPLOAD_BYTES` | `100 MB` | Upload size cap. |
+| `POLARIS_DEBUG` | `false` | Enables the purge endpoint, Danger zone, AI-call capture and the Evals page (*runtime*, admin only). |
+| `POLARIS_LOG_LEVEL`, `POLARIS_LOG_FORMAT` | `INFO`, `json` | structlog output. |
+| `POLARIS_PROFILE_DISCOVERY_*` | shadow on | A newer profile-authoring engine running alongside the current one during rollout. Leave as is unless working on it. |
 
-`ST_HOST_DATA_DIR`, `ST_HOST_WORK_DIR`, `MYSQL_*` and `COMPOSE_PROJECT_NAME` are read by Docker Compose, not by the app.
+`POLARIS_HOST_DATA_DIR`, `POLARIS_HOST_WORK_DIR`, `MYSQL_*` and `COMPOSE_PROJECT_NAME` are read by Docker Compose, not by the app.
 
-**Debug mode is not a security control.** It is a DB-persisted runtime flag any admin can flip, so destructive and credential-touching routes are gated on the admin role, not on debug. Production is simply the default, `ST_DEBUG=false`.
+**Debug mode is not a security control.** It is a DB-persisted runtime flag any admin can flip, so destructive and credential-touching routes are gated on the admin role, not on debug. Production is simply the default, `POLARIS_DEBUG=false`.
 
 ## Troubleshooting
 
@@ -401,7 +401,7 @@ All settings use the `ST_` prefix and come from the environment or `.env` (`src/
 | Frontend shows 500s on `/api/v1/*` | The backend is not up on `:8000` yet, or `NEXT_PUBLIC_API_URL` points elsewhere. The dev proxy reports `ECONNREFUSED` in the Next.js terminal. |
 | Playwright navigation specs time out against `npm run dev` | Routes compile on first visit; run with `--workers=1` or against the Docker frontend. |
 | Celery on Windows exits immediately or never picks up tasks | Use `--pool=solo`. |
-| `Access denied for user 'stencil'` | You are hitting a native MySQL on 3306; the Docker dev database is on **3307**. |
+| `Access denied for user 'polaris'` | You are hitting a native MySQL on 3306; the Docker dev database is on **3307**. |
 | Settings toggle for debug has no effect on the worker | Debug is a runtime setting read live; the `.env` value only seeds it. Give the worker a few seconds, or restart it. |
 | Purge returns 403 | Debug mode is off, or you are not an admin. |
 | Accounts page is stale after adding folders | Click **Sync**; discovery runs in the worker and the page reads the snapshot. |

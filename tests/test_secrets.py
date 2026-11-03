@@ -3,10 +3,10 @@
 import pytest
 from cryptography.fernet import Fernet
 
-import stencil.db.registry as registry
-import stencil.db.session as session
-import stencil.secrets as secrets
-from stencil.config import settings
+import polaris.db.registry as registry
+import polaris.db.session as session
+import polaris.secrets as secrets
+from polaris.config import settings
 
 
 class _FakeDB:

@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 
-from stencil.models.interpreter import _evaluate_value_expr
-from stencil.models.schema import (
+from polaris.models.interpreter import _evaluate_value_expr
+from polaris.models.schema import (
     ExtractionModel,
     FieldTransform,
     ItemFieldRule,

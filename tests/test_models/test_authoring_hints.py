@@ -6,22 +6,22 @@ from pathlib import Path
 
 import pytest
 
-from stencil.extraction.layout import extract_layout_document, render_layout_text
-from stencil.models.authoring import (
+from polaris.extraction.layout import extract_layout_document, render_layout_text
+from polaris.models.authoring import (
     _apply_profile_authoring_hints,
     _build_target,
     _ensure_tax_rate_for_net_lines,
     _reconcile_currency_header,
     build_model_from_rules,
 )
-from stencil.models.interpreter import (
+from polaris.models.interpreter import (
     _convert_header_value,
     _find_value_by_label,
 )
-from stencil.models.schema import ExtractionModel, HeaderFieldRule
-from stencil.output.xlsx_writer import build_output_rows
-from stencil.profiles.schema import SupplierProfile
-from stencil.validation.schema import (
+from polaris.models.schema import ExtractionModel, HeaderFieldRule
+from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.schema import SupplierProfile
+from polaris.validation.schema import (
     CanonicalInvoice,
     ChargeType,
     ExtractionMetadata,
@@ -33,7 +33,7 @@ from stencil.validation.schema import (
 from tests.corpus_utils import load_corpus_profile as _corpus_profile
 
 EUNETWORKS_PDF = Path(
-    r"C:\Stencil\Sample Data\EUNetworks\A837737\pdf\A837737 - IE-SI53564.pdf"
+    r"C:\Polaris\Sample Data\EUNetworks\A837737\pdf\A837737 - IE-SI53564.pdf"
 )
 
 
@@ -179,7 +179,7 @@ class TestAuthoringHintReconciliation:
         assert "tax_rate" in model.totals
         from decimal import Decimal
 
-        from stencil.models.interpreter import find_total_value
+        from polaris.models.interpreter import find_total_value
 
         _tax_raw, tax_rate = find_total_value("tax_rate", model.totals["tax_rate"], page_texts)
         assert tax_rate == Decimal("0.23")

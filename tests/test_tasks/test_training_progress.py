@@ -4,12 +4,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.config import settings
-from stencil.db import crud
-from stencil.db.models import Base, IntakeRecord
-from stencil.models.training import compute_training_step_budget
-from stencil.pricing import estimate_cost_usd
-from stencil.profiles.schema import ClassificationSignals, SupplierIdentity, SupplierProfile
+from polaris.config import settings
+from polaris.db import crud
+from polaris.db.models import Base, IntakeRecord
+from polaris.models.training import compute_training_step_budget
+from polaris.pricing import estimate_cost_usd
+from polaris.profiles.schema import ClassificationSignals, SupplierIdentity, SupplierProfile
 
 
 @pytest.fixture()

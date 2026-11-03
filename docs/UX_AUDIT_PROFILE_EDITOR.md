@@ -26,7 +26,7 @@ prompt. On the live Rogers profile they have already **drifted apart**:
 | tax | **Tax** | **Tax amount column label** | duplicate ask |
 
 **Why this matters beyond clutter:** `build_extraction_user_prompt`
-(`src/stencil/extraction/prompts.py`) emits BOTH — the field-override label
+(`src/polaris/extraction/prompts.py`) emits BOTH — the field-override label
 hint *and* the line-item column label — so for `amount` the model receives two
 contradictory instructions in the same prompt. This is the same class of
 conflicting-hint problem behind the Rogers net-vs-gross incident. The user has no

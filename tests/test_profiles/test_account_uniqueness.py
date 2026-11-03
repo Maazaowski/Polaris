@@ -1,12 +1,12 @@
 """One account folder may belong to only one active/training profile."""
 
-from stencil.api.profiles import _profile_readiness_issues
-from stencil.profiles.loader import (
+from polaris.api.profiles import _profile_readiness_issues
+from polaris.profiles.loader import (
     account_owner_index,
     normalize_account_path,
     save_profile,
 )
-from stencil.profiles.schema import AuthoringEvidence, SupplierProfile
+from polaris.profiles.schema import AuthoringEvidence, SupplierProfile
 
 
 def _profile(profile_id: str, *, status: str, accounts: list[dict]) -> SupplierProfile:
@@ -91,7 +91,7 @@ class TestReadinessConflict:
 
 
 def test_authoring_findings_do_not_pause_production_delivery():
-    from stencil.pipeline.processor import _profile_delivery_blockers
+    from polaris.pipeline.processor import _profile_delivery_blockers
 
     profile = _profile("evidence", status="active", accounts=[_acct("/data/X/E/pdf")])
     profile.authoring_evidence = AuthoringEvidence(**{

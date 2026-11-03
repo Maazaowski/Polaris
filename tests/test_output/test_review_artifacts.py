@@ -3,8 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.output.review_artifacts import write_model_review_artifacts
-from stencil.validation.schema import (
+from polaris.output.review_artifacts import write_model_review_artifacts
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -42,7 +42,7 @@ def _invoice(**kw) -> CanonicalInvoice:
 
 
 def test_writes_ai_and_model_xlsx(tmp_path, monkeypatch):
-    from stencil.config import settings
+    from polaris.config import settings
 
     monkeypatch.setattr(settings, "completed_dir", tmp_path)
 
@@ -68,7 +68,7 @@ def test_writes_ai_and_model_xlsx(tmp_path, monkeypatch):
 
 
 def test_writes_ai_only_when_model_missing(tmp_path, monkeypatch):
-    from stencil.config import settings
+    from polaris.config import settings
 
     monkeypatch.setattr(settings, "completed_dir", tmp_path)
 

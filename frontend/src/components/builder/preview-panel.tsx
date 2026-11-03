@@ -437,7 +437,7 @@ function FileDiffDetail({ file }: { file: EvalFolderFile }) {
   );
 }
 
-/** Score the model against a committed eval-case folder (ST_DEBUG only): each
+/** Score the model against a committed eval-case folder (POLARIS_DEBUG only): each
  * invoice's produced rows are diffed against its expected XLSX, so the author
  * sees the model generalize across a real labelled set as matched/expected. */
 function EvalFolderScorer({

@@ -16,9 +16,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from stencil.config import settings
-from stencil.db import crud
-from stencil.db.models import ExtractionJob, IntakeRecord
+from polaris.config import settings
+from polaris.db import crud
+from polaris.db.models import ExtractionJob, IntakeRecord
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "seed_demo.py"
 COLT = "colt.standard.v1"
@@ -38,7 +38,7 @@ def _load_seed_demo():
 @pytest.fixture()
 def demo_env(isolated_db, tmp_path, monkeypatch):
     """Empty registry DB seeded with the disk schemas/specs, every directory under tmp."""
-    from stencil.db.seed import seed_registries_from_disk
+    from polaris.db.seed import seed_registries_from_disk
 
     seed_registries_from_disk()
     for attr in ("inbound_dir", "processing_dir", "completed_dir", "exceptions_dir",
@@ -50,18 +50,18 @@ def demo_env(isolated_db, tmp_path, monkeypatch):
     # Redis is not part of this test; the pipeline tolerates a missing broker
     # but would log a warning per step.
     for name in ("publish_event", "publish_completed", "publish_failed"):
-        monkeypatch.setattr(f"stencil.pipeline.processor.{name}", lambda *a, **k: None)
+        monkeypatch.setattr(f"polaris.pipeline.processor.{name}", lambda *a, **k: None)
 
     def no_ai(*args, **kwargs):  # pragma: no cover - the assertion is that this never runs
         raise AssertionError("the demo seeder must never reach AI extraction")
 
-    monkeypatch.setattr("stencil.pipeline.processor.extract_invoice", no_ai)
+    monkeypatch.setattr("polaris.pipeline.processor.extract_invoice", no_ai)
     return tmp_path
 
 
 def test_seed_demo_routes_colt_through_the_approved_model_for_free(demo_env):
     seed_demo = _load_seed_demo()
-    from stencil.db.session import SessionLocal
+    from polaris.db.session import SessionLocal
 
     now = datetime(2026, 11, 3, 12, 0, 0)
     report = seed_demo.seed(now=now)
@@ -112,7 +112,7 @@ def test_seed_demo_routes_colt_through_the_approved_model_for_free(demo_env):
 
 def test_seed_demo_is_idempotent(demo_env):
     seed_demo = _load_seed_demo()
-    from stencil.db.session import SessionLocal
+    from polaris.db.session import SessionLocal
 
     first = seed_demo.seed(layouts=("colt.standard",))
     second = seed_demo.seed(layouts=("colt.standard",))
@@ -133,7 +133,7 @@ def test_seed_demo_is_idempotent(demo_env):
 
 def test_seed_demo_dry_run_writes_nothing(demo_env):
     seed_demo = _load_seed_demo()
-    from stencil.db.session import SessionLocal
+    from polaris.db.session import SessionLocal
 
     report = seed_demo.seed(dry_run=True)
 
@@ -150,18 +150,18 @@ def test_seed_demo_dry_run_writes_nothing(demo_env):
 
 def test_reset_requires_debug(demo_env, monkeypatch):
     seed_demo = _load_seed_demo()
-    from stencil import runtime_settings
+    from polaris import runtime_settings
 
     real_runtime_value = runtime_settings.runtime_value
 
     def debug_is(value: bool):
         return lambda name: value if name == "debug" else real_runtime_value(name)
 
-    monkeypatch.setattr("stencil.runtime_settings.runtime_value", debug_is(False))
-    with pytest.raises(SystemExit, match="ST_DEBUG"):
+    monkeypatch.setattr("polaris.runtime_settings.runtime_value", debug_is(False))
+    with pytest.raises(SystemExit, match="POLARIS_DEBUG"):
         seed_demo.seed(reset=True, layouts=("colt.standard",))
 
-    monkeypatch.setattr("stencil.runtime_settings.runtime_value", debug_is(True))
+    monkeypatch.setattr("polaris.runtime_settings.runtime_value", debug_is(True))
     report = seed_demo.seed(reset=True, layouts=("colt.standard",))
     assert report.failed == []
     assert len(report.processed) == 8

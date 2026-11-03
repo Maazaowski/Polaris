@@ -1,10 +1,10 @@
-# ── Stencil ──────────────────────────────────────────
+# ── Polaris ──────────────────────────────────────────
 # This base file is the PRODUCTION topology: no local database — the app
-# connects to the production MySQL given by ST_DATABASE_URL (set in .env).
+# connects to the production MySQL given by POLARIS_DATABASE_URL (set in .env).
 #
 #   Prod:  docker compose up -d
 #   Dev:   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-#          (the dev overlay adds a local MySQL and repoints ST_DATABASE_URL at it)
+#          (the dev overlay adds a local MySQL and repoints POLARIS_DATABASE_URL at it)
 #
 # Stop:    docker compose down
 # Logs:    docker compose logs -f
@@ -34,31 +34,31 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      # ST_DATABASE_URL is NOT set here — it comes from .env (env_file) and must
+      # POLARIS_DATABASE_URL is NOT set here — it comes from .env (env_file) and must
       # point at the production MySQL. The dev overlay (docker-compose.dev.yml)
-      # sets ST_DATABASE_URL in `environment:`, which overrides the .env value.
-      ST_REDIS_URL: redis://redis:6379/0
-      ST_CORS_ORIGINS: '["http://localhost:3000","http://frontend:3000"]'
-      ST_DATA_DIR: /data
-      ST_WORK_DIR: /work
+      # sets POLARIS_DATABASE_URL in `environment:`, which overrides the .env value.
+      POLARIS_REDIS_URL: redis://redis:6379/0
+      POLARIS_CORS_ORIGINS: '["http://localhost:3000","http://frontend:3000"]'
+      POLARIS_DATA_DIR: /data
+      POLARIS_WORK_DIR: /work
     volumes:
       # /data = SUPPLIER folders only (each profile's inbound PDFs + delivered
-      #         Excel output, e.g. C:\Stencil\Lumen\1-CNSNUO\{pdf,xls}).
+      #         Excel output, e.g. C:\Polaris\Lumen\1-CNSNUO\{pdf,xls}).
       # /work = OPERATIONAL state (inbound, processing, completed, exceptions,
       #         archive) — kept out of the supplier folders.
-      - ${ST_HOST_DATA_DIR:-C:\Stencil}:/data
-      - ${ST_HOST_WORK_DIR:-C:\StencilWork}:/work
-      - /mnt/c/Stencil/Invoices:/data/Invoices
+      - ${POLARIS_HOST_DATA_DIR:-C:\Polaris}:/data
+      - ${POLARIS_HOST_WORK_DIR:-C:\PolarisWork}:/work
+      - /mnt/c/Polaris/Invoices:/data/Invoices
       - ./supplier_profiles:/app/supplier_profiles
       # Dev-only Evals: labeled cases (PDF + profile.json + expected/*.xlsx). Add
-      # cases on the host; they appear live in the Evals page (ST_DEBUG only).
+      # cases on the host; they appear live in the Evals page (POLARIS_DEBUG only).
       - ./eval_cases:/app/eval_cases
     depends_on:
       redis:
         condition: service_healthy
     command: >
       sh -c "alembic upgrade head &&
-             uvicorn stencil.main:app --host 0.0.0.0 --port 8000"
+             uvicorn polaris.main:app --host 0.0.0.0 --port 8000"
 
   # ── Celery Worker ──
   worker:
@@ -68,20 +68,20 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # ST_DATABASE_URL comes from .env (prod); the dev overlay overrides it.
-      ST_REDIS_URL: redis://redis:6379/0
-      ST_DATA_DIR: /data
-      ST_WORK_DIR: /work
+      # POLARIS_DATABASE_URL comes from .env (prod); the dev overlay overrides it.
+      POLARIS_REDIS_URL: redis://redis:6379/0
+      POLARIS_DATA_DIR: /data
+      POLARIS_WORK_DIR: /work
     volumes:
-      - ${ST_HOST_DATA_DIR:-C:\Stencil}:/data
-      - ${ST_HOST_WORK_DIR:-C:\StencilWork}:/work
-      - /mnt/c/Stencil/Invoices:/data/Invoices
+      - ${POLARIS_HOST_DATA_DIR:-C:\Polaris}:/data
+      - ${POLARIS_HOST_WORK_DIR:-C:\PolarisWork}:/work
+      - /mnt/c/Polaris/Invoices:/data/Invoices
       - ./supplier_profiles:/app/supplier_profiles
       - ./eval_cases:/app/eval_cases
     depends_on:
       redis:
         condition: service_healthy
-    command: python -m stencil.tasks.worker_main
+    command: python -m polaris.tasks.worker_main
 
   # ── File Watcher ──
   # Watches per-supplier inbound directories for new PDF invoices.
@@ -93,19 +93,19 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # ST_DATABASE_URL comes from .env (prod); the dev overlay overrides it.
-      ST_REDIS_URL: redis://redis:6379/0
-      ST_DATA_DIR: /data
-      ST_WORK_DIR: /work
+      # POLARIS_DATABASE_URL comes from .env (prod); the dev overlay overrides it.
+      POLARIS_REDIS_URL: redis://redis:6379/0
+      POLARIS_DATA_DIR: /data
+      POLARIS_WORK_DIR: /work
     volumes:
-      - ${ST_HOST_DATA_DIR:-C:\Stencil}:/data
-      - ${ST_HOST_WORK_DIR:-C:\StencilWork}:/work
-      - /mnt/c/Stencil/Invoices:/data/Invoices
+      - ${POLARIS_HOST_DATA_DIR:-C:\Polaris}:/data
+      - ${POLARIS_HOST_WORK_DIR:-C:\PolarisWork}:/work
+      - /mnt/c/Polaris/Invoices:/data/Invoices
       - ./supplier_profiles:/app/supplier_profiles
     depends_on:
       redis:
         condition: service_healthy
-    command: python -m stencil.intake.watcher
+    command: python -m polaris.intake.watcher
 
   # ── Frontend ──
   frontend:

@@ -8,17 +8,17 @@ up the users/sessions it creates so the rest of the API suite stays unauthed.
 import pytest
 from fastapi.testclient import TestClient
 
-from stencil import auth
-from stencil.config import settings
-from stencil.db.models import AuthSession, User
-from stencil.db.session import SessionLocal
-from stencil.main import app
+from polaris import auth
+from polaris.config import settings
+from polaris.db.models import AuthSession, User
+from polaris.db.session import SessionLocal
+from polaris.main import app
 
 
 @pytest.fixture(autouse=True)
 def _isolated_auth_env(monkeypatch):
     """Tests must not depend on the developer's .env: TestClient's lifespan runs
-    bootstrap_admin with the REAL settings, so live ST_ADMIN_* creds would seed
+    bootstrap_admin with the REAL settings, so live POLARIS_ADMIN_* creds would seed
     a user into the shared test DB. Blank them and start every test user-free."""
     monkeypatch.setattr(settings, "admin_email", "")
     monkeypatch.setattr(settings, "admin_password", "")
@@ -215,12 +215,12 @@ def test_cannot_deactivate_last_admin(user_db):
 def test_session_expiry_rejected(user_db):
     from datetime import timedelta
 
-    from stencil.clock import utcnow
+    from polaris.clock import utcnow
 
     user = user_db.query(User).one()
     token, _ = auth.create_session(user_db, user.id)
     row = user_db.query(AuthSession).one()
-    # Session clocks are UTC (stencil.clock); a local-time "one minute ago" is
+    # Session clocks are UTC (polaris.clock); a local-time "one minute ago" is
     # still hours in the future east of Greenwich.
     row.expires_at = utcnow() - timedelta(minutes=1)
     user_db.commit()

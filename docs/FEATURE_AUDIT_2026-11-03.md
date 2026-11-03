@@ -1,4 +1,4 @@
-# Stencil feature audit (3 Nov 2026)
+# Polaris feature audit (3 Nov 2026)
 
 A full run-through of the product ahead of the promotional video series: the stack was brought up natively against the real dev database, every route was walked in a browser, the backend suite, the production frontend build and the Playwright suite were run, and the headline "$0 template path" was exercised end to end.
 
@@ -55,7 +55,7 @@ Ordered by how much it matters for the videos.
 8. **Playwright seeding is Docker-only.** `npm run test:e2e` shells into the backend container; against a native stack you must export credentials by hand (now documented). Teaching the seed script to call the API or a local Python fallback would make the suite one command everywhere. Small.
 9. **Dev-server e2e timing.** Three navigation specs time out under full parallelism against `next dev` because routes compile on first visit. Passing with `--workers=1`. Either warm the routes in the setup project or raise the expect timeout for navigation specs. Small.
 10. **Fresh install has no data.** `supplier_profiles/` is empty, so a brand-new database starts with zero profiles and the Accounts scan root is empty. Fine for production, hostile for demos and onboarding (see "add" below).
-11. **Backlog hygiene.** `mypy src` has a long-standing backlog (not a gate); `scripts/probe_colt_layout.py` has two ruff findings outside the lint path; the `ST_API_KEY` line in `.env` files is read by nothing.
+11. **Backlog hygiene.** `mypy src` has a long-standing backlog (not a gate); `scripts/probe_colt_layout.py` has two ruff findings outside the lint path; the `POLARIS_API_KEY` line in `.env` files is read by nothing.
 
 ## Worth adding
 
@@ -74,6 +74,6 @@ Ideas that would strengthen the product and give the series more to show. Rough 
 
 ## How the stack was run for this audit
 
-MySQL and Redis from the Docker dev overlay (MySQL on host port 3307, which holds the real dev data), then uvicorn, the Celery worker (`--pool=solo`) and the frontend natively with `ST_DATA_DIR=C:/Stencil` and `ST_WORK_DIR` pointing at the folder Docker mounts as `/work`, so existing intakes and archives resolve. The recipe is in `README.md` under *Local development without Docker*.
+MySQL and Redis from the Docker dev overlay (MySQL on host port 3307, which holds the real dev data), then uvicorn, the Celery worker (`--pool=solo`) and the frontend natively with `POLARIS_DATA_DIR=C:/Polaris` and `POLARIS_WORK_DIR` pointing at the folder Docker mounts as `/work`, so existing intakes and archives resolve. The recipe is in `README.md` under *Local development without Docker*.
 
 Results: `pytest` 779 passed, 1 skipped; `ruff` clean on `src tests`; `tsc` clean; `npm run build` clean; Playwright 60 passed + 4 failed in the parallel run, of which 3 pass serially and 1 was the test bug fixed above.

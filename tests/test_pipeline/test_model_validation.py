@@ -3,8 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.pipeline.processor import _model_matches_ai
-from stencil.validation.schema import (
+from polaris.pipeline.processor import _model_matches_ai
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

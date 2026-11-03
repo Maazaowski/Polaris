@@ -1,7 +1,7 @@
 """Profile edits that salt the fingerprint must trigger a template re-key."""
 
-from stencil.api.profiles import fingerprint_inputs_changed
-from stencil.profiles.schema import LayoutFingerprintRules, SupplierProfile
+from polaris.api.profiles import fingerprint_inputs_changed
+from polaris.profiles.schema import LayoutFingerprintRules, SupplierProfile
 
 
 def _profile(**overrides) -> SupplierProfile:
@@ -16,7 +16,7 @@ def _profile(**overrides) -> SupplierProfile:
 
 
 def test_cosmetic_edits_do_not_count(monkeypatch):
-    import stencil.fingerprint.fingerprinter as fp
+    import polaris.fingerprint.fingerprinter as fp
 
     monkeypatch.setattr(fp, "layout_fingerprint_config_from_profile", lambda p: ("cfg", p.classification.output_type))
     before = _profile()
@@ -26,7 +26,7 @@ def test_cosmetic_edits_do_not_count(monkeypatch):
 
 
 def test_fingerprint_rules_and_category_count(monkeypatch):
-    import stencil.fingerprint.fingerprinter as fp
+    import polaris.fingerprint.fingerprinter as fp
 
     monkeypatch.setattr(
         fp, "layout_fingerprint_config_from_profile",

@@ -1,6 +1,6 @@
 """Static checks for extraction prompt guardrails."""
 
-from stencil.extraction.prompts import EXTRACTION_SYSTEM_PROMPT
+from polaris.extraction.prompts import EXTRACTION_SYSTEM_PROMPT
 
 
 def test_extraction_prompt_preserves_cross_page_parent_child_context():

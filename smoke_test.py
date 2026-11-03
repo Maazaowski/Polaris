@@ -4,11 +4,11 @@ from decimal import Decimal
 
 
 def main():
-    print("Stencil Smoke Test")
+    print("Polaris Smoke Test")
     print("=" * 50)
 
     # 1. Config
-    from stencil.config import settings
+    from polaris.config import settings
     settings.ensure_directories()
     print(f"[OK] Config loaded. Data dir: {settings.data_dir}")
     for d in [settings.inbound_dir, settings.processing_dir, settings.completed_dir,
@@ -17,7 +17,7 @@ def main():
     print("[OK] All data directories created")
 
     # 2. Canonical schema
-    from stencil.validation.schema import (
+    from polaris.validation.schema import (
         CanonicalInvoice,
         ExtractionMetadata,
         ExtractionPath,
@@ -54,7 +54,7 @@ def main():
     print(f"[OK] Canonical schema: {len(invoice.line_items)} line items, total=${invoice.total_due}")
 
     # 3. Reconciliation
-    from stencil.validation.reconciler import reconcile
+    from polaris.validation.reconciler import reconcile
     recon = reconcile(invoice)
     print(f"[OK] Reconciliation: reconciled={recon.is_reconciled}, "
           f"variance={recon.variance}, warnings={len(recon.warnings)}")
@@ -63,13 +63,13 @@ def main():
     test_dir = settings.data_dir / "_smoke_test"
     test_dir.mkdir(parents=True, exist_ok=True)
 
-    from stencil.output.xlsx_writer import write_xlsx
+    from polaris.output.xlsx_writer import write_xlsx
     xlsx_path = write_xlsx(invoice, test_dir / "test_output.xlsx")
     assert xlsx_path.exists()
     print(f"[OK] XLSX written: {xlsx_path} ({xlsx_path.stat().st_size:,} bytes)")
 
     # 5. JSON output
-    from stencil.output.json_writer import write_canonical_json, write_extraction_log
+    from polaris.output.json_writer import write_canonical_json, write_extraction_log
     json_path = write_canonical_json(invoice, test_dir / "test_canonical.json")
     log_path = write_extraction_log(invoice, test_dir / "test_log.json")
     assert json_path.exists()
@@ -78,14 +78,14 @@ def main():
     print(f"[OK] Extraction log: {log_path}")
 
     # 6. Supplier profiles
-    from stencil.profiles.loader import load_all_profiles
+    from polaris.profiles.loader import load_all_profiles
     profiles = load_all_profiles()
     print(f"[OK] Supplier profiles: {len(profiles)} loaded")
     for pid, p in profiles.items():
         print(f"     - {pid} ({p.identity.canonical_name}, {p.status})")
 
     # 7. Extraction model schema
-    from stencil.models.schema import ColumnRule, ExtractionModel, HeaderFieldRule, TableRule
+    from polaris.models.schema import ColumnRule, ExtractionModel, HeaderFieldRule, TableRule
     model = ExtractionModel(
         model_id="test-model-v1",
         supplier="Test Supplier",

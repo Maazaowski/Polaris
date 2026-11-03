@@ -61,7 +61,7 @@ export default function AiCallsPage() {
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-sm text-destructive">
-              Could not load AI calls. This view is only available when ST_DEBUG is on.
+              Could not load AI calls. This view is only available when POLARIS_DEBUG is on.
             </p>
           </CardContent>
         </Card>

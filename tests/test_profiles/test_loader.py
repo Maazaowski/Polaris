@@ -1,11 +1,11 @@
 """Tests for supplier profile selection (DB-backed loader)."""
 
-from stencil.profiles.loader import (
+from polaris.profiles.loader import (
     find_profile_by_supplier,
     get_active_profiles,
     save_profile,
 )
-from stencil.profiles.schema import SupplierProfile
+from polaris.profiles.schema import SupplierProfile
 
 
 def _profile(profile_id: str, *, version: int, status: str) -> SupplierProfile:

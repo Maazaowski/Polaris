@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from stencil.fingerprint.fingerprinter import fingerprint_pdf
+from polaris.fingerprint.fingerprinter import fingerprint_pdf
 
-_COLT_SAMPLE_ROOT = Path(r"C:\Stencil\Sample Data\Colt")
+_COLT_SAMPLE_ROOT = Path(r"C:\Polaris\Sample Data\Colt")
 _COLT_FOLDERS = (
     "5-HLBHFCGL",
     "5-KBGXG31P",
@@ -37,7 +37,7 @@ def test_colt_account_variants_share_one_fingerprint(colt_profile):
         if pdfs:
             samples.append((folder_name, pdfs[0]))
     if len(samples) < len(_COLT_FOLDERS):
-        pytest.skip("Colt sample PDFs not found under C:\\Stencil\\Sample Data\\Colt")
+        pytest.skip("Colt sample PDFs not found under C:\\Polaris\\Sample Data\\Colt")
 
     fingerprints = {
         folder: fingerprint_pdf(pdf, profile=colt_profile)[0]
@@ -56,7 +56,7 @@ def test_colt_standard_layout_pdfs_share_one_fingerprint(colt_profile):
     for folder_name in _COLT_FOLDERS:
         pdfs.extend(_discover_pdfs(_COLT_SAMPLE_ROOT / folder_name / "pdf"))
     if not pdfs:
-        pytest.skip("Colt sample PDFs not found under C:\\Stencil\\Sample Data\\Colt")
+        pytest.skip("Colt sample PDFs not found under C:\\Polaris\\Sample Data\\Colt")
 
     reference_fp, _ = fingerprint_pdf(pdfs[0], profile=colt_profile)
     mismatches = []

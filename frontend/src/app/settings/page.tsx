@@ -409,9 +409,9 @@ export default function SettingsPage() {
             {!settings.secret_storage_enabled && (
               <p className="text-xs text-muted-foreground">
                 To store API keys in the app, set{" "}
-                <span className="font-mono">ST_SECRET_KEY</span>. Without it, keys come from the{" "}
-                <span className="font-mono">ST_OPENAI_API_KEY</span> /{" "}
-                <span className="font-mono">ST_ANTHROPIC_API_KEY</span> environment variables.
+                <span className="font-mono">POLARIS_SECRET_KEY</span>. Without it, keys come from the{" "}
+                <span className="font-mono">POLARIS_OPENAI_API_KEY</span> /{" "}
+                <span className="font-mono">POLARIS_ANTHROPIC_API_KEY</span> environment variables.
               </p>
             )}
           </div>

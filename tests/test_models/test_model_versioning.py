@@ -4,10 +4,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from stencil.db import crud
-from stencil.db.models import Base
-from stencil.models import registry
-from stencil.models.schema import ExtractionModel, ModelStatus
+from polaris.db import crud
+from polaris.db.models import Base
+from polaris.models import registry
+from polaris.models.schema import ExtractionModel, ModelStatus
 
 
 @pytest.fixture()

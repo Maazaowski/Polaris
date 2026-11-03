@@ -8,10 +8,10 @@ then two one-off task items without billing periods were silently dropped —
 
 from decimal import Decimal
 
-from stencil.extraction.layout import BBox, LayoutCell, LayoutDocument, LayoutPage, VisualRow
-from stencil.models.authoring import build_model_from_rules
-from stencil.models.interpreter import execute_model
-from stencil.models.schema import (
+from polaris.extraction.layout import BBox, LayoutCell, LayoutDocument, LayoutPage, VisualRow
+from polaris.models.authoring import build_model_from_rules
+from polaris.models.interpreter import execute_model
+from polaris.models.schema import (
     ExtractionModel,
     FieldSource,
     FieldTransform,
@@ -21,7 +21,7 @@ from stencil.models.schema import (
     RowClassifier,
     RowMatch,
 )
-from stencil.profiles.schema import (
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,

@@ -1,7 +1,7 @@
 # Profile configuration UI ownership
 
 Every persisted `SupplierProfile` property must have a non-code workflow. The
-executable inventory lives in `stencil.profiles.ui_coverage`; its test fails
+executable inventory lives in `polaris.profiles.ui_coverage`; its test fails
 when a new property is introduced without an owner.
 
 - `profile_editor`: user-owned configuration editable in the profile form,

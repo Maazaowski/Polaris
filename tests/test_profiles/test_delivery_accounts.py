@@ -1,6 +1,6 @@
 """Multi-account delivery: one profile serves many accounts."""
 
-from stencil.profiles.schema import SupplierProfile
+from polaris.profiles.schema import SupplierProfile
 
 
 def _profile(delivery: dict) -> SupplierProfile:

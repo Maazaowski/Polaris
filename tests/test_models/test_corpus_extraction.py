@@ -18,11 +18,11 @@ from decimal import Decimal, InvalidOperation
 
 import pytest
 
-from stencil.models.interpreter import execute_model
-from stencil.models.training import _normalize_line_items
-from stencil.output.formatting import format_deliverable_date
-from stencil.output.mapper import TEMFORCE_OUTPUT_COLUMNS
-from stencil.output.xlsx_writer import build_output_rows
+from polaris.models.interpreter import execute_model
+from polaris.models.training import _normalize_line_items
+from polaris.output.formatting import format_deliverable_date
+from polaris.output.mapper import TEMFORCE_OUTPUT_COLUMNS
+from polaris.output.xlsx_writer import build_output_rows
 from tests.corpus_utils import CorpusLayout, layout_params, read_expected_xlsx_rows
 
 OUTPUT_HEADERS = [column.xlsx_header for column in TEMFORCE_OUTPUT_COLUMNS]

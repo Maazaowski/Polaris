@@ -11,14 +11,14 @@ from decimal import Decimal
 import fitz
 import pytest
 
-from stencil.config import settings
-from stencil.models.sample_authoring import (
+from polaris.config import settings
+from polaris.models.sample_authoring import (
     plan_sample,
     replay_and_verify,
     should_author_from_sample,
     verify_against_stated_totals,
 )
-from stencil.models.schema import (
+from polaris.models.schema import (
     ExtractionModel,
     FieldSource,
     FieldTransform,
@@ -29,12 +29,12 @@ from stencil.models.schema import (
     RowClassifier,
     RowMatch,
 )
-from stencil.profiles.schema import (
+from polaris.profiles.schema import (
     ClassificationSignals,
     SupplierIdentity,
     SupplierProfile,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

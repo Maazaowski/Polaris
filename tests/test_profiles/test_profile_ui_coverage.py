@@ -1,4 +1,4 @@
-from stencil.profiles.ui_coverage import (
+from polaris.profiles.ui_coverage import (
     PROFILE_UI_COVERAGE,
     unclassified_profile_ui_paths,
 )

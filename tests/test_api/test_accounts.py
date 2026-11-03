@@ -8,11 +8,11 @@ calling ``sync.run_sync()`` synchronously instead of going through Celery.
 import pytest
 from fastapi.testclient import TestClient
 
-from stencil.accounts import sync
-from stencil.config import settings
-from stencil.main import app
-from stencil.profiles.loader import get_profile, save_profile
-from stencil.profiles.schema import SupplierProfile
+from polaris.accounts import sync
+from polaris.config import settings
+from polaris.main import app
+from polaris.profiles.loader import get_profile, save_profile
+from polaris.profiles.schema import SupplierProfile
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def test_sync_populates_snapshot_grouped_and_ignores_legacy(client):
 
 
 def test_post_sync_enqueues_task_and_status_reports_progress(client):
-    from stencil.tasks import worker
+    from polaris.tasks import worker
 
     queued = []
     monkeypatch_delay = lambda *a, **k: queued.append((a, k))  # noqa: E731

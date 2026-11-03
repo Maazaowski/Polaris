@@ -1,6 +1,6 @@
-# Stencil — Deployment Guide (Windows Server 2025)
+# Polaris — Deployment Guide (Windows Server 2025)
 
-How to deploy Stencil on a **Windows Server 2025** machine using
+How to deploy Polaris on a **Windows Server 2025** machine using
 **WSL2 + Docker Engine**, connecting to Temforce's **existing MySQL** instance.
 
 > **Why not Docker Desktop?** Docker Desktop is only supported on Windows 10/11,
@@ -97,13 +97,13 @@ docker run hello-world              # sanity check — should print a success me
 ### 4.1 Create the database and user
 Run on the MySQL instance as an admin (adjust the password):
 ```sql
-CREATE DATABASE stencil CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'stencil'@'%' IDENTIFIED BY '<DB_PASSWORD>';
-GRANT ALL PRIVILEGES ON stencil.* TO 'stencil'@'%';
+CREATE DATABASE polaris CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'polaris'@'%' IDENTIFIED BY '<DB_PASSWORD>';
+GRANT ALL PRIVILEGES ON polaris.* TO 'polaris'@'%';
 FLUSH PRIVILEGES;
 ```
 > If infra restricts host scope, replace `'%'` with the Docker/WSL subnet, e.g.
-> `'stencil'@'172.%'`. Confirm the subnet with infra.
+> `'polaris'@'172.%'`. Confirm the subnet with infra.
 
 ### 4.2 Make sure it's reachable from containers
 - MySQL `bind-address = 0.0.0.0` (or the host's LAN IP), not `127.0.0.1` only.
@@ -120,8 +120,8 @@ first start (`alembic upgrade head`) — no manual schema setup needed.
 Clone into the **WSL Linux filesystem** (faster builds than `/mnt/c`):
 ```bash
 cd ~
-git clone <REPO_URL> Stencil
-cd Stencil
+git clone <REPO_URL> Polaris
+cd Polaris
 ```
 
 ---
@@ -140,9 +140,9 @@ remove the `depends_on: mysql` block (keep the `redis` dependency).
 three services set:
 ```yaml
     environment:
-      ST_DATABASE_URL: mysql+pymysql://stencil:<DB_PASSWORD>@<MYSQL_HOST>:<MYSQL_PORT>/stencil
-      ST_REDIS_URL: redis://redis:6379/0
-      ST_DATA_DIR: /data
+      POLARIS_DATABASE_URL: mysql+pymysql://polaris:<DB_PASSWORD>@<MYSQL_HOST>:<MYSQL_PORT>/polaris
+      POLARIS_REDIS_URL: redis://redis:6379/0
+      POLARIS_DATA_DIR: /data
     extra_hosts:
       - "host.docker.internal:host-gateway"
 ```
@@ -155,19 +155,19 @@ three services set:
 
 ## 7. Create the `.env` file
 
-In `~/Stencil/.env` — note Windows drives use the **WSL mount form**
+In `~/Polaris/.env` — note Windows drives use the **WSL mount form**
 (`/mnt/d/...`, not `D:\...`):
 ```
-ST_OPENAI_API_KEY=sk-...
-ST_DATABASE_URL=mysql+pymysql://stencil:<DB_PASSWORD>@<MYSQL_HOST>:<MYSQL_PORT>/stencil
-ST_HOST_DATA_DIR=/mnt/<DATA_DRIVE>/Stencil
+POLARIS_OPENAI_API_KEY=sk-...
+POLARIS_DATABASE_URL=mysql+pymysql://polaris:<DB_PASSWORD>@<MYSQL_HOST>:<MYSQL_PORT>/polaris
+POLARIS_HOST_DATA_DIR=/mnt/<DATA_DRIVE>/Polaris
 # Login bootstrap: creates the FIRST admin user at startup while the users
 # table is empty. Remove both lines after first boot; manage users in-app later.
-ST_ADMIN_EMAIL=admin@example.com
-ST_ADMIN_PASSWORD=<CHOOSE_A_STRONG_PASSWORD>
+POLARIS_ADMIN_EMAIL=admin@example.com
+POLARIS_ADMIN_PASSWORD=<CHOOSE_A_STRONG_PASSWORD>
 ```
-`ST_HOST_DATA_DIR` is the Windows folder bind-mounted to `/data` (archives,
-completed outputs). Example: `D:\Stencil` → `/mnt/d/Stencil`.
+`POLARIS_HOST_DATA_DIR` is the Windows folder bind-mounted to `/data` (archives,
+completed outputs). Example: `D:\Polaris` → `/mnt/d/Polaris`.
 
 ---
 
@@ -181,7 +181,7 @@ completed outputs). Example: `D:\Stencil` → `/mnt/d/Stencil`.
 **8.1 — Mount the invoice tree** into `backend`, `worker`, `watcher` (WSL form):
 ```yaml
     volumes:
-      - ${ST_HOST_DATA_DIR}:/data
+      - ${POLARIS_HOST_DATA_DIR}:/data
       - /mnt/<DATA_DRIVE>/Astera/Invoices:/data/Astera/Invoices
       - ./supplier_profiles:/app/supplier_profiles
 ```
@@ -203,7 +203,7 @@ multiple accounts.
 ## 9. Build and start
 
 ```bash
-cd ~/Stencil
+cd ~/Polaris
 docker compose build
 docker compose up -d
 ```
@@ -237,7 +237,7 @@ Two layers make the stack survive reboots without an interactive login:
    - **Action → Start a program:**
      ```
      Program:   C:\Windows\System32\wsl.exe
-     Arguments: -d Ubuntu -u root -e sh -c "cd /home/<LINUX_USER>/Stencil && docker compose up -d"
+     Arguments: -d Ubuntu -u root -e sh -c "cd /home/<LINUX_USER>/Polaris && docker compose up -d"
      ```
 
 **Validate:** reboot the server, wait a minute, then run `docker compose ps`
@@ -247,7 +247,7 @@ Two layers make the stack survive reboots without an interactive login:
 
 ## 12. Day-2 operations
 
-All commands run from `~/Stencil` inside the Ubuntu shell.
+All commands run from `~/Polaris` inside the Ubuntu shell.
 
 | Task | Command |
 |------|---------|
@@ -258,7 +258,7 @@ All commands run from `~/Stencil` inside the Ubuntu shell.
 | Update to new code | `git pull && docker compose build && docker compose up -d` |
 | Check status | `docker compose ps` |
 
-**Backups:** the `stencil` MySQL schema (models + audit data) is covered by
+**Backups:** the `polaris` MySQL schema (models + audit data) is covered by
 Temforce's existing MySQL backups — *confirm with infra*. The `/data` folder
 (archived PDFs + completed outputs) lives on the Windows drive and should be
 included in the server's file backup.
@@ -269,19 +269,19 @@ included in the server's file backup.
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `ST_OPENAI_API_KEY` | OpenAI key for AI extraction | — (required) |
-| `ST_ADMIN_EMAIL` / `ST_ADMIN_PASSWORD` | Bootstrap the first login user (only while users table is empty; remove after first boot) | — (**required once**; without a user the API runs OPEN with a warning) |
-| `ST_SESSION_TTL_DAYS` | Login session lifetime | `7` |
-| `ST_DATABASE_URL` | SQLAlchemy URL for the existing MySQL | — (required) |
-| `ST_REDIS_URL` | Celery broker | `redis://redis:6379/0` |
-| `ST_DATA_DIR` | Data dir **inside** the container | `/data` |
-| `ST_HOST_DATA_DIR` | Windows folder mounted to `/data` (WSL form) | `/mnt/c/Stencil` |
-| `ST_WATCHER_POLL_INTERVAL` | Inbound folder scan interval (seconds) | `1.0` |
-| `ST_WATCHER_STABLE_SECONDS` | Wait for a file to stop growing before processing | `3.0` |
+| `POLARIS_OPENAI_API_KEY` | OpenAI key for AI extraction | — (required) |
+| `POLARIS_ADMIN_EMAIL` / `POLARIS_ADMIN_PASSWORD` | Bootstrap the first login user (only while users table is empty; remove after first boot) | — (**required once**; without a user the API runs OPEN with a warning) |
+| `POLARIS_SESSION_TTL_DAYS` | Login session lifetime | `7` |
+| `POLARIS_DATABASE_URL` | SQLAlchemy URL for the existing MySQL | — (required) |
+| `POLARIS_REDIS_URL` | Celery broker | `redis://redis:6379/0` |
+| `POLARIS_DATA_DIR` | Data dir **inside** the container | `/data` |
+| `POLARIS_HOST_DATA_DIR` | Windows folder mounted to `/data` (WSL form) | `/mnt/c/Polaris` |
+| `POLARIS_WATCHER_POLL_INTERVAL` | Inbound folder scan interval (seconds) | `1.0` |
+| `POLARIS_WATCHER_STABLE_SECONDS` | Wait for a file to stop growing before processing | `3.0` |
 
 > The watcher already uses polling (`PollingObserver`), which is reliable over
 > Windows→WSL bind mounts — **no code change required**. Increase
-> `ST_WATCHER_POLL_INTERVAL` (e.g. to `2.0`–`5.0`) only if you need to reduce CPU
+> `POLARIS_WATCHER_POLL_INTERVAL` (e.g. to `2.0`–`5.0`) only if you need to reduce CPU
 > when watching many folders.
 
 ---
@@ -291,7 +291,7 @@ included in the server's file backup.
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `backend` exits on start, can't reach DB | Wrong `<MYSQL_HOST>`, firewall, or user host scope | Verify §4: `bind-address`, firewall port, user `@'%'`, and that `host.docker.internal` resolves (`extra_hosts`) |
-| `Access denied for user 'stencil'` | Password mismatch or host not allowed | Re-check the `.env` password and the MySQL `GRANT` host |
+| `Access denied for user 'polaris'` | Password mismatch or host not allowed | Re-check the `.env` password and the MySQL `GRANT` host |
 | New PDFs not picked up | Wrong mount or profile path | Confirm the `/mnt/<DATA_DRIVE>/...` mount and the profile `inbound_path` match |
 | UI loads but no data / API errors | `backend` unhealthy | `docker compose logs backend` |
 | Containers don't return after reboot | WSL/Docker didn't auto-start | Re-check §11 (systemd enabled + Task Scheduler entry) |

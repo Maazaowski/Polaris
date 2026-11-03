@@ -1,8 +1,7 @@
 # Polaris frontend
 
-The operator UI, shown to users as **Polaris** (the package, env prefix and
-backend keep the `stencil` name for now): a Next.js 16 (App Router) app that
-talks to the FastAPI backend over `/api/v1`. Everything a user does, from
+The operator UI for Polaris: a Next.js 16 (App Router) app that talks to the
+FastAPI backend over `/api/v1`. Everything a user does, from
 dropping an invoice to approving a template, happens here.
 
 **Read [`AGENTS.md`](AGENTS.md) before writing code.** This is a pre-release
@@ -86,7 +85,7 @@ Redis, MySQL and this dev server or the Docker frontend). It never starts one.
 ```bash
 # One command for either stack. It seeds a throwaway admin first: through
 # `docker compose exec backend` when the Docker dev stack is up, otherwise
-# through the repo's .venv Python against ST_DATABASE_URL (export it for a
+# through the repo's .venv Python against POLARIS_DATABASE_URL (export it for a
 # native stack), then runs the suite.
 npm run test:e2e
 

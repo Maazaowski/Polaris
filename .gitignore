@@ -23,9 +23,9 @@ venv/
 Thumbs.db
 
 # Runtime data
-stencil_data/
+polaris_data/
 extraction_models/
-stencil_work/
+polaris_work/
 
 # Test artifacts
 .pytest_tmp/

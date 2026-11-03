@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from stencil.intake.watcher import _sync_profile_watches, resolve_profile_watch_dir
-from stencil.profiles.loader import save_profile
-from stencil.profiles.schema import SupplierProfile
+from polaris.intake.watcher import _sync_profile_watches, resolve_profile_watch_dir
+from polaris.profiles.loader import save_profile
+from polaris.profiles.schema import SupplierProfile
 
 
 def _profile(*, inbound_path, output_path="/data/Test/xls", status="active",

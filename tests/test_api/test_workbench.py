@@ -6,14 +6,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from stencil.config import settings
-from stencil.db import crud
-from stencil.db.models import Base
-from stencil.db.session import get_db
-from stencil.main import app
-from stencil.models import registry
-from stencil.models.schema import ExtractionModel
-from stencil.profiles.loader import load_all_profiles
+from polaris.config import settings
+from polaris.db import crud
+from polaris.db.models import Base
+from polaris.db.session import get_db
+from polaris.main import app
+from polaris.models import registry
+from polaris.models.schema import ExtractionModel
+from polaris.profiles.loader import load_all_profiles
 
 PROFILE_ID = "colt.standard.v1"
 
@@ -41,8 +41,8 @@ def client(tmp_path, monkeypatch):
 
     # Point the profile loader at this test's engine and seed the Colt profile the
     # workbench endpoints look up (the live registry seeds no client profiles).
-    from stencil.db import session as db_session
-    from stencil.profiles import loader as ploader
+    from polaris.db import session as db_session
+    from polaris.profiles import loader as ploader
     from tests.corpus_utils import load_corpus_profile
 
     monkeypatch.setattr(db_session, "engine", engine)
@@ -203,7 +203,7 @@ def test_training_set_view_is_cheap_no_model_execution(client, monkeypatch):
     test_client, session_factory = client
     _seed_candidate_with_run(session_factory)
 
-    import stencil.models.training as training_mod
+    import polaris.models.training as training_mod
 
     def _boom(*a, **k):  # pragma: no cover - must never be called
         raise AssertionError("training-set view must not execute the model")
@@ -239,7 +239,7 @@ def test_training_set_view_marks_untrained_invoices(client, monkeypatch):
     session.commit()
     session.close()
 
-    import stencil.models.training as training_mod
+    import polaris.models.training as training_mod
     monkeypatch.setattr(
         training_mod, "execute_model",
         lambda *a, **k: (_ for _ in ()).throw(AssertionError("no execution")),
@@ -260,7 +260,7 @@ def test_training_upload_stages_only_and_tags_holdout(client, monkeypatch):
     test_client, session_factory = client
     _seed_approved_v1(session_factory)
 
-    import stencil.intake.service as intake_service
+    import polaris.intake.service as intake_service
 
     # Stage-only: no Celery task, no continue_pipeline. process_new_pdf is the
     # only side effect; stub it to return a known id without touching disk.

@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import pytest
 
-from stencil.config import settings
-from stencil.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
-from stencil.models.authoring import AuthoringExample, author_extraction_model
-from stencil.models.diff import diff_invoices
-from stencil.models.interpreter import execute_model
-from stencil.models.training import _normalize_line_items
-from stencil.profiles import loader as profiles_loader
+from polaris.config import settings
+from polaris.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
+from polaris.models.authoring import AuthoringExample, author_extraction_model
+from polaris.models.diff import diff_invoices
+from polaris.models.interpreter import execute_model
+from polaris.models.training import _normalize_line_items
+from polaris.profiles import loader as profiles_loader
 from tests.corpus_utils import discover_layouts
 from tests.test_models.test_corpus_authoring import _ai_ground_truth
 
@@ -32,7 +32,7 @@ ONEOFF_STEM = "A837737 - IE-SI54403"    # has one-off rows without billing perio
 @pytest.fixture(autouse=True)
 def _require_openai_key():
     if not settings.openai_api_key:
-        pytest.skip("authoring suite needs ST_OPENAI_API_KEY")
+        pytest.skip("authoring suite needs POLARIS_OPENAI_API_KEY")
 
 
 @pytest.fixture
@@ -45,8 +45,8 @@ def eunetworks_layout():
 
 def _example(layout, profile, pdf, fingerprint) -> AuthoringExample:
     invoice, document = _ai_ground_truth(layout, profile, pdf, fingerprint)
-    from stencil.extraction.evidence import build_model_authoring_evidence
-    from stencil.extraction.layout import render_layout_text
+    from polaris.extraction.evidence import build_model_authoring_evidence
+    from polaris.extraction.layout import render_layout_text
 
     return AuthoringExample(
         page_texts=render_layout_text(document),

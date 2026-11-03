@@ -6,17 +6,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from stencil.fields.loader import default_field_schema
-from stencil.profiles import authoring
-from stencil.profiles.authoring import (
+from polaris.fields.loader import default_field_schema
+from polaris.profiles import authoring
+from polaris.profiles.authoring import (
     InvoiceEvidence,
     author_profile,
     build_profile_authoring_schema,
     draft_to_supplier_profile_dict,
     supplier_profile_to_draft,
 )
-from stencil.profiles.schema import SupplierProfile
-from stencil.specs.loader import default_output_spec
+from polaris.profiles.schema import SupplierProfile
+from polaris.specs.loader import default_output_spec
 
 
 def _flat_draft() -> dict:

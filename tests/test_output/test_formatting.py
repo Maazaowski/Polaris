@@ -2,9 +2,9 @@
 
 from datetime import date
 
-from stencil.output.formatting import format_deliverable_date, format_deliverable_invoice_dates
-from stencil.output.json_writer import write_canonical_json
-from stencil.validation.schema import (
+from polaris.output.formatting import format_deliverable_date, format_deliverable_invoice_dates
+from polaris.output.json_writer import write_canonical_json
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,

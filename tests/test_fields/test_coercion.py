@@ -3,10 +3,10 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.fields.coercion import coerce_field_value, parse_date_value
-from stencil.fields.currency import normalize_currency_code
-from stencil.fields.schema import FieldDef, FieldScope, FieldType
-from stencil.validation.schema import (
+from polaris.fields.coercion import coerce_field_value, parse_date_value
+from polaris.fields.currency import normalize_currency_code
+from polaris.fields.schema import FieldDef, FieldScope, FieldType
+from polaris.validation.schema import (
     SYNTHETIC_INVOICE_DATE_WARNING,
     CanonicalInvoice,
     ExtractionPath,
@@ -113,8 +113,8 @@ class TestExtractedDocumentDateReload:
         assert doc.header.due_date == date(2024, 10, 31)
 
     def test_prepared_evidence_does_not_crash_on_us_dates(self):
-        from stencil.extraction.evidence import build_model_authoring_evidence
-        from stencil.extraction.layout import LayoutDocument
+        from polaris.extraction.evidence import build_model_authoring_evidence
+        from polaris.extraction.layout import LayoutDocument
 
         doc = CanonicalInvoice.model_validate({
             "intake_id": "x",

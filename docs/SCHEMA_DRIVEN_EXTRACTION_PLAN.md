@@ -46,16 +46,16 @@ operates over those user-defined fields. Invoice becomes one schema template amo
 ## Current state (validated)
 
 The pipeline already has a **configurable delivery layer** (`OutputSpec` +
-[`specs/loader.py`](../src/stencil/specs/loader.py)) but a **fixed extraction contract**:
+[`specs/loader.py`](../src/polaris/specs/loader.py)) but a **fixed extraction contract**:
 
 | Layer | Location | Static today |
 |-------|----------|--------------|
-| AI schema | [`extraction/extractor.py`](../src/stencil/extraction/extractor.py) `EXTRACTION_JSON_SCHEMA` | Fixed header / line_items / totals properties |
-| Canonical record | [`validation/schema.py`](../src/stencil/validation/schema.py) `CanonicalInvoice` | ~31 consuming files |
-| Reconciliation | [`validation/reconciler.py`](../src/stencil/validation/reconciler.py) | Hardcoded `charge_type` buckets + `subtotal`/`tax`/`total_due` |
-| Output resolution | [`output/mapper.py`](../src/stencil/output/mapper.py) | `header.*`, `line_item.*`, bare totals |
-| Deterministic model | [`models/authoring.py`](../src/stencil/models/authoring.py) `_HEADER_FIELDS` / `_ITEM_FIELDS` / `_TOTAL_NAMES` | Enums baked into `MODEL_RULES_JSON_SCHEMA` |
-| Profile config | [`profiles/schema.py`](../src/stencil/profiles/schema.py) | `output_spec_id` only; `advanced.header_mapping` = 6 fixed label keys |
+| AI schema | [`extraction/extractor.py`](../src/polaris/extraction/extractor.py) `EXTRACTION_JSON_SCHEMA` | Fixed header / line_items / totals properties |
+| Canonical record | [`validation/schema.py`](../src/polaris/validation/schema.py) `CanonicalInvoice` | ~31 consuming files |
+| Reconciliation | [`validation/reconciler.py`](../src/polaris/validation/reconciler.py) | Hardcoded `charge_type` buckets + `subtotal`/`tax`/`total_due` |
+| Output resolution | [`output/mapper.py`](../src/polaris/output/mapper.py) | `header.*`, `line_item.*`, bare totals |
+| Deterministic model | [`models/authoring.py`](../src/polaris/models/authoring.py) `_HEADER_FIELDS` / `_ITEM_FIELDS` / `_TOTAL_NAMES` | Enums baked into `MODEL_RULES_JSON_SCHEMA` |
+| Profile config | [`profiles/schema.py`](../src/polaris/profiles/schema.py) | `output_spec_id` only; `advanced.header_mapping` = 6 fixed label keys |
 
 **Regression rail:** [`tests/fixtures/corpus/colt.standard/expected_line_items.json`](../tests/fixtures/corpus/colt.standard/expected_line_items.json) + [`tests/test_output/test_xlsx_writer.py`](../tests/test_output/test_xlsx_writer.py) + full `pytest -q`. Colt has committed `model.json`; euNetworks has PDFs only (authoring suite is `-m authoring`).
 
@@ -117,14 +117,14 @@ Profile gains `field_schema_id` (default `invoice.standard`) alongside `output_s
 
 ### A. FieldSchema registry
 
-**New module** mirroring [`output/spec.py`](../src/stencil/output/spec.py) + [`specs/loader.py`](../src/stencil/specs/loader.py):
+**New module** mirroring [`output/spec.py`](../src/polaris/output/spec.py) + [`specs/loader.py`](../src/polaris/specs/loader.py):
 
 | File | Purpose |
 |------|---------|
-| [`src/stencil/fields/schema.py`](../src/stencil/fields/schema.py) | `FieldDef`, `FieldSchema`, enums (`scope`, `type`, `role`) |
-| [`src/stencil/fields/loader.py`](../src/stencil/fields/loader.py) | `load_all_field_schemas`, `get_field_schema`, `default_field_schema`, `resolve_field_schema(profile)` |
+| [`src/polaris/fields/schema.py`](../src/polaris/fields/schema.py) | `FieldDef`, `FieldSchema`, enums (`scope`, `type`, `role`) |
+| [`src/polaris/fields/loader.py`](../src/polaris/fields/loader.py) | `load_all_field_schemas`, `get_field_schema`, `default_field_schema`, `resolve_field_schema(profile)` |
 | [`field_schemas/invoice.standard.json`](../field_schemas/invoice.standard.json) | Shipped template enumerating today's fields |
-| [`src/stencil/config.py`](../src/stencil/config.py) | `field_schemas_dir: Path = Path("field_schemas")` |
+| [`src/polaris/config.py`](../src/polaris/config.py) | `field_schemas_dir: Path = Path("field_schemas")` |
 
 **`invoice.standard.json` field inventory** (must match current Pydantic models exactly):
 
@@ -140,7 +140,7 @@ Profile gains `field_schema_id` (default `invoice.standard`) alongside `output_s
 
 ### B. ExtractedDocument + invoice parity
 
-**Replace** `CanonicalInvoice` with generic record in [`validation/schema.py`](../src/stencil/validation/schema.py):
+**Replace** `CanonicalInvoice` with generic record in [`validation/schema.py`](../src/polaris/validation/schema.py):
 
 ```python
 class ExtractedDocument(BaseModel):
@@ -181,7 +181,7 @@ class ExtractedDocument(BaseModel):
 
 ### C. Dynamic AI extraction
 
-In [`extraction/extractor.py`](../src/stencil/extraction/extractor.py):
+In [`extraction/extractor.py`](../src/polaris/extraction/extractor.py):
 
 1. **`build_extraction_json_schema(field_schema: FieldSchema) -> dict`**
    - Document object: one property per `scope=document` field (strict: all `required`, `additionalProperties: false`)
@@ -203,7 +203,7 @@ In [`extraction/extractor.py`](../src/stencil/extraction/extractor.py):
 
 ### D. Role-based reconciliation
 
-Generalize [`validation/reconciler.py`](../src/stencil/validation/reconciler.py):
+Generalize [`validation/reconciler.py`](../src/polaris/validation/reconciler.py):
 
 ```python
 def reconcile(doc: ExtractedDocument, schema: FieldSchema) -> ReconciliationResult | None:
@@ -222,7 +222,7 @@ def reconcile(doc: ExtractedDocument, schema: FieldSchema) -> ReconciliationResu
 
 ### E. Output by field name
 
-Extend [`output/mapper.py`](../src/stencil/output/mapper.py) + [`output/xlsx_writer.py`](../src/stencil/output/xlsx_writer.py):
+Extend [`output/mapper.py`](../src/polaris/output/mapper.py) + [`output/xlsx_writer.py`](../src/polaris/output/xlsx_writer.py):
 
 1. **`normalize_source_path(path) -> str`** — central alias layer:
    - `field.<name>` → document-scope field in `doc.fields`
@@ -243,22 +243,22 @@ Extend [`output/mapper.py`](../src/stencil/output/mapper.py) + [`output/xlsx_wri
 
 ### F. Generic deterministic model (hardest; land last)
 
-**[`models/schema.py`](../src/stencil/models/schema.py):** no structural change — `header_fields` / `item_fields` / `totals` are already name-keyed dicts.
+**[`models/schema.py`](../src/polaris/models/schema.py):** no structural change — `header_fields` / `item_fields` / `totals` are already name-keyed dicts.
 
-**[`models/authoring.py`](../src/stencil/models/authoring.py):**
+**[`models/authoring.py`](../src/polaris/models/authoring.py):**
 
 - Replace module-level `_HEADER_FIELDS`, `_ITEM_FIELDS`, `_TOTAL_NAMES` with functions reading active `FieldSchema`
 - `build_model_rules_json_schema(schema)` — dynamic name enums + `_SELF_CHECK_FIELDS` from roles (`total`, `subtotal`, `current_charges`)
 - `_build_target(doc, schema)` — ground-truth dict keyed by schema field names
 - `_REPAIRABLE_HEADER_FIELDS` → document-scope fields with `label_hint`
 
-**[`models/interpreter.py`](../src/stencil/models/interpreter.py):**
+**[`models/interpreter.py`](../src/polaris/models/interpreter.py):**
 
 - Drop `_KNOWN_ITEM_FIELDS`; write resolved values into `ExtractedDocument.fields` / `.rows` by field name
 - `_build_invoice` → `_build_document(model, schema, ...)`
 - Self-checks reference role-indexed field names
 
-**[`models/diff.py`](../src/stencil/models/diff.py):** operate on `ExtractedDocument` + active OutputSpec (already mostly spec-driven)
+**[`models/diff.py`](../src/polaris/models/diff.py):** operate on `ExtractedDocument` + active OutputSpec (already mostly spec-driven)
 
 **Gate:** Colt `expected_line_items.json` unchanged; `-m authoring` re-authors Colt + euNetworks clean.
 
@@ -266,7 +266,7 @@ Extend [`output/mapper.py`](../src/stencil/output/mapper.py) + [`output/xlsx_wri
 
 ### G. Profile + UI
 
-**Backend — [`profiles/schema.py`](../src/stencil/profiles/schema.py):**
+**Backend — [`profiles/schema.py`](../src/polaris/profiles/schema.py):**
 
 ```python
 field_schema_id: str = Field(default="invoice.standard")
@@ -291,7 +291,7 @@ Add `resolve_merged_field_schema(profile) -> FieldSchema` in fields loader (temp
 
 ### H. Migration
 
-Extend [`profiles/migrate.py`](../src/stencil/profiles/migrate.py):
+Extend [`profiles/migrate.py`](../src/polaris/profiles/migrate.py):
 
 - Inject `field_schema_id: "invoice.standard"` when absent
 - Convert `advanced.header_mapping` → `field_overrides` with `label_hint` on standard fields (idempotent)

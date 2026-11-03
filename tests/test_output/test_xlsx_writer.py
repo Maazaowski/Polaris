@@ -5,18 +5,18 @@ from decimal import Decimal
 
 import openpyxl
 
-from stencil.output.mapper import (
+from polaris.output.mapper import (
     TEMFORCE_OUTPUT_COLUMNS,
     get_line_item_value,
 )
-from stencil.output.xlsx_writer import (
+from polaris.output.xlsx_writer import (
     allocate_invoice_tax,
     compute_line_tax,
     delivered_tax_sum,
     resolve_tax_rate,
     write_xlsx,
 )
-from stencil.validation.schema import (
+from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
     ExtractionPath,
@@ -303,7 +303,7 @@ class TestXlsxOutput:
         assert tax_value == 195.50  # 850 * 0.23
 
     def test_ext_amount_is_numeric_not_string(self, tmp_path):
-        from stencil.output.xlsx_writer import build_output_rows
+        from polaris.output.xlsx_writer import build_output_rows
 
         inv = _with_calculated_tax(_invoice(line_items=[_li("850.00")], tax_rate=Decimal("0.23")))
         rows = build_output_rows(inv)

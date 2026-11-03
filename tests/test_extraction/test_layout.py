@@ -1,7 +1,7 @@
 import fitz
 import pytest
 
-from stencil.extraction.layout import (
+from polaris.extraction.layout import (
     BBox,
     LayoutCell,
     LayoutDocument,
@@ -303,7 +303,7 @@ def test_column_split_orders_rows_per_reading_column():
 
 
 def test_suggest_gutter_fires_on_two_column_and_not_on_table(tmp_path):
-    from stencil.extraction.layout import extract_layout_document, suggest_gutter_for_page
+    from polaris.extraction.layout import extract_layout_document, suggest_gutter_for_page
 
     tc = tmp_path / "two.pdf"
     _two_column_pdf().parent.save(str(tc))

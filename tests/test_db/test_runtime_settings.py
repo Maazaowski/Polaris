@@ -1,5 +1,5 @@
-from stencil.config import settings
-from stencil.runtime_settings import (
+from polaris.config import settings
+from polaris.runtime_settings import (
     apply_runtime_settings,
     get_runtime_settings,
     openai_model_extraction,
@@ -9,7 +9,7 @@ from stencil.runtime_settings import (
 
 
 def _clear_runtime_cache(monkeypatch):
-    import stencil.runtime_settings as runtime_settings
+    import polaris.runtime_settings as runtime_settings
 
     monkeypatch.setattr(runtime_settings, "_cache", None)
     monkeypatch.setattr(runtime_settings, "_cache_loaded_at", 0.0)

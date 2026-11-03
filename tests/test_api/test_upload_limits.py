@@ -9,11 +9,11 @@ import io
 import pytest
 from fastapi import HTTPException, UploadFile
 
-from stencil.api.uploads import (
+from polaris.api.uploads import (
     stream_upload_to,
     validate_upload_filename,
 )
-from stencil.config import settings
+from polaris.config import settings
 
 
 def _upload(name: str, payload: bytes) -> UploadFile:

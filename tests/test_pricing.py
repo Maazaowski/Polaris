@@ -2,10 +2,10 @@
 
 from decimal import Decimal
 
-from stencil.config import settings
-from stencil.llm.config import PROVIDER_MODELS
-from stencil.pricing import estimate_cost_usd
-from stencil.runtime_settings import OPENAI_MODEL_OPTIONS
+from polaris.config import settings
+from polaris.llm.config import PROVIDER_MODELS
+from polaris.pricing import estimate_cost_usd
+from polaris.runtime_settings import OPENAI_MODEL_OPTIONS
 
 
 class TestModelCatalog:

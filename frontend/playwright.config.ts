@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright config for Stencil's UI regression suite.
+ * Playwright config for Polaris's UI regression suite.
  *
  * The suite runs against an ALREADY-RUNNING stack (docker compose, or
  * `npm run dev` + a local backend) rather than starting one itself: the app

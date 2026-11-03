@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stencil.extraction.extractor import _completion_to_json
+from polaris.extraction.extractor import _completion_to_json
 
 
 def _response(content: str, finish_reason: str = "stop"):
@@ -24,7 +24,7 @@ def test_completion_to_json_reports_malformed_json_context():
     assert "AI returned malformed JSON" in message
     assert "finish_reason=length" in message
     assert "length=" in message
-    assert "increase ST_OPENAI_MAX_OUTPUT_TOKENS" in message
+    assert "increase POLARIS_OPENAI_MAX_OUTPUT_TOKENS" in message
 
 
 def test_valid_json_that_stopped_at_the_token_ceiling_is_still_truncated():
@@ -34,7 +34,7 @@ def test_valid_json_that_stopped_at_the_token_ceiling_is_still_truncated():
     cleanly while omitting rows.  Accepting it is how a 656-page document
     silently returns a short answer instead of failing.
     """
-    from stencil.extraction.ai_json import TruncatedAIJSONError
+    from polaris.extraction.ai_json import TruncatedAIJSONError
 
     with pytest.raises(TruncatedAIJSONError) as exc_info:
         _completion_to_json(_response('{"rows":[{"s":"A","a":"1.00"}]}', "length"))
@@ -52,7 +52,7 @@ def test_complete_json_is_returned_untouched():
 
 
 def test_empty_content_at_the_ceiling_names_the_budget():
-    from stencil.extraction.ai_json import TruncatedAIJSONError, completion_to_json
+    from polaris.extraction.ai_json import TruncatedAIJSONError, completion_to_json
 
     with pytest.raises(TruncatedAIJSONError) as exc_info:
         completion_to_json(_response("", "length"), max_output_tokens=32768)

@@ -15,11 +15,11 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from stencil import auth
-from stencil.config import settings
-from stencil.db.models import AuthSession, User
-from stencil.db.session import SessionLocal
-from stencil.main import app
+from polaris import auth
+from polaris.config import settings
+from polaris.db.models import AuthSession, User
+from polaris.db.session import SessionLocal
+from polaris.main import app
 
 ADMIN = ("boss@temforce.com", "admin-pass-1")
 MEMBER = ("member@temforce.com", "member-pass-1")

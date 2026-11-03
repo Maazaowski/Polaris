@@ -6,7 +6,7 @@ the eval corpus carries its whole deliverable on pages 3-15; a differently
 organised one puts it at page 200, and a prefix loses it entirely.
 """
 
-from stencil.models.authoring import _build_and_fit_prompt
+from polaris.models.authoring import _build_and_fit_prompt
 
 
 def _pages(count: int, size: int = 1000) -> list[str]:

@@ -3,13 +3,13 @@
 from datetime import date
 from decimal import Decimal
 
-from stencil.extraction.layout import BBox, LayoutDocument, LayoutPage, VisualRow
-from stencil.models.interpreter import (
+from polaris.extraction.layout import BBox, LayoutDocument, LayoutPage, VisualRow
+from polaris.models.interpreter import (
     _locate_region_rows,
     find_header_value,
     find_total_value,
 )
-from stencil.models.schema import ExtractionModel, HeaderFieldRule, RegionRule
+from polaris.models.schema import ExtractionModel, HeaderFieldRule, RegionRule
 
 
 def _row(row_id: str, *cells: tuple[str, int, int]) -> str:
