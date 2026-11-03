@@ -8,6 +8,7 @@ from uuid import uuid4
 import structlog
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from stencil.api.deps import CurrentUser, DbSession, Pagination
 from stencil.api.schemas import (
@@ -20,6 +21,7 @@ from stencil.api.uploads import stream_upload_to, validate_upload_filename
 from stencil.audit import actor_label, append_event
 from stencil.config import settings
 from stencil.db import crud
+from stencil.db.models import IntakeRecord, SupplierProfileRecord
 from stencil.models import registry
 
 logger = structlog.get_logger()
@@ -112,7 +114,7 @@ def list_models(
         supplier=supplier,
     )
     return PaginatedResponse(
-        items=[ExtractionModelResponse.model_validate(m) for m in items],
+        items=_with_orphan_flags(db, items),
         total=total,
         page=pagination.page,
         per_page=pagination.per_page,
@@ -156,7 +158,68 @@ def get_model(db: DbSession, model_id: str):
     record = crud.get_extraction_model(db, model_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Extraction model not found")
-    return ExtractionModelResponse.model_validate(record)
+    return _with_orphan_flags(db, [record])[0]
+
+
+def _with_orphan_flags(db, records) -> list[ExtractionModelResponse]:
+    """Serialize models and mark the ones whose profile or source intake is gone."""
+    profile_ids = {r.supplier_profile_id for r in records if r.supplier_profile_id}
+    intake_ids = {r.created_from_intake for r in records if r.created_from_intake}
+    live_profiles: set[str] = set()
+    if profile_ids:
+        live_profiles = set(
+            db.scalars(
+                select(SupplierProfileRecord.profile_id).where(
+                    SupplierProfileRecord.profile_id.in_(profile_ids),
+                    SupplierProfileRecord.deleted_at.is_(None),
+                )
+            )
+        )
+    live_intakes: set[str] = set()
+    if intake_ids:
+        live_intakes = set(db.scalars(select(IntakeRecord.id).where(IntakeRecord.id.in_(intake_ids))))
+    out: list[ExtractionModelResponse] = []
+    for record in records:
+        response = ExtractionModelResponse.model_validate(record)
+        response.profile_missing = bool(record.supplier_profile_id) and record.supplier_profile_id not in live_profiles
+        response.source_intake_missing = (
+            bool(record.created_from_intake) and record.created_from_intake not in live_intakes
+        )
+        out.append(response)
+    return out
+
+
+class RekeyResponse(BaseModel):
+    model_id: str
+    changed: bool
+    old_fingerprint: str
+    new_fingerprint: str
+
+
+@router.post("/{model_id}/rekey", response_model=RekeyResponse)
+def rekey_model(db: DbSession, model_id: str, current_user: CurrentUser):
+    """Recompute the model's layout fingerprint from the invoice it was authored on.
+
+    Use after a profile's fingerprint rules changed, or after a fingerprinter
+    change, when the queue says invoices from this layout drift to AI."""
+    result = registry.rekey_model_fingerprint(db, model_id, updated_by=actor_label(current_user))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Extraction model not found")
+    if result.error:
+        raise HTTPException(status_code=409, detail=result.error)
+    append_event(
+        db,
+        entity_type="extraction_model",
+        entity_id=model_id,
+        action="rekeyed",
+        actor=current_user,
+    )
+    return RekeyResponse(
+        model_id=model_id,
+        changed=result.changed,
+        old_fingerprint=result.old_fingerprint,
+        new_fingerprint=result.new_fingerprint or result.old_fingerprint,
+    )
 
 
 @router.get("/{model_id}/training-set")

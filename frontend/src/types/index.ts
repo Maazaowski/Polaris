@@ -177,6 +177,10 @@ export interface ExtractionModel {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /** The owning profile was deleted: this model can never route. */
+  profile_missing: boolean;
+  /** The authoring intake was purged: no source PDF to re-key or retrain from. */
+  source_intake_missing: boolean;
 }
 
 // ── Supplier Profile ───────────────────────────────────────

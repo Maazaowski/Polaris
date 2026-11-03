@@ -1,9 +1,9 @@
 """Write canonical invoice JSON and manifest files for the completed package."""
 
 import json
-from datetime import datetime
 from pathlib import Path
 
+from stencil.clock import utcnow_iso
 from stencil.output.formatting import format_deliverable_date
 from stencil.validation.schema import ExtractedDocument
 
@@ -40,7 +40,7 @@ def write_extraction_log(invoice: ExtractedDocument, output_path: Path) -> Path:
         "extraction_duration_ms": invoice.metadata.extraction_duration_ms,
         "warnings": invoice.warnings,
         "exceptions": invoice.exceptions,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utcnow_iso(),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
@@ -73,7 +73,7 @@ def write_manifest(intake_id: str, output_dir: Path, invoice: ExtractedDocument,
             "canonical_json": str(json_path.name),
             "extraction_log": str(log_path.name),
         },
-        "created_at": datetime.now().isoformat(),
+        "created_at": utcnow_iso(),
     }
 
     manifest_path = output_dir / "manifest.json"

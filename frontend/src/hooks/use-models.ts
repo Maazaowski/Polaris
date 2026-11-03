@@ -124,6 +124,27 @@ export function useRetireModel() {
   });
 }
 
+export interface RekeyResult {
+  model_id: string;
+  changed: boolean;
+  old_fingerprint: string;
+  new_fingerprint: string;
+}
+
+/** Recompute the model's fingerprint from its authoring invoice so it routes again. */
+export function useRekeyModel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (modelId: string) =>
+      api.post<RekeyResult>(modelApiPath(modelId, "/rekey")),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      queryClient.invalidateQueries({ queryKey: ["models", result.model_id] });
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    },
+  });
+}
+
 export function useDeleteModel() {
   const queryClient = useQueryClient();
   return useMutation({

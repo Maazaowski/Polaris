@@ -9,6 +9,7 @@ from sqlalchemy import delete, extract, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from stencil.clock import utcnow
 from stencil.db.models import (
     AICostLog,
     ExtractionJob,
@@ -282,7 +283,7 @@ def increment_model_usage(db: Session, model_id: str) -> None:
     if record is None:
         return
     record.times_used += 1
-    record.last_used_at = datetime.now()
+    record.last_used_at = utcnow()
     db.commit()
 
 
@@ -324,13 +325,13 @@ def update_model_status(
     model_json = dict(record.model_json or {})
     model_json["status"] = status
     if approved_by:
-        approved_at = datetime.now()
+        approved_at = utcnow()
         record.approved_by = approved_by
         record.approved_at = approved_at
         model_json["approved_by"] = approved_by
         model_json["approved_at"] = approved_at.isoformat()
     if status == "retired" and retired_by:
-        retired_at = datetime.now()
+        retired_at = utcnow()
         record.retired_by = retired_by
         record.retired_at = retired_at
         model_json["retired_by"] = retired_by
@@ -763,7 +764,7 @@ def get_ai_cost_logs(
 
 def get_ai_cost_summary(db: Session, days: int = 30) -> dict:
     """Per-call-type cost breakdown over the last N days."""
-    since = datetime.now() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     stmt = (
         select(
             AICostLog.call_type,
@@ -797,7 +798,7 @@ def get_ai_cost_breakdown(db: Session, days: int = 30) -> dict:
     training. Joins each cost row to its intake's source so training-sample
     extraction (intake_source="training") is attributed to model training, not
     production. Returns per-bucket cost+tokens and a grand total (everything)."""
-    since = datetime.now() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     rows = db.execute(
         select(
             AICostLog.call_type,
@@ -930,7 +931,7 @@ def get_dashboard_stats(db: Session) -> dict:
 
 
 def get_volume_over_time(db: Session, days: int = 30) -> list[dict]:
-    since = datetime.now() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     prod = (IntakeRecord.intake_source.is_(None)) | (IntakeRecord.intake_source != "training")
     stmt = (
         select(
@@ -946,7 +947,7 @@ def get_volume_over_time(db: Session, days: int = 30) -> list[dict]:
 
 
 def get_cost_over_time(db: Session, days: int = 30) -> list[dict]:
-    since = datetime.now() - timedelta(days=days)
+    since = utcnow() - timedelta(days=days)
     stmt = (
         select(
             func.date(AICostLog.created_at).label("date"),
@@ -983,7 +984,7 @@ def _month_window(month: str) -> tuple[datetime, datetime]:
 
 def _recent_month_keys(months: int, *, now: datetime | None = None) -> list[str]:
     """The last ``months`` ``YYYY-MM`` keys, oldest first, ending at the current month."""
-    ref = now or datetime.now()
+    ref = now or utcnow()
     keys: list[str] = []
     year, mon = ref.year, ref.month
     for _ in range(months):
@@ -1245,7 +1246,7 @@ def fail_stale_training_runs(db: Session, message: str = "Worker restarted") -> 
         run.step = "done"
         run.message = message
         run.error_message = message
-        run.finished_at = datetime.now()
+        run.finished_at = utcnow()
     db.commit()
     return len(runs)
 
@@ -1405,7 +1406,7 @@ def create_authoring_job(
             ProfileAuthoringJob.session_id == session_id
         )
     )
-    created_at = datetime.now()
+    created_at = utcnow()
     if latest_created_at is not None and created_at <= latest_created_at:
         created_at = latest_created_at + timedelta(microseconds=1)
     job = ProfileAuthoringJob(
@@ -1495,7 +1496,7 @@ def cancel_active_authoring_jobs(db: Session, session_id: str) -> int:
     sample interrupted during extraction is returned to ``uploaded`` so a later
     turn can safely restart it instead of leaving the UI polling ``pending``.
     """
-    now = datetime.now()
+    now = utcnow()
     result = db.execute(
         update(ProfileAuthoringJob)
         .where(

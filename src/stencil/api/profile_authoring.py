@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -23,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from stencil.api.deps import CurrentUser, DbSession
 from stencil.api.uploads import save_uploaded_file, save_uploaded_pdf
+from stencil.clock import utcnow
 from stencil.config import settings
 from stencil.db import crud
 from stencil.fields.loader import field_schema_exists, get_field_schema, resolve_merged_field_schema
@@ -500,7 +500,7 @@ def finalize_session(db: DbSession, session_id: str, body: FinalizeRequest, curr
     # Editing an existing profile: layer the AI-authored hints over the source so
     # the new version keeps its delivery accounts, training config, and fingerprint
     # rules. Otherwise it's a fresh profile from just the authored draft.
-    today = datetime.now().date().isoformat()
+    today = utcnow().date().isoformat()
     if session.source_profile_id:
         source = get_profile(session.source_profile_id)
         if source is None:

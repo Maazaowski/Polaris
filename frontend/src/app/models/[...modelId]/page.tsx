@@ -10,6 +10,7 @@ import {
   useApproveModel,
   useRetireModel,
   useDeleteModel,
+  useRekeyModel,
   useUpdateModelRules,
   useActivateModel,
   useTestModel,
@@ -51,7 +52,8 @@ import {
   CheckCircle2,
   Archive,
   Hash,
-  Cpu,  Clock,
+  Cpu,
+  Clock,
   FileText,
   ChevronDown,
   ChevronRight,
@@ -481,6 +483,7 @@ export default function ModelDetailPage({
   const approveModel = useApproveModel();
   const retireModel = useRetireModel();
   const deleteModel = useDeleteModel();
+  const rekeyModel = useRekeyModel();
   const updateRules = useUpdateModelRules();
   const activateModel = useActivateModel();
   const testModel = useTestModel();
@@ -536,6 +539,20 @@ export default function ModelDetailPage({
   const [rulesText, setRulesText] = useState<string | null>(null);
   const [testIntakeId, setTestIntakeId] = useState("");
   const [testResult, setTestResult] = useState<ModelTestResult | null>(null);
+
+  async function handleRekey() {
+    if (!model) return;
+    try {
+      const result = await rekeyModel.mutateAsync(model.id);
+      toast.success(
+        result.changed
+          ? "Fingerprint re-keyed — invoices from this layout route to the template again."
+          : "Fingerprint already matches the current profile and fingerprinter.",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not re-key the fingerprint.");
+    }
+  }
 
   async function handleClone() {
     if (!model) return;
@@ -841,9 +858,31 @@ export default function ModelDetailPage({
             <p className="text-sm text-muted-foreground mt-0.5 font-mono">
               {model.id}
             </p>
+            {model.profile_missing && (
+              <p className="mt-1 text-xs text-destructive">
+                Orphaned: the owning profile was deleted, so this model can never route. Delete it, or recreate the profile.
+              </p>
+            )}
+            {!model.profile_missing && model.source_intake_missing && (
+              <p className="mt-1 text-xs text-destructive">
+                Orphaned: the invoice this model was authored on was purged, so it cannot be re-keyed or retrained from source.
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {(model.status === "approved" || model.status === "candidate") && !model.source_intake_missing && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRekey}
+              disabled={rekeyModel.isPending}
+              title="Recompute the layout fingerprint from the authoring invoice. Use when invoices from this layout drift to AI after a profile change."
+            >
+              <RefreshCw className="h-4 w-4" />
+              {rekeyModel.isPending ? "Re-keying..." : "Re-key fingerprint"}
+            </Button>
+          )}
           {model.status === "candidate" && (
             <Button
               size="sm"

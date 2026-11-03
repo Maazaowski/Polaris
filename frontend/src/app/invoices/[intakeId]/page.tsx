@@ -402,9 +402,13 @@ export default function InvoiceDetailPage({
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Model</span>
+                  <span className="text-muted-foreground">
+                    {job.extraction_path === "model" ? "Template" : "Model"}
+                  </span>
                   <span className="text-xs font-mono">
-                    {job.ai_model_name ?? "—"}
+                    {job.extraction_path === "model"
+                      ? job.extraction_model_id ?? "—"
+                      : job.ai_model_name ?? "—"}
                   </span>
                 </div>
               </CardContent>

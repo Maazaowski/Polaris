@@ -187,6 +187,11 @@ class ExtractionModelResponse(BaseModel):
     notes: str | None = None
     created_at: datetime
     updated_at: datetime
+    # Orphan flags: a model whose profile was deleted can never route, and one
+    # whose authoring intake was purged can never be re-keyed or retrained
+    # from source. Computed by the API, not stored.
+    profile_missing: bool = False
+    source_intake_missing: bool = False
 
     model_config = {"from_attributes": True}
 

@@ -1,6 +1,6 @@
 """Celery worker tasks for async invoice processing."""
 
-from datetime import UTC, datetime
+from datetime import UTC
 from pathlib import Path
 
 import structlog
@@ -8,6 +8,7 @@ from celery import Celery
 from celery.signals import worker_ready
 
 from stencil import runtime_settings
+from stencil.clock import utcnow
 from stencil.config import settings
 
 logger = structlog.get_logger()
@@ -362,7 +363,7 @@ def _run_authoring_queue(db, session_id: str) -> dict:
                         continue
                 return {"status": "done", "session_id": session_id, "processed": processed}
 
-            crud.update_authoring_job(db, job.id, status="running", started_at=datetime.now())
+            crud.update_authoring_job(db, job.id, status="running", started_at=utcnow())
             try:
                 if job.kind == "turn":
                     payload = run_turn(db, session_id=session_id, user_message=job.message or "")
@@ -382,7 +383,7 @@ def _run_authoring_queue(db, session_id: str) -> dict:
                         status="done",
                         result_payload=payload,
                         error_message=None,
-                        finished_at=datetime.now(),
+                        finished_at=utcnow(),
                     )
             except Exception as exc:
                 db.rollback()
@@ -393,7 +394,7 @@ def _run_authoring_queue(db, session_id: str) -> dict:
                         db, job.id,
                         status="error",
                         error_message=str(exc),
-                        finished_at=datetime.now(),
+                        finished_at=utcnow(),
                     )
             processed += 1
     except Exception:

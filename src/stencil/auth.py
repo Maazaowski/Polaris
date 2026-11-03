@@ -18,6 +18,7 @@ import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from stencil.clock import utcnow
 from stencil.config import settings
 from stencil.db.models import AuthSession, User
 
@@ -63,7 +64,7 @@ def _token_hash(token: str) -> str:
 def create_session(db: Session, user_id: int) -> tuple[str, datetime]:
     """Create a session row and return (raw cookie token, expiry)."""
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.now() + timedelta(days=max(1, settings.session_ttl_days))
+    expires_at = utcnow() + timedelta(days=max(1, settings.session_ttl_days))
     db.add(AuthSession(token_hash=_token_hash(token), user_id=user_id, expires_at=expires_at))
     db.commit()
     return token, expires_at
@@ -74,7 +75,7 @@ def validate_session(db: Session, token: str | None) -> User | None:
     if not token:
         return None
     row = db.get(AuthSession, _token_hash(token))
-    if row is None or row.expires_at < datetime.now():
+    if row is None or row.expires_at < utcnow():
         return None
     user = db.get(User, row.user_id)
     if user is None or not user.is_active or user.deleted_at is not None:
@@ -92,7 +93,7 @@ def destroy_session(db: Session, token: str | None) -> None:
 
 
 def purge_expired_sessions(db: Session) -> None:
-    db.execute(delete(AuthSession).where(AuthSession.expires_at < datetime.now()))
+    db.execute(delete(AuthSession).where(AuthSession.expires_at < utcnow()))
     db.commit()
 
 
@@ -125,7 +126,7 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
         return None
     if not user.is_active or user.deleted_at is not None:
         return None
-    user.last_login_at = datetime.now()
+    user.last_login_at = utcnow()
     db.commit()
     return user
 

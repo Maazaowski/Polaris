@@ -11,6 +11,7 @@ from stencil.api.deps import AdminUser, DbSession
 from stencil.audit import append_event
 from stencil.config import settings
 from stencil.llm import PROVIDERS, models_for, normalize_provider
+from stencil.llm.probe import probe_provider_key
 from stencil.runtime_settings import (
     apply_runtime_settings,
     get_runtime_settings,
@@ -250,6 +251,37 @@ def set_provider_key(payload: ProviderKeyUpdate, db: DbSession, admin: AdminUser
         actor=admin,
     )
     return _settings_to_response()
+
+
+class ProviderKeyTestRequest(BaseModel):
+    provider: str
+
+
+class ProviderKeyTestResponse(BaseModel):
+    provider: str
+    ok: bool
+    status_code: int | None = None
+    detail: str
+    model_count: int | None = None
+
+
+@router.post("/keys/test", response_model=ProviderKeyTestResponse)
+def test_provider_key(payload: ProviderKeyTestRequest, admin: AdminUser) -> ProviderKeyTestResponse:
+    """Ask the provider whether the configured key works (free list-models call).
+
+    "Configured" only means a key is present. A dead key fails every pipeline
+    run with 401 and nothing on the Settings page says so until now."""
+    if payload.provider not in PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {payload.provider}")
+    result = probe_provider_key(payload.provider, secrets.get_provider_key(payload.provider))
+    logger.info("settings.provider_key_tested", provider=payload.provider, ok=result.ok, status=result.status_code)
+    return ProviderKeyTestResponse(
+        provider=result.provider,
+        ok=result.ok,
+        status_code=result.status_code,
+        detail=result.detail,
+        model_count=result.model_count,
+    )
 
 
 @router.delete("/keys/{provider}", response_model=SettingsResponse)

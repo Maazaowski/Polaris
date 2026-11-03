@@ -6,13 +6,13 @@ variant), with the layout fingerprint stored for routing and drift detection.
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 import structlog
 from sqlalchemy.orm import Session
 
+from stencil.clock import utcnow
 from stencil.config import settings
 from stencil.db import crud
 from stencil.models.schema import ExtractionModel, ModelStatus
@@ -166,7 +166,7 @@ def approve_model(db: Session, model_id: str, approved_by: str) -> bool:
     if model is not None:
         model.status = ModelStatus.APPROVED
         model.approved_by = approved_by
-        model.approved_at = datetime.now()
+        model.approved_at = utcnow()
         _save_model_to_filesystem(model)
     logger.info("registry.model_approved", model_id=model_id, approved_by=approved_by)
     return True
@@ -475,6 +475,23 @@ def rekey_model_fingerprint(
         old_fingerprint=result.old_fingerprint, new_fingerprint=fingerprint,
     )
     return result
+
+
+def rekey_profile_models(
+    db: Session,
+    profile_id: str,
+    *,
+    updated_by: str | None = None,
+) -> list[RekeyResult]:
+    """Re-key every non-retired model a profile owns (see rekey_model_fingerprint)."""
+    results: list[RekeyResult] = []
+    for record in crud.list_models_by_profile(db, profile_id):
+        if record.status == "retired":
+            continue
+        result = rekey_model_fingerprint(db, record.id, updated_by=updated_by)
+        if result is not None:
+            results.append(result)
+    return results
 
 
 def _archived_pdf_for(intake) -> Path | None:

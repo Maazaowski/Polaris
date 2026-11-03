@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from stencil.clock import utcnow
 from stencil.db.models import AuditEvent, User
 
 SYSTEM_ACTOR = "system"
@@ -30,7 +31,7 @@ def actor_snapshot(user: User | None) -> dict[str, Any]:
 def audit_stamp(user: User | None, when: datetime | None = None) -> dict[str, Any]:
     return {
         **actor_snapshot(user),
-        "at": (when or datetime.now()).isoformat(),
+        "at": (when or utcnow()).isoformat(),
     }
 
 

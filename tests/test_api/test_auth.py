@@ -213,12 +213,16 @@ def test_cannot_deactivate_last_admin(user_db):
 
 
 def test_session_expiry_rejected(user_db):
-    from datetime import datetime, timedelta
+    from datetime import timedelta
+
+    from stencil.clock import utcnow
 
     user = user_db.query(User).one()
     token, _ = auth.create_session(user_db, user.id)
     row = user_db.query(AuthSession).one()
-    row.expires_at = datetime.now() - timedelta(minutes=1)
+    # Session clocks are UTC (stencil.clock); a local-time "one minute ago" is
+    # still hours in the future east of Greenwich.
+    row.expires_at = utcnow() - timedelta(minutes=1)
     user_db.commit()
     assert auth.validate_session(user_db, token) is None
 

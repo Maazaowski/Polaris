@@ -8,13 +8,13 @@ JSON only seeds these on boot.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from stencil.audit import append_event, audit_stamp
+from stencil.clock import utcnow
 from stencil.db.models import (
     FieldSchemaRecord,
     OutputSpecRecord,
@@ -52,7 +52,7 @@ def upsert_profile(
     actor: User | None = None,
 ) -> SupplierProfileRecord:
     row = db.get(SupplierProfileRecord, profile_id)
-    now = datetime.now()
+    now = utcnow()
     action = "updated"
     data = dict(data)
     audit = dict(data.get("audit") or {})
@@ -90,7 +90,7 @@ def delete_profile(db: Session, profile_id: str, *, actor: User | None = None) -
     row = get_profile(db, profile_id)
     if row is None:
         return False
-    now = datetime.now()
+    now = utcnow()
     row.deleted_at = now
     row.deleted_by_user_id = actor.id if actor else None
     data = dict(row.data or {})

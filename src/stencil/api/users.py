@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from stencil import auth
 from stencil.api.deps import AdminUser, DbSession
 from stencil.audit import append_event
+from stencil.clock import utcnow
 from stencil.db.models import User
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -151,7 +152,7 @@ def delete_user(db: DbSession, user_id: int, admin: AdminUser):
         raise HTTPException(status_code=404, detail="User not found")
     _ensure_not_last_admin(db, user, next_active=False)
     user.is_active = False
-    user.deleted_at = datetime.now()
+    user.deleted_at = utcnow()
     user.deleted_by_user_id = admin.id if admin else None
     user.updated_by_user_id = admin.id if admin else None
     append_event(db, entity_type="user", entity_id=str(user.id), action="deleted", actor=admin)

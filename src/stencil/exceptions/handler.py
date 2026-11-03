@@ -2,11 +2,11 @@
 
 import json
 import shutil
-from datetime import datetime
 from pathlib import Path
 
 import structlog
 
+from stencil.clock import utcnow_iso
 from stencil.config import settings
 from stencil.output.formatting import format_deliverable_invoice_dates
 from stencil.validation.schema import CanonicalInvoice
@@ -55,7 +55,7 @@ def create_exception_package(
         "reason": reason,
         "message": message,
         "details": error_details or {},
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utcnow_iso(),
     }
     error_path = exception_dir / "error_log.json"
     error_path.write_text(

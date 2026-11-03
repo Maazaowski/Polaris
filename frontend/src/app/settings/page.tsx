@@ -6,6 +6,7 @@ import {
   useUpdateSettings,
   useSetProviderKey,
   useClearProviderKey,
+  useTestProviderKey,
   type SettingsUpdate,
 } from "@/hooks/use-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +69,7 @@ function ProviderKeyRow({
   const [value, setValue] = useState("");
   const setKey = useSetProviderKey();
   const clearKey = useClearProviderKey();
+  const testKey = useTestProviderKey();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -117,18 +119,38 @@ function ProviderKeyRow({
             Save
           </Button>
           {isSet && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={clearKey.isPending}
-              onClick={() =>
-                clearKey.mutate(provider, {
-                  onSuccess: () => toast.success(`${label} key cleared.`),
-                })
-              }
-            >
-              Clear
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={testKey.isPending}
+                title="Make a free list-models call with the configured key"
+                onClick={() =>
+                  testKey.mutate(provider, {
+                    onSuccess: (result) =>
+                      result.ok
+                        ? toast.success(`${label} key works (${result.model_count ?? "?"} models visible).`)
+                        : toast.error(`${label}: ${result.detail}`),
+                    onError: (err) =>
+                      toast.error(err instanceof Error ? err.message : "Could not test the key."),
+                  })
+                }
+              >
+                {testKey.isPending ? "Testing…" : "Test"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={clearKey.isPending}
+                onClick={() =>
+                  clearKey.mutate(provider, {
+                    onSuccess: () => toast.success(`${label} key cleared.`),
+                  })
+                }
+              >
+                Clear
+              </Button>
+            </>
           )}
         </>
       )}

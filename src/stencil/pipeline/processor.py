@@ -14,7 +14,6 @@ on exact match -> subsequent training uploads validate and credit the candidate.
 """
 
 import re
-from datetime import datetime
 from pathlib import Path
 
 import structlog
@@ -22,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from stencil import runtime_settings
 from stencil.classification.classifier import ClassificationResult, classify_invoice
+from stencil.clock import utcnow
 from stencil.config import settings
 from stencil.db import crud
 from stencil.exceptions.handler import (
@@ -482,7 +482,7 @@ def _try_rules_before_reading(
         output_type=profile.classification.output_type,
     )
     crud.update_extraction_job(
-        db, job.id, status="completed", started_at=datetime.now(),
+        db, job.id, status="completed", started_at=utcnow(),
         tokens_input=outcome.tokens_input, tokens_output=outcome.tokens_output,
     )
 
@@ -566,7 +566,7 @@ def _process_approved_model(
         supplier_name=model.supplier,
         output_type=model.output_type,
     )
-    crud.update_extraction_job(db, job.id, status="running", started_at=datetime.now())
+    crud.update_extraction_job(db, job.id, status="running", started_at=utcnow())
     crud.increment_model_usage(db, model.model_id)
 
     try:
@@ -611,7 +611,7 @@ def _process_approved_model(
     crud.update_extraction_job(
         db, job.id,
         status="completed",
-        completed_at=datetime.now(),
+        completed_at=utcnow(),
         overall_confidence=invoice.metadata.overall_confidence,
         line_item_count=len(invoice.line_items),
     )
@@ -890,7 +890,7 @@ def _process_ai_path(
         output_type=classification.output_type,
     )
     crud.update_extraction_job(db, job.id, status="running",
-                               started_at=datetime.now())
+                               started_at=utcnow())
 
     from stencil.pricing import estimate_cost_usd
 
@@ -978,7 +978,7 @@ def _process_ai_path(
     crud.update_extraction_job(
         db, job.id,
         status="completed",
-        completed_at=datetime.now(),
+        completed_at=utcnow(),
         ai_model_name=extraction_result.ai_model_name,
         tokens_input=extraction_result.tokens_input,
         tokens_output=extraction_result.tokens_output,
@@ -1523,9 +1523,11 @@ def _generate_output(db: Session, intake_id: str,
                 message=f"Failed to copy to supplier directory: {e}",
             )
     elif profile:
+        # Not a failure: the package is complete under completed/. The profile
+        # simply has no delivery folder yet (assign one in the Accounts view).
         crud.log_processing_step(
-            db, intake_id=intake_id, step="output_copy", status="failed",
-            message="Supplier profile has no output_path; output package was not copied",
+            db, intake_id=intake_id, step="output_copy", status="skipped",
+            message="No delivery folder is configured for this profile; the output package stays in completed/",
             details=_profile_log_details(profile, source="output_profile"),
         )
 

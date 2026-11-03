@@ -102,6 +102,22 @@ export function useSetProviderKey() {
   });
 }
 
+export interface ProviderKeyTestResult {
+  provider: string;
+  ok: boolean;
+  status_code: number | null;
+  detail: string;
+  model_count: number | null;
+}
+
+/** Ask the provider whether the configured key works (a free list-models call). */
+export function useTestProviderKey() {
+  return useMutation({
+    mutationFn: (provider: string) =>
+      api.post<ProviderKeyTestResult>("/settings/keys/test", { provider }),
+  });
+}
+
 /** Remove a provider's stored key (env-var fallback still applies). */
 export function useClearProviderKey() {
   const queryClient = useQueryClient();

@@ -115,7 +115,24 @@ const baseColumns: ColumnDef<ExtractionModel>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <ModelStatusBadge status={row.original.status} />,
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-1">
+        <ModelStatusBadge status={row.original.status} />
+        {(row.original.profile_missing || row.original.source_intake_missing) && (
+          <Badge
+            variant="destructive"
+            className="text-[10px]"
+            title={
+              row.original.profile_missing
+                ? "The owning profile was deleted; this model can never route."
+                : "The authoring invoice was purged; this model cannot be re-keyed or retrained from source."
+            }
+          >
+            Orphaned
+          </Badge>
+        )}
+      </span>
+    ),
   },
   {
     accessorKey: "confidence",

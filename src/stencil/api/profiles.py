@@ -2,7 +2,6 @@
 
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from stencil.api.deps import CurrentUser, DbSession
 from stencil.api.uploads import save_uploaded_pdf, stream_upload_to
+from stencil.clock import utcnow, utcnow_iso
 from stencil.config import settings
 from stencil.db import crud
 from stencil.profiles.loader import (
@@ -202,7 +202,7 @@ def set_profile_status(
     if profile is None:
         raise HTTPException(status_code=404, detail="Profile not found")
     profile.status = status
-    profile.last_updated_date = datetime.now().date().isoformat()
+    profile.last_updated_date = utcnow().date().isoformat()
     if acknowledge_warnings and profile.authoring_evidence:
         audit = dict(profile.audit or {})
         acknowledgements = list(audit.get("review_warning_acknowledgements") or [])
@@ -211,7 +211,7 @@ def set_profile_status(
             or getattr(actor, "display_name", None)
             or str(actor or "unknown")
         )
-        now = datetime.now().isoformat()
+        now = utcnow_iso()
         already = {item.get("warning") for item in acknowledgements if isinstance(item, dict)}
         acknowledgements.extend(
             {"warning": warning, "actor": actor_name, "at": now}
@@ -298,14 +298,65 @@ def create_profile(profile: SupplierProfile, current_user: CurrentUser):
 def update_profile(profile_id: str, profile: SupplierProfile, current_user: CurrentUser):
     if profile.profile_id != profile_id:
         raise HTTPException(status_code=400, detail="Profile ID cannot be changed")
-    if get_profile(profile_id) is None:
+    previous = get_profile(profile_id)
+    if previous is None:
         raise HTTPException(status_code=404, detail="Profile not found")
     issues = _profile_readiness_issues(profile)
     if issues:
         raise HTTPException(status_code=422, detail={"issues": issues})
 
     _persist_profile(profile, actor=current_user)
+    if fingerprint_inputs_changed(previous, profile):
+        _rekey_models_after_profile_change(profile_id, actor=current_user)
     return _summary(get_profile(profile_id) or profile)
+
+
+def fingerprint_inputs_changed(previous: SupplierProfile, current: SupplierProfile) -> bool:
+    """Did this edit change anything the layout fingerprint is salted with?
+
+    The hash depends on the resolved fingerprint config (fingerprint rules,
+    line-item anchors, the field schema's label hints) and on the document
+    category. Compare the *resolved* config so a change routed through any of
+    those fields is caught.
+    """
+    from stencil.fingerprint.fingerprinter import layout_fingerprint_config_from_profile
+
+    if previous.classification.output_type != current.classification.output_type:
+        return True
+    try:
+        return layout_fingerprint_config_from_profile(previous) != layout_fingerprint_config_from_profile(current)
+    except Exception as exc:  # a schema that no longer resolves: treat as changed, re-key is idempotent
+        logger.warning("profiles.fingerprint_config_compare_failed", profile_id=current.profile_id, error=str(exc))
+        return True
+
+
+def _rekey_models_after_profile_change(profile_id: str, *, actor=None) -> None:
+    """Keep the profile's templates routable after a fingerprint-affecting edit.
+
+    Editing fingerprint rules used to orphan approved models silently: the
+    stored hash no longer matched, every invoice fell to AI with a layout-drift
+    exception, and nothing said why. Re-key from the archived authoring PDFs.
+    Never fails the save; a model whose PDF is gone is logged and skipped.
+    """
+    from stencil.audit import actor_label
+    from stencil.db.session import SessionLocal
+    from stencil.models.registry import rekey_profile_models
+
+    db = SessionLocal()
+    try:
+        results = rekey_profile_models(db, profile_id, updated_by=actor_label(actor) if actor else None)
+    except Exception as exc:  # pragma: no cover - never block a profile save
+        logger.warning("profiles.rekey_after_change_failed", profile_id=profile_id, error=str(exc))
+        return
+    finally:
+        db.close()
+    for result in results:
+        if result.error:
+            logger.warning("profiles.rekey_skipped", profile_id=profile_id, model_id=result.model_id,
+                           reason=result.error)
+        else:
+            logger.info("profiles.rekey_after_change", profile_id=profile_id, model_id=result.model_id,
+                        changed=result.changed)
 
 
 @router.delete("/{profile_id}")
@@ -349,7 +400,7 @@ def update_simple_hints(profile_id: str, hints: SimpleExtractionHints, current_u
     if profile is None:
         raise HTTPException(status_code=404, detail="Profile not found")
     apply_simple_hints(profile, hints)
-    profile.last_updated_date = datetime.now().date().isoformat()
+    profile.last_updated_date = utcnow().date().isoformat()
     _persist_profile(profile, actor=current_user)
     return get_profile(profile_id)
 
