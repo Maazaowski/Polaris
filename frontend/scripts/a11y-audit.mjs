@@ -11,7 +11,7 @@ const base = process.env.E2E_BASE_URL || "http://localhost:3000";
 
 const ROUTES = [
   "/invoices", "/exceptions", "/upload",
-  "/profiles", "/accounts", "/models", "/field-schemas", "/output-specs",
+  "/profiles", "/accounts", "/models",
   "/settings", "/insights", "/logs", "/users", "/account",
 ];
 

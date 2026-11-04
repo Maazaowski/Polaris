@@ -37,9 +37,9 @@ function taxToModel(tax: DraftTaxConfig): {
  * the sample invoice when the model is saved.
  *
  * `profileId` is the exception: passing it makes the dry-run resolve that
- * profile's OutputSpec, so the preview shows the columns the model will really
- * deliver instead of the system default. Save-time identity is still forced
- * server-side, so this cannot mis-key the persisted model.
+ * profile's columns, so the preview shows what the model will really deliver
+ * (the template's own `output_columns` win when set). Save-time identity is
+ * still forced server-side, so this cannot mis-key the persisted model.
  */
 export function draftToModelJson(
   draft: DraftModel,
@@ -143,5 +143,13 @@ export function draftToModelJson(
     totals: tax.totals,
     tax_output_mode: tax.tax_output_mode,
     tax_rate_source: tax.tax_rate_source,
+    output_columns: draft.output_columns.map((c) => ({
+      header: c.header,
+      source: c.source,
+      fallback: c.fallback ?? null,
+      transforms: c.transforms ?? [],
+      width: c.width ?? 15,
+      number_format: c.number_format ?? null,
+    })),
   };
 }

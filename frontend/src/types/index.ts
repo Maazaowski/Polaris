@@ -318,16 +318,17 @@ export interface FieldDef {
   description?: string;
 }
 
-export interface FieldSchema {
-  schema_id: string;
-  name: string;
-  fields: FieldDef[];
+/** One entry of the read-only field catalogue a profile picks from. */
+export interface CatalogueField extends FieldDef {
+  path: string;
+  always_on: boolean;
 }
 
-export interface FieldSchemaSummary {
-  schema_id: string;
-  name: string;
-  field_count: number;
+export interface FieldCatalogue {
+  fields: CatalogueField[];
+  always_on: string[];
+  computed_sources: string[];
+  transforms: string[];
 }
 
 export interface OutputColumn {
@@ -340,13 +341,6 @@ export interface OutputColumn {
 }
 
 export type OutputTransform = "digits_only" | "trim" | "uppercase" | "lowercase";
-
-export interface OutputMappingOverride {
-  output_header: string;
-  source: string;
-  fallback?: string | null;
-  transforms?: OutputTransform[];
-}
 
 // ── Output preview (shared across processed / profile / model surfaces) ──
 
@@ -390,6 +384,8 @@ export type TaxMethod = "per_line" | "allocated" | "rate" | "none";
 
 export interface ExtractionPreview {
   columns: PreviewColumn[];
+  /** Where the column set came from: template, profile, raw (no profile) or none. */
+  columns_source?: "template" | "profile" | "raw" | "none" | "configured";
   rows: (string | number | boolean | null)[][];
   row_count: number;
   line_item_count: number;
@@ -451,18 +447,6 @@ export interface InvoiceProvenance {
   rows?: ProvenanceRow[];
 }
 
-export interface OutputSpec {
-  spec_id: string;
-  name: string;
-  columns: OutputColumn[];
-}
-
-export interface OutputSpecSummary {
-  spec_id: string;
-  name: string;
-  column_count: number;
-}
-
 export interface SupplierProfile {
   profile_id: string;
   version: number;
@@ -470,10 +454,10 @@ export interface SupplierProfile {
   layout_description: string | null;
   identity: SupplierIdentity;
   classification: ClassificationSignals;
-  output_spec_id: string;
-  field_schema_id: string;
-  field_overrides?: FieldDef[];
-  output_mapping_overrides?: OutputMappingOverride[];
+  /** What this supplier's invoices are read for (catalogue picks + custom fields). */
+  fields: FieldDef[];
+  /** What gets delivered, in order. Empty until the user adds columns. */
+  output_columns: OutputColumn[];
   delivery: DeliveryConfig;
   notes: string | null;
   advanced: AdvancedHints;
@@ -499,7 +483,8 @@ export interface ProfileSummary {
   profile_id: string;
   supplier_name: string;
   output_type: string;
-  output_spec_id: string;
+  field_count: number;
+  output_column_count: number;
   version: number;
   status: string;
   layout_description?: string | null;
@@ -570,8 +555,6 @@ export interface AuthoringSessionState {
   session_id: string;
   status: "active" | "running" | "finalized";
   supplier_name: string | null;
-  output_spec_id: string;
-  field_schema_id: string;
   phase: string;
   inferred_category?: "standard" | "wireless" | "time_and_material" | null;
   category_override?: "standard" | "wireless" | "time_and_material" | null;
@@ -615,7 +598,6 @@ export interface AuthoringJobStart {
 // ── Training workflow ──────────────────────────────────────
 
 export interface SimpleExtractionHints {
-  output_spec_id: string;
   line_items_start_text: string | null;
   table_header_texts: string[];
   charge_listing_style: string | null;

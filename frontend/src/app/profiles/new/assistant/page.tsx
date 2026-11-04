@@ -37,8 +37,7 @@ import {
   useUploadAuthoringBlueprint,
   useUploadAuthoringInvoice,
 } from "@/hooks/use-profile-authoring";
-import { useFieldSchemas } from "@/hooks/use-field-schemas";
-import { useOutputSpec, useOutputSpecs } from "@/hooks/use-output-specs";
+import { humanizeFieldName } from "@/components/profiles/fields-editor";
 import type { AuthoringMessage, AuthoringPreview } from "@/types";
 
 interface StagedItem {
@@ -47,8 +46,18 @@ interface StagedItem {
   expected?: File;
 }
 
-interface DraftOutputMapping {
-  output_header: string;
+interface DraftField {
+  name: string;
+  scope: "document" | "row";
+  type?: string | null;
+  role?: string | null;
+  label_hint?: string | null;
+  date_format?: string | null;
+  required?: boolean;
+}
+
+interface DraftColumn {
+  header: string;
   source: string;
   fallback?: string | null;
   transforms?: string[];
@@ -83,11 +92,7 @@ export default function ProfileAssistantPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState("");
   const [supplierName, setSupplierName] = useState("");
-  const [outputSpecId, setOutputSpecId] = useState("standard.8col");
-  const [fieldSchemaId, setFieldSchemaId] = useState("invoice.standard");
   const [categoryOverride, setCategoryOverride] = useState("");
-  const { data: outputSpecs } = useOutputSpecs();
-  const { data: fieldSchemas } = useFieldSchemas();
 
   // Create the session once on mount. `?from=<id>` seeds an edit-with-AI session
   // from an existing profile (read client-side to avoid a Suspense boundary).
@@ -110,7 +115,6 @@ export default function ProfileAssistantPage() {
   }, [createSession]);
 
   const { data: session } = useAuthoringSession(sessionId);
-  const { data: selectedOutputSpec } = useOutputSpec(session?.output_spec_id ?? outputSpecId);
   const uploadInvoice = useUploadAuthoringInvoice();
   const uploadBlueprint = useUploadAuthoringBlueprint();
   const deleteBlueprint = useDeleteAuthoringBlueprint();
@@ -135,9 +139,13 @@ export default function ProfileAssistantPage() {
   );
   const draftRoot = asRecord(session?.draft_profile);
   const draftProfile = asRecord(draftRoot.profile ?? draftRoot);
-  const outputMappingDecisions = Array.isArray(draftProfile.output_mapping_overrides)
-    ? draftProfile.output_mapping_overrides.map(asRecord) as unknown as DraftOutputMapping[]
+  const draftFields = Array.isArray(draftProfile.fields)
+    ? (draftProfile.fields.map(asRecord) as unknown as DraftField[]).filter((f) => f.name)
     : [];
+  const draftColumns = Array.isArray(draftProfile.output_columns)
+    ? (draftProfile.output_columns.map(asRecord) as unknown as DraftColumn[]).filter((c) => c.header)
+    : [];
+  const unmappedColumns = draftColumns.filter((c) => !c.source);
   const discovery = asRecord(session?.discovery);
   const candidatePlan = asRecord(discovery.candidate_plan);
   const planRegions = Array.isArray(candidatePlan.regions)
@@ -218,8 +226,6 @@ export default function ProfileAssistantPage() {
     createSession.mutate(
       {
         supplier_name: supplierName.trim() || undefined,
-        output_spec_id: outputSpecId,
-        field_schema_id: fieldSchemaId,
         category_override: categoryOverride
           ? categoryOverride as "standard" | "wireless" | "time_and_material"
           : undefined,
@@ -328,7 +334,7 @@ export default function ProfileAssistantPage() {
       <div className="space-y-6">
         <PageHeader
           title="Create Profile with AI"
-          description="Choose what to extract and deliver. The PDF provides printed evidence and totals; an optional blueprint defines expected delivery."
+          description="The assistant proposes the fields to read and the columns to deliver from your samples. The PDF provides printed evidence and totals; an optional blueprint defines the expected columns."
         />
         <Card className="max-w-2xl">
           <CardHeader><CardTitle className="text-base">Authoring setup</CardTitle></CardHeader>
@@ -336,32 +342,6 @@ export default function ProfileAssistantPage() {
             <label className="block space-y-1 text-sm">
               <span>Supplier name (optional)</span>
               <Input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
-            </label>
-            <label className="block space-y-1 text-sm">
-              <span>Output specification</span>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2"
-                value={outputSpecId}
-                onChange={(event) => setOutputSpecId(event.target.value)}
-              >
-                {(outputSpecs ?? []).map((spec) => (
-                  <option key={spec.spec_id} value={spec.spec_id}>{spec.name || spec.spec_id}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block space-y-1 text-sm">
-              <span>Field schema</span>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2"
-                value={fieldSchemaId}
-                onChange={(event) => setFieldSchemaId(event.target.value)}
-              >
-                {(fieldSchemas ?? []).map((schema) => (
-                  <option key={schema.schema_id} value={schema.schema_id}>
-                    {schema.name || schema.schema_id}
-                  </option>
-                ))}
-              </select>
             </label>
             <label className="block space-y-1 text-sm">
               <span>Document layout family (optional)</span>
@@ -376,7 +356,7 @@ export default function ProfileAssistantPage() {
                 <option value="standard">Standard invoice</option>
               </select>
             </label>
-            <Button onClick={startNewSession} disabled={createSession.isPending || !outputSpecId || !fieldSchemaId}>
+            <Button onClick={startNewSession} disabled={createSession.isPending}>
               {createSession.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Start session
             </Button>
           </CardContent>
@@ -749,49 +729,70 @@ export default function ProfileAssistantPage() {
       {session?.draft_profile && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Output mapping decisions</CardTitle>
+            <CardTitle className="text-sm">Proposed fields and columns</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {outputMappingDecisions.length === 0 ? (
-              <p className="text-muted-foreground">
-                No profile overrides. Every output column inherits its selected output specification mapping.
+          <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Fields to read ({draftFields.length})
               </p>
-            ) : outputMappingDecisions.map((mapping) => {
-              const inherited = selectedOutputSpec?.columns.find(
-                (column) => column.header === mapping.output_header,
-              );
-              return (
-                <div key={mapping.output_header} className="rounded-2xl p-3 shadow-[inset_0_0_0_1px_var(--input)]">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{mapping.output_header}</span>
-                    <Badge variant="secondary">Profile override</Badge>
-                  </div>
-                  <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
-                    <div>
-                      <p className="text-muted-foreground">Output specification</p>
-                      <p className="font-mono">{inherited?.source ?? "Unknown column"}</p>
-                      <p className="text-muted-foreground">
-                        Fallback: <span className="font-mono">{inherited?.fallback || "none"}</span>
+              {draftFields.length === 0 ? (
+                <p className="text-muted-foreground">No fields proposed yet.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {draftFields.map((field) => (
+                    <li key={`${field.scope}.${field.name}`} className="rounded-xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{humanizeFieldName(field.name)}</span>
+                        <Badge variant="outline">{field.scope}</Badge>
+                        {field.required && <Badge variant="secondary">required</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {field.label_hint ? `Printed as "${field.label_hint}"` : "No printed label"}
+                        {field.date_format ? ` · ${field.date_format}` : ""}
                       </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Effective mapping</p>
-                      <p className="font-mono">{mapping.source}</p>
-                      <p className="text-muted-foreground">
-                        Fallback: <span className="font-mono">{mapping.fallback || "none"}</span>
-                      </p>
-                      <p className="text-muted-foreground">
-                        Formatting: <span>{mapping.transforms?.length ? mapping.transforms.join(", ") : "none"}</span>
-                      </p>
-                    </div>
-                  </div>
-                  {mapping.reason && <p className="mt-2 text-xs text-muted-foreground">{mapping.reason}</p>}
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    To reset this column, ask the assistant to return it to the output specification.
-                  </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Delivered columns ({draftColumns.length})
+              </p>
+              {unmappedColumns.length > 0 && (
+                <div className="rounded-2xl bg-warning-soft px-3 py-2 text-xs text-warning shadow-[inset_0_0_0_1px_#f3e3a0]">
+                  Blueprint headers not yet mapped: {unmappedColumns.map((c) => c.header).join(", ")}.
+                  Tell the assistant which field each one should read.
                 </div>
-              );
-            })}
+              )}
+              {draftColumns.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No columns proposed yet. Attach a blueprint or describe the output you expect.
+                </p>
+              ) : (
+                <ol className="space-y-1">
+                  {draftColumns.map((column, index) => (
+                    <li key={`${column.header}-${index}`} className="rounded-xl px-3 py-2 shadow-[inset_0_0_0_1px_var(--input)]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{column.header}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{column.source || "unmapped"}</span>
+                        {column.fallback && (
+                          <span className="text-xs text-muted-foreground">fallback {column.fallback}</span>
+                        )}
+                        {(column.transforms?.length ?? 0) > 0 && (
+                          <span className="text-xs text-muted-foreground">{column.transforms?.join(", ")}</span>
+                        )}
+                      </div>
+                      {column.reason && <p className="text-xs text-muted-foreground">{column.reason}</p>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Finalize saves these on the profile, where you can edit them in the Setup tab.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

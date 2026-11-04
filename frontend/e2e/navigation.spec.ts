@@ -17,8 +17,6 @@ const ROUTES: Array<{ path: string; heading: RegExp }> = [
   // The page is titled "Suppliers" — the route keeps its old name.
   { path: "/profiles", heading: /suppliers/i },
   { path: "/accounts", heading: /accounts/i },
-  { path: "/field-schemas", heading: /field schemas/i },
-  { path: "/output-specs", heading: /output specs/i },
   { path: "/models", heading: /templates/i },
   { path: "/logs", heading: /audit and usage/i },
   { path: "/settings", heading: /settings/i },

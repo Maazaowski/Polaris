@@ -13,14 +13,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProfiles } from "@/hooks/use-profiles";
-import { useOutputSpecs } from "@/hooks/use-output-specs";
-import { useFieldSchemas } from "@/hooks/use-field-schemas";
 import { useCreateSample, type BuilderTarget } from "@/hooks/use-builder";
 import { formatApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
-
-const DEFAULT_FIELD_SCHEMA_ID = "invoice.standard";
-const DEFAULT_OUTPUT_SPEC_ID = "standard.8col";
 
 export interface BuilderSetupProps {
   /** Pre-bound profile when the builder was launched from a profile page. */
@@ -29,35 +24,23 @@ export interface BuilderSetupProps {
 }
 
 /**
- * Collect what the model is for before authoring starts: the supplier profile,
- * or — when none exists yet — the document type and deliverable directly.
- *
- * This is up front rather than at save time because it decides which columns the
- * live preview renders. Deferring it means authoring the whole model against the
- * default 8-column deliverable and only discovering the real one at the end.
+ * Collect what the model is for before authoring starts: the supplier profile
+ * whose columns the live preview renders, or no profile yet (the template then
+ * carries its own columns from the Output tab, and the preview shows the raw
+ * extraction until it has some).
  */
 export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
   const { data: profiles } = useProfiles();
-  const { data: specs } = useOutputSpecs();
-  const { data: schemas } = useFieldSchemas();
   const createSample = useCreateSample();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Launched from a profile page: the target is already decided, so only the
-  // sample is missing.
   const [mode, setMode] = useState<"profile" | "direct">("profile");
   const [pickedProfile, setPickedProfile] = useState<string | null>(profileId);
-  const [schemaId, setSchemaId] = useState(DEFAULT_FIELD_SCHEMA_ID);
-  const [specId, setSpecId] = useState(DEFAULT_OUTPUT_SPEC_ID);
   const [sample, setSample] = useState<{ id: string; name: string } | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  const target: BuilderTarget =
-    mode === "profile"
-      ? { profileId: pickedProfile, outputSpecId: null, fieldSchemaId: null }
-      : { profileId: null, outputSpecId: specId, fieldSchemaId: schemaId };
-
-  const targetChosen = mode === "profile" ? !!pickedProfile : !!specId && !!schemaId;
+  const target: BuilderTarget = { profileId: mode === "profile" ? pickedProfile : null };
+  const targetChosen = mode === "direct" || !!pickedProfile;
   const canStart = targetChosen && !!sample;
 
   const handleFile = (file: File | undefined) => {
@@ -72,9 +55,8 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
     });
   };
 
-  const selectedProfileName = (profiles ?? []).find(
-    (p) => p.profile_id === pickedProfile,
-  )?.identity.canonical_name;
+  const selectedProfile = (profiles ?? []).find((p) => p.profile_id === pickedProfile);
+  const selectedProfileName = selectedProfile?.identity.canonical_name;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -82,7 +64,7 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
         <div>
           <h2 className="text-[17px] font-medium tracking-[-0.2px] text-foreground">1 · What is this template for?</h2>
           <p className="text-xs text-muted-foreground">
-            Sets the document type and the deliverable columns the preview is checked against.
+            A supplier profile supplies the fields to read and the columns the preview is checked against.
           </p>
         </div>
 
@@ -104,7 +86,7 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
               <div className="space-y-1.5">
                 <Label className="text-xs">Supplier profile</Label>
                 <Select value={pickedProfile ?? ""} onValueChange={setPickedProfile}>
-                  <SelectTrigger className="h-9 w-full">
+                  <SelectTrigger className="h-9 w-full" aria-label="Supplier profile">
                     {pickedProfile ? (
                       selectedProfileName ?? pickedProfile
                     ) : (
@@ -120,47 +102,16 @@ export function BuilderSetup({ profileId, onReady }: BuilderSetupProps) {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  The profile supplies the document type and expected output.
+                  {selectedProfile
+                    ? `${selectedProfile.output_columns.length} delivered column${selectedProfile.output_columns.length === 1 ? "" : "s"} configured on the profile.`
+                    : "The profile supplies the document type and the delivered columns."}
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Document type</Label>
-                  <Select value={schemaId} onValueChange={(v) => v && setSchemaId(v)}>
-                    <SelectTrigger className="h-9 w-full">
-                      {(schemas ?? []).find((s) => s.schema_id === schemaId)?.name ?? schemaId}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(schemas ?? []).map((s) => (
-                        <SelectItem key={s.schema_id} value={s.schema_id}>
-                          {s.name} ({s.schema_id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Which fields must be extracted.</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Expected output</Label>
-                  <Select value={specId} onValueChange={(v) => v && setSpecId(v)}>
-                    <SelectTrigger className="h-9 w-full">
-                      {(specs ?? []).find((s) => s.spec_id === specId)?.name ?? specId}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(specs ?? []).map((s) => (
-                        <SelectItem key={s.spec_id} value={s.spec_id}>
-                          {s.name} ({s.spec_id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">The delivered columns.</p>
-                </div>
-                <p className="text-xs text-muted-foreground sm:col-span-2">
-                  You can still save the template under a supplier later.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                The preview will show every field the template reads until you add delivered columns on the
+                Output tab. You can still save the template under a supplier later.
+              </p>
             )}
           </>
         )}

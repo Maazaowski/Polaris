@@ -63,16 +63,29 @@ def test_profile_authoring_preview_scrolls_without_hiding_evidence_plan():
 
 
 def test_profile_editor_supports_explicit_date_formats_without_dropping_labels():
+    editor = Path("frontend/src/components/profiles/fields-editor.tsx").read_text(encoding="utf-8")
     page = Path("frontend/src/app/profiles/[profileId]/page.tsx").read_text(encoding="utf-8")
     types = Path("frontend/src/types/index.ts").read_text(encoding="utf-8")
 
     assert "date_format?: string | null" in types
-    assert "DATE_FORMAT_SUGGESTIONS" in page
-    assert 'value: "%d/%m/%Y"' in page
-    assert 'value: "%m/%d/%Y"' in page
-    assert 'value: "%Y-%m-%d"' in page
-    assert 'field.type === "date"' in page
-    assert "Input date format" in page
-    assert "setFieldDateFormat" in page
+    assert "DATE_FORMAT_SUGGESTIONS" in editor
+    assert '"%d/%m/%Y"' in editor
+    assert '"%m/%d/%Y"' in editor
+    assert '"%Y-%m-%d"' in editor
+    assert 'field.type === "date"' in editor
+    assert "Printed date format" in editor
+    # Label and date-format edits must stay independent on a field entry.
+    assert "patch(field, { label_hint:" in editor
+    assert "patch(field, { date_format:" in editor
     assert "...existing" in page
     assert "changing one must never erase the other" in page
+
+
+def test_profile_editor_owns_fields_and_columns():
+    """The registries are gone: the editor configures the profile's own contract."""
+    page = Path("frontend/src/app/profiles/[profileId]/page.tsx").read_text(encoding="utf-8")
+    nav = Path("frontend/src/components/layout/nav-config.ts").read_text(encoding="utf-8")
+
+    assert "FieldsEditor" in page and "OutputColumnsEditor" in page
+    assert "output_spec_id" not in page and "field_schema_id" not in page
+    assert "/field-schemas" not in nav and "/output-specs" not in nav

@@ -180,9 +180,18 @@ function OutputTable({ res, configured }: { res: DraftTestResult; configured: Se
       </div>
     );
   }
+  const columnsNote = {
+    template: "Template columns",
+    profile: "Profile columns",
+    raw: "Raw extraction (no columns configured)",
+    none: "No columns configured",
+  }[res.output.columns_source ?? ""];
   return (
     <div className="max-h-72 overflow-auto">
       {summary}
+      {columnsNote && (
+        <p className="px-3 pb-1 text-[11px] text-muted-foreground">{columnsNote}</p>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

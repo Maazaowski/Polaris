@@ -21,6 +21,7 @@ import { GroupsOverlay, GroupingEditorPanel } from "./grouping-editor";
 import { FieldsOverlay, FieldEditorPanel } from "./field-editor";
 import { HeaderOverlay, HeaderEditorPanel } from "./header-editor";
 import { TaxEditorPanel } from "./tax-editor";
+import { OutputEditorPanel } from "./output-editor";
 import { PreviewPanel } from "./preview-panel";
 import { SaveControl } from "./save-control";
 import {
@@ -45,7 +46,7 @@ const ZOOM_MAX = 2.5;
 
 const DATE_FIELDS = new Set(["invoice_date", "due_date"]);
 
-type EditorTab = "region" | "columns" | "rows" | "groups" | "fields" | "header" | "tax";
+type EditorTab = "region" | "columns" | "rows" | "groups" | "fields" | "header" | "tax" | "output";
 
 export interface BuilderWorkspaceProps {
   /** The sample invoice being authored against (a builder sample_id). */
@@ -68,6 +69,7 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
     setFields,
     setHeaderField,
     updateTax,
+    setOutputColumns,
   } = useDraftModel();
 
   // The canvas re-reads the page through the model's own column split, so the
@@ -376,6 +378,7 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
                   <TabsTrigger value="fields">Fields</TabsTrigger>
                   <TabsTrigger value="header">Header</TabsTrigger>
                   <TabsTrigger value="tax">Tax</TabsTrigger>
+                  <TabsTrigger value="output">Output</TabsTrigger>
                 </TabsList>
                 <TabsContent value="region" className="mt-4 space-y-4">
                   <RegionEditorPanel
@@ -441,6 +444,9 @@ export function BuilderWorkspace({ sampleId, sampleName, target }: BuilderWorksp
                 </TabsContent>
                 <TabsContent value="tax" className="mt-4">
                   <TaxEditorPanel tax={draft.tax} onChange={updateTax} />
+                </TabsContent>
+                <TabsContent value="output" className="mt-4">
+                  <OutputEditorPanel draft={draft} profileId={profileId} onChange={setOutputColumns} />
                 </TabsContent>
               </Tabs>
             </CardContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api/client";
@@ -17,8 +17,7 @@ import {
 } from "@/hooks/use-profiles";
 import { PdfPreviewPanel } from "@/components/pdf-preview-panel";
 import { ErrorState, LoadingState } from "@/components/states";
-import { useFieldSchema, useFieldSchemas } from "@/hooks/use-field-schemas";
-import { useOutputSpecs, useOutputSpec } from "@/hooks/use-output-specs";
+import { useFieldCatalogue } from "@/hooks/use-field-catalogue";
 import { useApproveModel, useBootstrapModel } from "@/hooks/use-models";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,13 +40,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  applyOutputMappingOverrides,
-  ExtractionFieldSettings,
   FixedDocumentValues,
   GeneratedProfileDetails,
-  mergeProfileFields,
-  OutputMappingEditor,
 } from "@/components/profiles/profile-configuration";
+import { FieldsEditor, effectiveFieldSet } from "@/components/profiles/fields-editor";
+import { OutputColumnsEditor, outputColumnIssues } from "@/components/profiles/output-columns-editor";
 import { TagInput } from "@/components/form/tag-input";
 import { EnumFieldHint, EnumSelectField } from "@/components/form/enum-select-field";
 import {
@@ -90,25 +87,13 @@ import type {
   DeliveryAccount,
   DocumentStructure,
   FieldDef,
-  FieldSchema,
   LayoutFingerprintRules,
   LineItemHints,
   OutputColumn,
-  OutputMappingOverride,
   SetupConflict,
   SupplierProfile,
   TrainingConfig,
 } from "@/types";
-
-const DATE_FORMAT_SUGGESTIONS = [
-  { value: "%m/%d/%Y", label: "US — month/day/year (12/31/2026)" },
-  { value: "%d/%m/%Y", label: "European — day/month/year (31/12/2026)" },
-  { value: "%Y-%m-%d", label: "ISO — year-month-day (2026-12-31)" },
-  { value: "%m-%d-%Y", label: "US with dashes (12-31-2026)" },
-  { value: "%d-%m-%Y", label: "Day-month-year (31-12-2026)" },
-  { value: "%d.%m.%Y", label: "Day.month.year (31.12.2026)" },
-  { value: "%d %B %Y", label: "Day and month name (31 December 2026)" },
-] as const;
 
 // Normalized accounts: explicit list when set, else the legacy single folder pair
 // as one account, else empty. Read-only in the editor now — accounts are mapped
@@ -359,16 +344,10 @@ function normalizeProfile(rawProfile: unknown): SupplierProfile {
           ? classification.output_type
           : defaults.classification.output_type,
     },
-    output_spec_id:
-      typeof raw.output_spec_id === "string" ? raw.output_spec_id : defaults.output_spec_id,
-    field_schema_id:
-      typeof raw.field_schema_id === "string" ? raw.field_schema_id : defaults.field_schema_id,
-    field_overrides: Array.isArray(raw.field_overrides)
-      ? (raw.field_overrides as FieldDef[])
-      : defaults.field_overrides,
-    output_mapping_overrides: Array.isArray(raw.output_mapping_overrides)
-      ? (raw.output_mapping_overrides as OutputMappingOverride[])
-      : defaults.output_mapping_overrides,
+    fields: Array.isArray(raw.fields) ? (raw.fields as FieldDef[]) : defaults.fields,
+    output_columns: Array.isArray(raw.output_columns)
+      ? (raw.output_columns as OutputColumn[])
+      : defaults.output_columns,
     delivery: normalizeDelivery(raw.delivery),
     notes: typeof raw.notes === "string" ? raw.notes : null,
     advanced: normalizeAdvanced(rawProfile),
@@ -393,99 +372,20 @@ function auditDisplay(audit: Record<string, unknown> | null | undefined, key: "c
   return { display, at };
 }
 
-function schemaHasRowFields(schema: FieldSchema | undefined): boolean {
-  return !!schema?.fields.some((f) => f.scope === "row");
+function fieldsHaveRows(fields: FieldDef[]): boolean {
+  return fields.some((f) => f.scope === "row");
 }
 
-function schemaSupportsReconciliation(schema: FieldSchema | undefined): boolean {
-  if (!schema) return false;
-  const hasAmount = schema.fields.some((f) => f.scope === "row" && f.role === "amount");
-  const hasTotal = schema.fields.some(
+function fieldsSupportReconciliation(fields: FieldDef[]): boolean {
+  const hasAmount = fields.some((f) => f.scope === "row" && f.role === "amount");
+  const hasTotal = fields.some(
     (f) => f.scope === "document" && (f.role === "total" || f.role === "subtotal")
   );
   return hasAmount && hasTotal;
 }
 
-function schemaSupportsGroupedRows(schema: FieldSchema | undefined): boolean {
-  return !!schema?.fields.some((f) => f.scope === "row" && f.name === "charge_type");
-}
-
-const FIELD_NAME_ACRONYMS: Record<string, string> = {
-  id: "ID",
-  po: "PO",
-  ban: "BAN",
-  vat: "VAT",
-};
-function humanizeFieldName(name: string): string {
-  return name
-    .split("_")
-    .map((w) => FIELD_NAME_ACRONYMS[w] ?? w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-// ── Output-driven field mapping ───────────────────────────
-// A supplier's only per-field config is "what does this output value look like on
-// the invoice?". We derive that set from the OutputSpec's columns (not the whole
-// 34-field schema). This MUST mirror normalize_source_path in
-// src/polaris/output/mapper.py so the UI resolves the same fields the writer does.
-
-const BARE_TOTAL_FIELDS = new Set([
-  "subtotal",
-  "tax",
-  "fees",
-  "total_due",
-  "tax_rate",
-  "current_charges",
-]);
-
-// Derived output columns map back to the field a user would label.
-const COMPUTED_FIELD_TARGETS: Record<string, { name: string; scope: "document" | "row" }> = {
-  "computed.line_tax": { name: "tax_amount", scope: "row" },
-};
-
-function resolveSourceToField(source: string, schema: FieldSchema): FieldDef | undefined {
-  if (!source) return undefined;
-  const find = (name: string, scope: "document" | "row") =>
-    schema.fields.find((f) => f.name === name && f.scope === scope);
-  if (source.startsWith("computed.")) {
-    const t = COMPUTED_FIELD_TARGETS[source];
-    return t ? find(t.name, t.scope) : undefined;
-  }
-  if (source.startsWith("field.")) return find(source.slice(6), "document");
-  if (source.startsWith("header.")) return find(source.slice(7), "document");
-  if (source.startsWith("row.")) return find(source.slice(4), "row");
-  if (source.startsWith("line_item.")) return find(source.slice(10), "row");
-  if (BARE_TOTAL_FIELDS.has(source)) return find(source, "document");
-  return undefined; // literals / constants / unknown → not user-labelable
-}
-
-// One entry per distinct underlying field, in column order, annotated with the
-// output headers it feeds (so the user sees "Amount → EXT_AMOUNT").
-function outputFieldTargets(
-  spec: { columns: OutputColumn[] } | undefined,
-  schema: FieldSchema | undefined,
-): { field: FieldDef; columns: string[]; fallbackColumns: string[] }[] {
-  if (!spec || !schema) return [];
-  const byKey = new Map<
-    string,
-    { field: FieldDef; columns: string[]; fallbackColumns: string[] }
-  >();
-  // A field "feeds" a column only when it is that column's PRIMARY source.
-  // Being a fallback (used only when the primary is empty) is tracked separately
-  // so, e.g., service_id and billing_reference don't both claim both columns.
-  const add = (field: FieldDef | undefined, header: string, primary: boolean) => {
-    if (!field) return;
-    const key = `${field.scope}.${field.name}`;
-    const entry = byKey.get(key) ?? { field, columns: [], fallbackColumns: [] };
-    const bucket = primary ? entry.columns : entry.fallbackColumns;
-    if (!bucket.includes(header)) bucket.push(header);
-    byKey.set(key, entry);
-  };
-  for (const col of spec.columns) {
-    add(resolveSourceToField(col.source, schema), col.header, true);
-    if (col.fallback) add(resolveSourceToField(col.fallback, schema), col.header, false);
-  }
-  return Array.from(byKey.values());
+function fieldsSupportGroupedRows(fields: FieldDef[]): boolean {
+  return fields.some((f) => f.scope === "row" && f.name === "charge_type");
 }
 
 // ── Default empty profile ─────────────────────────────────
@@ -550,10 +450,8 @@ function emptyProfile(): SupplierProfile {
     classification: {
       output_type: "standard",
     },
-    output_spec_id: "standard.8col",
-    field_schema_id: "invoice.standard",
-    field_overrides: [],
-    output_mapping_overrides: [],
+    fields: [],
+    output_columns: [],
     delivery: {
       inbound_path: "",
       output_path: "",
@@ -597,17 +495,17 @@ function Section({
 }
 
 /**
- * Mirror the per-field labels entered in Setup §3 (field_overrides) into the
- * deterministic line-item column hints, so service_id / billing_reference are
- * asked for in exactly ONE place. When the §3 label is set it wins (resolving any
- * prior drift between the two). Amount/tax are deliberately NOT mirrored — their
- * deterministic column can legitimately differ from the AI label (e.g. a net
- * "before taxes" column vs a broader amount label), so those keep their own
- * explicit policy inputs and are never overwritten here.
+ * Mirror the per-field labels entered in Setup §2 (the profile's fields) into
+ * the deterministic line-item column hints, so service_id / billing_reference
+ * are asked for in exactly ONE place. When the field label is set it wins
+ * (resolving any prior drift between the two). Amount/tax are deliberately NOT
+ * mirrored: their deterministic column can legitimately differ from the AI label
+ * (e.g. a net "before taxes" column vs a broader amount label), so those keep
+ * their own explicit policy inputs and are never overwritten here.
  */
 function mirrorRowLabelsToColumnHints(profile: SupplierProfile): SupplierProfile {
   const labelOf = (name: string) =>
-    profile.field_overrides?.find((o) => o.scope === "row" && o.name === name)
+    profile.fields.find((o) => o.scope === "row" && o.name === name)
       ?.label_hint?.trim() || undefined;
   const hints = profile.advanced.line_item_hints;
   return {
@@ -1053,18 +951,22 @@ export default function ProfileEditorPage({
   // fingerprint, training gates, read-only metadata) behind this toggle so the
   // load-bearing supplier config stays scannable.
   const [showInternals, setShowInternals] = useState(false);
-  const { data: outputSpecList } = useOutputSpecs();
-  const { data: fieldSchemaList } = useFieldSchemas();
-  const { data: activeFieldSchema } = useFieldSchema(profile.field_schema_id);
-  const { data: activeOutputSpec } = useOutputSpec(profile.output_spec_id);
-  const effectiveFields = mergeProfileFields(activeFieldSchema, profile.field_overrides);
-  const effectiveFieldSchema = activeFieldSchema
-    ? { ...activeFieldSchema, fields: effectiveFields }
-    : undefined;
-  const effectiveOutputSpec = applyOutputMappingOverrides(
-    activeOutputSpec,
-    profile.output_mapping_overrides,
+  const { data: catalogue } = useFieldCatalogue();
+  // The fields this profile reads: the catalogue's always-on fields plus its
+  // own picks. Mirrors profiles/contract.field_set on the backend.
+  const effectiveFields = useMemo(
+    () => effectiveFieldSet(profile.fields, catalogue?.fields),
+    [profile.fields, catalogue?.fields],
   );
+  const columnIssues = useMemo(
+    () => outputColumnIssues(profile.output_columns, effectiveFields),
+    [profile.output_columns, effectiveFields],
+  );
+  const readinessNotes = [
+    ...(profile.fields.length === 0 ? ["No fields to read yet; add at least one."] : []),
+    ...(profile.output_columns.length === 0 ? ["No delivered columns yet; add at least one."] : []),
+    ...columnIssues,
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -1216,55 +1118,30 @@ export default function ProfileEditorPage({
     }));
   }
 
-  function setFieldOverride(
-    field: FieldDef,
-    update: { labelHint?: string; dateFormat?: string },
-  ) {
+  /**
+   * Set a printed-label hint on one of the profile's fields, adding the field
+   * when the profile does not list it yet. Label and date-format edits stay
+   * independent: changing one must never erase the other ("...existing").
+   */
+  function setFieldLabelHint(field: FieldDef, labelHint: string) {
     setProfile((prev) => {
-      const existing = (prev.field_overrides ?? []).find(
-        (override) => override.scope === field.scope && override.name === field.name,
+      const existing = prev.fields.find(
+        (f) => f.scope === field.scope && f.name === field.name,
       );
-      const overrides = (prev.field_overrides ?? []).filter(
-        (o) => !(o.scope === field.scope && o.name === field.name),
+      const others = prev.fields.filter(
+        (f) => !(f.scope === field.scope && f.name === field.name),
       );
-      const labelHint =
-        update.labelHint !== undefined
-          ? update.labelHint
-          : existing?.label_hint ?? "";
-      const dateFormat =
-        update.dateFormat !== undefined
-          ? update.dateFormat
-          : existing?.date_format ?? "";
       const trimmed = labelHint.trim();
-      const defaultHint = field.label_hint?.trim() ?? "";
-      const hasLabelOverride = Boolean(trimmed && trimmed !== defaultHint);
-      const hasDateFormat = Boolean(dateFormat.trim());
-      if (!existing && !hasLabelOverride && !hasDateFormat) {
-        return prev;
-      }
-
-      // Preserve every unmodeled override property, then pin the base field's
-      // structural contract. Label and date-format edits must be independent:
-      // changing one must never erase the other.
+      if (!existing && !trimmed) return prev;
       const entry: FieldDef = {
+        ...field,
         ...existing,
         name: field.name,
         scope: field.scope,
-        type: field.type,
-        role: field.role,
-        label_hint: hasLabelOverride ? labelHint : null,
-        date_format: hasDateFormat ? dateFormat : null,
+        label_hint: trimmed ? labelHint : null,
       };
-      return { ...prev, field_overrides: [...overrides, entry] };
+      return { ...prev, fields: [...others, entry] };
     });
-  }
-
-  function setFieldLabelHint(field: FieldDef, labelHint: string) {
-    setFieldOverride(field, { labelHint });
-  }
-
-  function setFieldDateFormat(field: FieldDef, dateFormat: string) {
-    setFieldOverride(field, { dateFormat });
   }
 
   const layoutFingerprintEnabled = profile.layout_fingerprint != null;
@@ -1275,14 +1152,15 @@ export default function ProfileEditorPage({
     require_reconciliation: true,
   };
   // Reconciliation anchors live on the (document) subtotal + tax fields' labels.
-  const subtotalField = effectiveFields.find(
+  // Setting one adds that field to the profile's picks.
+  const subtotalField = (catalogue?.fields ?? []).find(
     (f) => f.scope === "document" && f.name === "subtotal",
   );
-  const taxTotalField = effectiveFields.find(
+  const taxTotalField = (catalogue?.fields ?? []).find(
     (f) => f.scope === "document" && f.name === "tax",
   );
   const overrideHintOf = (name: string) =>
-    profile.field_overrides?.find((o) => o.scope === "document" && o.name === name)
+    profile.fields.find((o) => o.scope === "document" && o.name === name)
       ?.label_hint ?? "";
 
   async function handleSave() {
@@ -1428,7 +1306,6 @@ export default function ProfileEditorPage({
         <Tabs defaultValue="simple">
           <TabsList>
             <TabsTrigger value="simple">Setup</TabsTrigger>
-            <TabsTrigger value="mapping">Output Mapping</TabsTrigger>
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
             {!isNew && <TabsTrigger value="preview">Preview Output</TabsTrigger>}
             {!isNew && <TabsTrigger value="training">Training</TabsTrigger>}
@@ -1484,165 +1361,51 @@ export default function ProfileEditorPage({
                   placeholder="Add another printed supplier name"
                 />
               </Field>
+              <Field
+                label="Document Category"
+                hint="Layout category label; salts the layout fingerprint."
+              >
+                <EnumSelectField
+                  value={profile.classification.output_type}
+                  onChange={(v) =>
+                    updateNested("classification", "output_type", v || "standard")
+                  }
+                  options={OUTPUT_TYPE_OPTIONS}
+                  placeholder="Select category"
+                />
+                <EnumFieldHint
+                  options={OUTPUT_TYPE_OPTIONS}
+                  value={profile.classification.output_type}
+                />
+              </Field>
+            </Section>
+
+            {readinessNotes.length > 0 && profile.status !== "draft" && (
+              <div className="rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning shadow-[inset_0_0_0_1px_#f3e3a0]">
+                <p className="font-medium">This profile cannot run yet</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs">
+                  {readinessNotes.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+              </div>
+            )}
+
+            <Section
+              title="2. Fields to read"
+              description="What this supplier's invoices are read for. Pick from the catalogue (its type and role are fixed) or add a custom field, then give each the printed label and, for dates, the printed format. Nothing is read beyond what is listed here."
+            >
+              <FieldsEditor fields={profile.fields} onChange={(fields) => update("fields", fields)} />
             </Section>
 
             <Section
-              title="2. Extraction & delivery"
-              description="Choose the output spec (the columns delivered) and the document category."
+              title="3. Delivered columns"
+              description="The columns in the delivered workbook, in order. Each reads one of the fields above (or the computed per-line tax). Nothing is delivered until columns exist; a template drawn in the builder may carry its own."
             >
-              <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Output Spec" hint="The columns delivered in the output file.">
-                  <Select
-                    value={profile.output_spec_id}
-                    onValueChange={(v) => update("output_spec_id", v || "standard.8col")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select output spec" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(outputSpecList ?? []).map((s) => (
-                        <SelectItem key={s.spec_id} value={s.spec_id}>
-                          {s.name || s.spec_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field
-                  label="Field Schema"
-                  hint="The document and row fields this profile extracts."
-                >
-                  <Select
-                    value={profile.field_schema_id}
-                    onValueChange={(value) => update("field_schema_id", value || "invoice.standard")}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select field schema" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(fieldSchemaList ?? []).map((schema) => (
-                        <SelectItem key={schema.schema_id} value={schema.schema_id}>
-                          {schema.name || schema.schema_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field
-                  label="Document Category"
-                  hint="Layout category label; salts the layout fingerprint."
-                >
-                  <EnumSelectField
-                    value={profile.classification.output_type}
-                    onChange={(v) =>
-                      updateNested("classification", "output_type", v || "standard")
-                    }
-                    options={OUTPUT_TYPE_OPTIONS}
-                    placeholder="Select category"
-                  />
-                  <EnumFieldHint
-                    options={OUTPUT_TYPE_OPTIONS}
-                    value={profile.classification.output_type}
-                  />
-                </Field>
-              </div>
-              {activeOutputSpec && (
-                <div className="rounded-2xl bg-background shadow-[inset_0_0_0_1px_var(--input)] p-3 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Delivered columns</p>
-                  <p>{activeOutputSpec.columns.map((c) => c.header).join(", ")}</p>
-                </div>
-              )}
+              <OutputColumnsEditor
+                columns={profile.output_columns}
+                fields={effectiveFields}
+                onChange={(columns) => update("output_columns", columns)}
+              />
             </Section>
-
-            {effectiveOutputSpec && effectiveFieldSchema && (
-              <Section
-                title="3. What each output field looks like on the invoice"
-                description="Optionally specify each supplier label. For date fields, set the printed input format when day and month order is ambiguous; delivered dates remain MM/DD/YYYY."
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  {outputFieldTargets(effectiveOutputSpec, effectiveFieldSchema).map(
-                    ({ field, columns, fallbackColumns }) => {
-                      const overrideHint =
-                        profile.field_overrides?.find(
-                          (o) => o.scope === field.scope && o.name === field.name,
-                        )
-                          ?.label_hint ?? "";
-                      const overrideDateFormat =
-                        profile.field_overrides?.find(
-                          (o) => o.scope === field.scope && o.name === field.name,
-                        )
-                          ?.date_format ?? "";
-                      const feedsHint = columns.length
-                        ? `Feeds: ${columns.join(", ")}`
-                        : `Fallback for: ${fallbackColumns.join(", ")}`;
-                      // Multiple possible labels are comma-separated; show them as
-                      // bubbles only when commas are present. A single label stays
-                      // plain text.
-                      const tokens = overrideHint.includes(",")
-                        ? overrideHint.split(",").map((s) => s.trim()).filter(Boolean)
-                        : [];
-                      return (
-                        <Field
-                          key={`${field.scope}.${field.name}`}
-                          label={humanizeFieldName(field.name)}
-                          hint={feedsHint}
-                        >
-                          <Input
-                            value={overrideHint}
-                            onChange={(e) => setFieldLabelHint(field, e.target.value)}
-                            placeholder="What this supplier calls it (optional)"
-                          />
-                          {field.type === "date" && (
-                            <div className="space-y-1.5 rounded-2xl bg-background shadow-[inset_0_0_0_1px_var(--input)] p-2.5">
-                              <label
-                                htmlFor={`date-format-${field.scope}-${field.name}`}
-                                className="text-xs font-medium text-foreground"
-                              >
-                                Input date format
-                              </label>
-                              <Input
-                                id={`date-format-${field.scope}-${field.name}`}
-                                list={`date-format-options-${field.scope}-${field.name}`}
-                                value={overrideDateFormat}
-                                onChange={(e) => setFieldDateFormat(field, e.target.value)}
-                                onBlur={(e) =>
-                                  setFieldDateFormat(field, e.target.value.trim())
-                                }
-                                placeholder="Auto-detect, or enter e.g. %d/%m/%Y"
-                                autoComplete="off"
-                                className="font-mono"
-                              />
-                              <datalist
-                                id={`date-format-options-${field.scope}-${field.name}`}
-                              >
-                                {DATE_FORMAT_SUGGESTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </datalist>
-                              <p className="text-[11px] text-muted-foreground/80">
-                                Uses strptime tokens. Set this for ambiguous values such as
-                                03/06/2026; leave blank only when automatic detection is safe.
-                              </p>
-                            </div>
-                          )}
-                          {tokens.length > 1 && (
-                            <div className="flex flex-wrap gap-1.5 pt-1.5">
-                              {tokens.map((t, i) => (
-                                <Badge key={i} variant="secondary" className="text-xs font-normal">
-                                  {t}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </Field>
-                      );
-                    },
-                  )}
-                </div>
-              </Section>
-            )}
 
             <Section
               title="4. Accounts — where documents arrive and go"
@@ -1706,20 +1469,6 @@ export default function ProfileEditorPage({
           </TabsContent>
 
           {/* ── Advanced (load-bearing extras) ───────────────── */}
-          <TabsContent value="mapping" className="space-y-6">
-            <Section
-              title="Profile output mapping"
-              description="Override only the columns that differ for this profile. Column names, order, and formatting continue to come from the selected output spec."
-            >
-              <OutputMappingEditor
-                spec={activeOutputSpec}
-                fields={effectiveFields}
-                overrides={profile.output_mapping_overrides ?? []}
-                onChange={(overrides) => update("output_mapping_overrides", overrides)}
-              />
-            </Section>
-          </TabsContent>
-
           <TabsContent value="advanced" className="space-y-6">
             <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
               <div>
@@ -1783,7 +1532,7 @@ export default function ProfileEditorPage({
             </Section>
             )}
 
-            {activeFieldSchema && schemaHasRowFields(activeFieldSchema) && (
+            {fieldsHaveRows(effectiveFields) && (
               <Section
                 title="Table / section hints"
                 description="Where detail rows start and end, and how tables are labeled on this layout."
@@ -1887,17 +1636,6 @@ export default function ProfileEditorPage({
             </Section>
 
             <Section
-              title="Extraction field settings"
-              description="Customize printed labels and validation for this profile, or add a supplier-specific extraction field. Structural properties of schema fields remain read-only."
-            >
-              <ExtractionFieldSettings
-                schema={activeFieldSchema}
-                overrides={profile.field_overrides ?? []}
-                onChange={(overrides) => update("field_overrides", overrides)}
-              />
-            </Section>
-
-            <Section
               title="Fixed document values"
               description="Set profile-owned constants for downstream values that are not reliably printed on the document."
             >
@@ -1908,10 +1646,10 @@ export default function ProfileEditorPage({
               />
             </Section>
 
-            {activeFieldSchema && schemaSupportsGroupedRows(activeFieldSchema) && (
+            {fieldsSupportGroupedRows(effectiveFields) && (
               <Section
                 title="Grouped row policy"
-                description="Controls which identifier lands in service_id vs billing_reference when a layout shows both a parent section ID and child row IDs (e.g. Colt Service Level Activity). Map the chosen fields in your Output Spec (EXT_SERVICEID / EXT_BILLINGREFERENCE)."
+                description="Controls which identifier lands in service_id vs billing_reference when a layout shows both a parent section ID and child row IDs (e.g. Colt Service Level Activity). Deliver the chosen fields through the columns in Setup."
               >
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Line Item Granularity">
@@ -2092,7 +1830,7 @@ export default function ProfileEditorPage({
               </Section>
             )}
 
-            {activeFieldSchema && schemaHasRowFields(activeFieldSchema) && (
+            {fieldsHaveRows(effectiveFields) && (
               <Section
                 title="Tax output policy"
                 description="Controls how delivered EXT_TAX values are populated for each output row."
@@ -2165,7 +1903,7 @@ export default function ProfileEditorPage({
               </Section>
             )}
 
-            {activeFieldSchema && (
+            {catalogue && (
               <Section
                 title="Reconciliation"
                 description="How extracted totals are verified for this supplier. Point these at the printed totals on the bill; line items are reconciled against them."
@@ -2216,7 +1954,7 @@ export default function ProfileEditorPage({
               </Section>
             )}
 
-            {activeFieldSchema && schemaHasRowFields(activeFieldSchema) && (
+            {fieldsHaveRows(effectiveFields) && (
               <Section
                 title="Extraction keywords"
                 description="Optional keywords for subtotal/tax lines and row filtering."
@@ -2230,7 +1968,7 @@ export default function ProfileEditorPage({
                     placeholder="Rows to ignore in grouping"
                   />
                 </Field>
-                {schemaSupportsReconciliation(activeFieldSchema) && (
+                {fieldsSupportReconciliation(effectiveFields) && (
                   <>
                     <Field
                       label="Subtotal Keywords"

@@ -26,8 +26,6 @@ export function useCreateAuthoringSession() {
   return useMutation({
     mutationFn: (body: {
       supplier_name?: string;
-      output_spec_id?: string;
-      field_schema_id?: string;
       source_profile_id?: string;
       category_override?: "standard" | "wireless" | "time_and_material";
     }) => api.post<AuthoringSessionState>("/profiles/authoring/sessions", body),

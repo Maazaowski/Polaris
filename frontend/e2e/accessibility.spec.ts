@@ -18,8 +18,6 @@ const ROUTES = [
   "/profiles",
   "/accounts",
   "/models",
-  "/field-schemas",
-  "/output-specs",
   "/settings",
   "/insights",
   "/logs",

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
+import type { OutputColumn } from "@/types";
 
 /** A rectangle in normalized 0-1000 page-space (x0/x1 across width, y0/y1 down height). */
 export interface LayoutBBox {
@@ -196,6 +197,8 @@ export interface DraftModel {
   item_fields: DraftItemFieldRule[];
   header_fields: Record<string, DraftHeaderFieldRule>;
   tax: DraftTaxConfig;
+  /** The template's own delivered columns. Empty = deliver the profile's. */
+  output_columns: OutputColumn[];
 }
 
 export function emptyDraftModel(): DraftModel {
@@ -221,6 +224,7 @@ export function emptyDraftModel(): DraftModel {
     item_fields: [],
     header_fields: {},
     tax: { mode: "none", rate: null },
+    output_columns: [],
   };
 }
 
@@ -273,6 +277,11 @@ export function useDraftModel(initial?: DraftModel) {
     [],
   );
 
+  const setOutputColumns = useCallback(
+    (output_columns: OutputColumn[]) => setDraft((d) => ({ ...d, output_columns })),
+    [],
+  );
+
   return {
     draft,
     setDraft,
@@ -283,6 +292,7 @@ export function useDraftModel(initial?: DraftModel) {
     setFields,
     setHeaderField,
     updateTax,
+    setOutputColumns,
   };
 }
 
@@ -298,6 +308,8 @@ export interface PreviewLabelValue {
 
 export interface PreviewOutput {
   columns: { header: string }[];
+  /** template | profile | raw (no profile) | none (nothing configured yet). */
+  columns_source?: string;
   rows: unknown[][];
   row_count: number;
   header_fields?: PreviewLabelValue[];
@@ -324,22 +336,15 @@ export interface DraftTestResult {
   is_match: boolean | null;
 }
 
-/** What the model is being authored for: an existing supplier profile, or —
- * before one exists — the document type and deliverable chosen directly.
- *
- * This decides which columns the preview renders, so it is collected up front
- * rather than at save time; otherwise the whole authoring session is spent
- * checking output against a deliverable that isn't the real one. */
+/** What the model is being authored for: an existing supplier profile, or
+ * nothing yet. The preview renders the template's own columns when it has
+ * any, else the profile's, else (no profile) the raw extraction. */
 export interface BuilderTarget {
   profileId: string | null;
-  /** Deliverable columns (OutputSpec). Used only when profileId is null. */
-  outputSpecId: string | null;
-  /** Document type / extraction contract (FieldSchema). Used only when profileId is null. */
-  fieldSchemaId: string | null;
 }
 
 export function emptyBuilderTarget(): BuilderTarget {
-  return { profileId: null, outputSpecId: null, fieldSchemaId: null };
+  return { profileId: null };
 }
 
 /** Execute a draft model (not yet persisted) against a stored invoice and get
@@ -349,7 +354,6 @@ export function useDraftTest() {
     mutationFn: ({
       intakeId,
       modelJson,
-      target,
     }: {
       intakeId: string;
       modelJson: Record<string, unknown>;
@@ -358,8 +362,6 @@ export function useDraftTest() {
       api.post<DraftTestResult>("/models/draft/test", {
         intake_id: intakeId,
         model_json: modelJson,
-        output_spec_id: target?.outputSpecId ?? null,
-        field_schema_id: target?.fieldSchemaId ?? null,
       }),
   });
 }

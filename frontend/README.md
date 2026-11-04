@@ -31,7 +31,7 @@ npm start          # serve the production build
 
 | Path | What lives there |
 |---|---|
-| `src/app/` | One folder per route. Four sections: **Work** (`/invoices`, `/exceptions`, `/upload`), **Suppliers** (`/profiles`, `/accounts`, `/field-schemas`, `/output-specs`), **Templates** (`/models`, `/models/builder`), **System** (`/insights`, `/settings`, `/logs`, `/users`, `/account`, plus `/ai-calls` and `/evals` when debug is on). |
+| `src/app/` | One folder per route. Four sections: **Work** (`/invoices`, `/exceptions`, `/upload`), **Suppliers** (`/profiles`, `/accounts`), **Templates** (`/models`, `/models/builder`), **System** (`/insights`, `/settings`, `/logs`, `/users`, `/account`, plus `/ai-calls` and `/evals` when debug is on). |
 | `src/components/layout/` | The shell: a 240px sidebar that lists every section, a phone-only top bar, the command palette (`Ctrl/Cmd+K`). `nav-config.ts` is the single source of navigation. |
 | `src/components/brand/` | The star mark, the wordmark, and the mascot plus confetti used in empty states and on sign in. |
 | `src/components/builder/` | The visual model builder (`/models/builder`): layout canvas plus editors for regions, columns, row classifiers, headers, grouping, tax and computed values. |

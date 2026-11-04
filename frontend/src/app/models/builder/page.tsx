@@ -24,7 +24,7 @@ function BuilderGate() {
   const boundName = profile?.identity.canonical_name;
   const description = started
     ? `Authoring against ${started.sample.name}${boundName ? ` · for ${boundName}` : ""}`
-    : "Choose what the template delivers, then add a sample invoice to draw against.";
+    : "Choose the supplier it serves, then add a sample invoice to draw against.";
 
   return (
     <div className="space-y-6">
