@@ -246,14 +246,7 @@ def continue_pipeline(db: Session, intake_id: str,
                 else None
             )
             if delivery_blockers:
-                create_exception_package(
-                    intake_id=intake_id,
-                    reason=ExceptionReason.PROFILE_VALIDATION_FAILURE,
-                    message="Profile delivery paused: " + "; ".join(delivery_blockers),
-                    pdf_path=processing_pdf,
-                    partial_invoice=invoice,
-                    error_details={"profile_id": profile.profile_id, "blockers": delivery_blockers},
-                )
+                _pause_delivery(intake_id, processing_pdf, invoice, profile, delivery_blockers)
             xlsx_path, json_path, log_path, manifest_path = _generate_output(
                 db, intake_id, invoice, custom_output_dir=custom_output_dir,
                 profile=profile,
@@ -1416,6 +1409,29 @@ def _resolve_output_dir(profile: SupplierProfile | None, account_label: str | No
 def _profile_delivery_blockers(profile: SupplierProfile | None) -> list[str]:
     """Authoring evidence is advisory and never pauses production delivery."""
     return []
+
+
+def _pause_delivery(
+    intake_id: str,
+    pdf_path: Path,
+    invoice: ExtractedDocument,
+    profile: SupplierProfile | None,
+    blockers: list[str],
+) -> None:
+    """Park a copy of the package in exceptions/ instead of delivering it.
+
+    ``profile`` may be None: the large-document gate applies to an invoice with
+    no profile too, and reading its id unguarded crashed the run after all the
+    AI work was done, which the task retry then paid for again.
+    """
+    create_exception_package(
+        intake_id=intake_id,
+        reason=ExceptionReason.PROFILE_VALIDATION_FAILURE,
+        message="Profile delivery paused: " + "; ".join(blockers),
+        pdf_path=pdf_path,
+        partial_invoice=invoice,
+        error_details={"profile_id": profile.profile_id if profile else None, "blockers": blockers},
+    )
 
 
 def _unverified_large_document_blockers(

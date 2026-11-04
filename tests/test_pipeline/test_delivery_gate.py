@@ -145,3 +145,22 @@ def test_no_profile_invoice_gets_the_raw_workbook(tmp_path):
     assert items[0][:3] == ("service_id", "description", "charge_type")
     assert "site_code" in items[0]
     assert items[1][items[0].index("amount")] == 10.5
+
+
+def test_a_large_failed_document_with_no_profile_is_parked_not_crashed(tmp_path, monkeypatch):
+    """Regression: the gate read profile.profile_id with no profile, so a 100+
+    page AI-only invoice that did not reconcile crashed after extraction and the
+    task retry re-ran the whole (paid) extraction."""
+    import json
+
+    from polaris.pipeline.processor import _pause_delivery
+
+    monkeypatch.setattr(settings, "exceptions_dir", tmp_path / "exceptions")
+    monkeypatch.setattr(settings, "blocking_check_page_threshold", 100)
+    invoice = _invoice(656)
+    blockers = _unverified_large_document_blockers(invoice, _recon(reconciled=False))
+
+    _pause_delivery("intake-2", tmp_path / "missing.pdf", invoice, None, blockers)
+
+    log = json.loads((tmp_path / "exceptions" / "intake-2" / "error_log.json").read_text(encoding="utf-8"))
+    assert "656-page document failed its arithmetic check" in json.dumps(log)
