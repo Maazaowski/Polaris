@@ -146,14 +146,33 @@ def _extract_schema(response_format: dict[str, Any] | None) -> dict[str, Any] | 
     return schema if isinstance(schema, dict) else (inner if inner else None)
 
 
+# Anthropic compiles strict schemas to a grammar and caps the number of
+# union-typed parameters (``anyOf`` / type arrays) per request.
+_ANTHROPIC_UNION_LIMIT = 16
+
+
 def _anthropic_schema(schema: Any) -> Any:
-    """Convert OpenAI-compatible JSON Schema quirks to Anthropic's stricter form."""
+    """Convert OpenAI-compatible JSON Schema quirks to Anthropic's stricter form.
+
+    Nullable types become ``anyOf`` unions. When that leaves more unions than
+    Anthropic accepts, the overflow nullable properties are made *optional*
+    instead (plain type, dropped from ``required``): an absent key reads back
+    as the same ``None`` the callers already handle.
+    """
+    converted = _convert_nullables(schema)
+    excess = _count_unions(converted) - _ANTHROPIC_UNION_LIMIT
+    if excess > 0:
+        _demote_nullables_to_optional(converted, excess)
+    return converted
+
+
+def _convert_nullables(schema: Any) -> Any:
     if isinstance(schema, list):
-        return [_anthropic_schema(item) for item in schema]
+        return [_convert_nullables(item) for item in schema]
     if not isinstance(schema, dict):
         return schema
 
-    converted = {key: _anthropic_schema(value) for key, value in schema.items()}
+    converted = {key: _convert_nullables(value) for key, value in schema.items()}
     schema_type = converted.get("type")
     if not isinstance(schema_type, list) or "null" not in schema_type:
         return converted
@@ -176,6 +195,60 @@ def _anthropic_schema(schema: Any) -> Any:
         branches.append(non_null_branch)
     branches.append({"type": "null"})
     return {"anyOf": branches}
+
+
+def _count_unions(schema: Any) -> int:
+    if isinstance(schema, list):
+        return sum(_count_unions(item) for item in schema)
+    if not isinstance(schema, dict):
+        return 0
+    count = 1 if ("anyOf" in schema or isinstance(schema.get("type"), list)) else 0
+    return count + sum(_count_unions(value) for value in schema.values())
+
+
+def _nullable_branch(prop: Any) -> dict[str, Any] | None:
+    """The non-null branch of a ``anyOf: [X, null]`` property, else None."""
+    if not isinstance(prop, dict) or set(prop) != {"anyOf"}:
+        return None
+    branches = prop["anyOf"]
+    if len(branches) != 2:
+        return None
+    nulls = [b for b in branches if b == {"type": "null"}]
+    others = [b for b in branches if b != {"type": "null"}]
+    if len(nulls) != 1 or len(others) != 1 or not isinstance(others[0], dict):
+        return None
+    return others[0]
+
+
+def _demote_nullables_to_optional(schema: Any, budget: int) -> int:
+    """Rewrite up to ``budget`` nullable properties as optional, in schema
+    order, depth first. Returns the budget left."""
+    if budget <= 0:
+        return budget
+    if isinstance(schema, list):
+        for item in schema:
+            budget = _demote_nullables_to_optional(item, budget)
+        return budget
+    if not isinstance(schema, dict):
+        return budget
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        required = schema.get("required")
+        for name, prop in properties.items():
+            if budget <= 0:
+                break
+            branch = _nullable_branch(prop)
+            if branch is None:
+                continue
+            properties[name] = branch
+            if isinstance(required, list) and name in required:
+                required.remove(name)
+            budget -= 1
+    for value in schema.values():
+        if budget <= 0:
+            break
+        budget = _demote_nullables_to_optional(value, budget)
+    return budget
 
 
 def _text_from(message: Any) -> str | None:

@@ -190,3 +190,33 @@ def test_settings_response_masks_keys_and_switches_provider(monkeypatch):
     # the raw key is never part of the response
     assert not hasattr(response, "openai_api_key")
     assert not hasattr(response, "anthropic_api_key")
+
+
+def test_anthropic_schema_demotes_overflow_nullables_to_optional():
+    """Anthropic caps union-typed parameters at 16; beyond that a nullable
+    property is sent as an optional plain type instead (absent reads as None)."""
+    from polaris.llm.client import _anthropic_schema, _count_unions
+
+    names = [f"f{i}" for i in range(20)]
+    schema = {
+        "type": "object",
+        "properties": {name: {"type": ["string", "null"]} for name in names},
+        "required": list(names),
+        "additionalProperties": False,
+    }
+    out = _anthropic_schema(schema)
+    assert _count_unions(out) == 16
+    demoted = [n for n in names if out["properties"][n] == {"type": "string"}]
+    assert demoted == names[:4]
+    assert out["required"] == names[4:]
+    assert out["properties"]["f4"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+
+def test_anthropic_schema_accepts_the_model_authoring_line_items_section():
+    from polaris.fields.catalogue import default_field_set
+    from polaris.llm.client import _anthropic_schema, _count_unions
+    from polaris.models.authoring import _section_schema
+
+    for section in ("scalars", "line_items"):
+        out = _anthropic_schema(_section_schema(default_field_set(), section)["schema"])
+        assert _count_unions(out) <= 16
