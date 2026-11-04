@@ -165,3 +165,47 @@ def test_reset_requires_debug(demo_env, monkeypatch):
     report = seed_demo.seed(reset=True, layouts=("colt.standard",))
     assert report.failed == []
     assert len(report.processed) == 8
+
+
+def test_reset_reloads_the_committed_model_rules(demo_env, monkeypatch):
+    """A stale approved model (rules edited, or seeded from an older snapshot) is
+    refreshed from the corpus on reset, keeping its id and approval."""
+    seed_demo = _load_seed_demo()
+    from polaris import runtime_settings
+    from polaris.db.models import ExtractionModelRecord
+    from polaris.db.session import SessionLocal
+
+    real_runtime_value = runtime_settings.runtime_value
+    monkeypatch.setattr(
+        "polaris.runtime_settings.runtime_value",
+        lambda name: True if name == "debug" else real_runtime_value(name),
+    )
+    first = seed_demo.seed(layouts=("colt.standard",))
+    model_id = first.models[0][0]
+
+    db = SessionLocal()
+    try:
+        record = db.get(ExtractionModelRecord, model_id)
+        stale = dict(record.model_json)
+        stale["notes"] = "edited by hand"
+        stale["tax_output_mode"] = None
+        record.model_json = stale
+        db.commit()
+        approved_at = record.approved_at
+    finally:
+        db.close()
+
+    second = seed_demo.seed(reset=True, layouts=("colt.standard",))
+
+    assert second.failed == []
+    assert [(mid, action) for mid, action, _ in second.models] == [(model_id, "refreshed")]
+    db = SessionLocal()
+    try:
+        record = db.get(ExtractionModelRecord, model_id)
+        committed = seed_demo.load_layout("colt.standard").model
+        assert record.status == "approved"
+        assert record.approved_at == approved_at
+        assert record.model_json["notes"] == committed.notes
+        assert record.model_json["tax_output_mode"] == committed.tax_output_mode == "calculate"
+    finally:
+        db.close()

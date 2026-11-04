@@ -165,14 +165,36 @@ def compute_fingerprint(pdf: Path, profile) -> tuple[str, str]:
 
 
 def ensure_approved_model(db, layout: DemoLayout, *, fingerprint: str, family_key: str,
-                          created_from_intake: str | None) -> tuple[str, str]:
-    """Register the corpus model as approved for its profile. Returns (model_id, action)."""
+                          created_from_intake: str | None, reset: bool = False) -> tuple[str, str]:
+    """Register the corpus model as approved for its profile. Returns (model_id, action).
+
+    A plain run keeps an approved model as it is (re-keyed when only its hash
+    drifted). A reset reloads the committed rules into that model, so the demo
+    runs whatever snapshot is checked in, under the same id and approval.
+    """
     from polaris.db import crud
     from polaris.models.registry import approve_model, save_model
     from polaris.models.schema import ModelStatus
 
     profile_id = layout.profile.profile_id
     existing = crud.find_model_by_profile(db, profile_id, status="approved")
+    if existing is not None and reset:
+        model = layout.model.model_copy(deep=True)
+        model.model_id = existing.id
+        model.supplier_profile_id = profile_id
+        model.status = ModelStatus.APPROVED
+        model.layout_fingerprint = fingerprint
+        model.layout_family_key = family_key
+        model.created_from_intake = created_from_intake or existing.created_from_intake
+        model.approved_by = existing.approved_by
+        model.approved_at = existing.approved_at
+        existing.model_json = model.model_dump(mode="json")
+        existing.layout_fingerprint = fingerprint
+        existing.layout_family_key = family_key
+        existing.created_from_intake = model.created_from_intake
+        existing.updated_by = SEEDED_BY
+        db.commit()
+        return existing.id, "refreshed"
     if existing is not None:
         if existing.layout_fingerprint == fingerprint:
             return existing.id, "kept"
@@ -376,6 +398,7 @@ def seed(*, reset: bool = False, dry_run: bool = False, layouts: tuple[str, ...]
                 first_intake_id = ingest(db, first_pdf, profile.profile_id)
             model_id, action = ensure_approved_model(
                 db, layout, fingerprint=fingerprint, family_key=family_key, created_from_intake=first_intake_id,
+                reset=reset,
             )
             report.models.append((model_id, action, fingerprint))
 

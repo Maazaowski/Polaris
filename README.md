@@ -144,7 +144,7 @@ python run_pipeline.py                       # dev watcher: processes drops sync
 
 ## First run: from empty database to first invoice
 
-**Want a populated app first, with no AI key?** The demo seeder turns an empty database into a month of history in a few seconds, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `POLARIS_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes first (it needs `POLARIS_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
+**Want a populated app first, with no AI key?** The demo seeder turns an empty database into a month of history in a few seconds, entirely offline: it loads the two golden-corpus profiles (Colt and euNetworks) as active suppliers with folders under `POLARIS_DATA_DIR`, approves their committed extraction models under the fingerprint the live fingerprinter computes, runs every corpus invoice through the real pipeline on the template path ($0, no AI), and spreads the results across the last 30 days. Re-running only fills gaps; `--reset` purges existing intakes and reloads the committed model rules into the approved models first (it needs `POLARIS_DEBUG=true`, like the Settings danger zone) and `--dry-run` prints the plan without writing.
 
 ```bash
 python scripts/seed_demo.py --reset
