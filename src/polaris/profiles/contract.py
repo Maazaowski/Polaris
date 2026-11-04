@@ -300,10 +300,18 @@ def date_format_issues(
     return list(dict.fromkeys(issues))
 
 
-def readiness_issues(profile: Any, *, for_status: str | None = None) -> list[ContractIssue]:
+def readiness_issues(
+    profile: Any, *, for_status: str | None = None, require_date_formats: bool = True,
+) -> list[ContractIssue]:
     """Structural problems with a profile's contract, plus the stricter rules a
     training/active profile must satisfy (non-empty lists, date formats, an
-    amount field to reconcile against)."""
+    amount field to reconcile against).
+
+    ``require_date_formats=False`` leaves the date-format rule out. A save that
+    keeps an active profile active uses it: profiles migrated from the shared
+    registries deliver dates without printed formats, and refusing every edit
+    until they are filled in locks the supplier's other settings. The rule
+    still gates entering training or active."""
     fields = field_set(profile)
     columns = output_columns(profile)
     issues = validate_fields(_profile_fields(profile))
@@ -314,7 +322,8 @@ def readiness_issues(profile: Any, *, for_status: str | None = None) -> list[Con
             issues.append("No fields to read are configured; add at least one field")
         if not columns:
             issues.append("No output columns are configured; add at least one delivered column")
-        issues.extend(date_format_issues(columns, fields))
+        if require_date_formats:
+            issues.extend(date_format_issues(columns, fields))
         if not any(f.scope == FieldScope.ROW and f.role == FieldRole.AMOUNT for f in fields.fields):
             issues.append("At least one row field with the amount role is required")
     return list(dict.fromkeys(issues))

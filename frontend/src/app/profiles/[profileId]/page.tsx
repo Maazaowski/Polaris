@@ -1208,6 +1208,11 @@ export default function ProfileEditorPage({
         } else {
           toast.success(`Profile updated. ${rekeyToastLine(saved.rekey)}`);
         }
+        if (saved.warnings?.length) {
+          toast.warning(
+            `Add these before retraining or activating: ${saved.warnings.join(" ")}`
+          );
+        }
       }
     } catch (err) {
       toast.error(toastErrorMessage(err, "Failed to save profile."));

@@ -177,7 +177,11 @@ def _assign_paths(profile_id: str, inbound_paths: list[str]) -> MutationResponse
 
     _write_accounts(target, accounts)
 
-    issues = [i for i in _profile_readiness_issues(target) if "already mapped" not in i]
+    # Assigning folders leaves the status alone, so missing date formats do not
+    # block it (they block the move into training/active instead).
+    issues = [
+        i for i in _profile_readiness_issues(target, require_date_formats=False) if "already mapped" not in i
+    ]
     if issues:
         raise HTTPException(status_code=422, detail={"issues": issues})
 

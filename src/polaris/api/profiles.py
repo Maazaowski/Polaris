@@ -60,6 +60,9 @@ class ProfileSummary(BaseModel):
     audit: dict | None = None
     # Set on a PUT whose edit changed the fingerprint salt; None otherwise.
     rekey: ModelRekeySummary | None = None
+    # Rules a save let through that will block the next move into training or
+    # active (today: delivered dates without a printed date format).
+    warnings: list[str] = Field(default_factory=list)
 
 
 class SimpleExtractionHints(BaseModel):
@@ -125,7 +128,7 @@ def _acknowledged_review_warnings(profile: SupplierProfile) -> set[str]:
     }
 
 
-def _profile_readiness_issues(profile: SupplierProfile) -> list[str]:
+def _profile_readiness_issues(profile: SupplierProfile, *, require_date_formats: bool = True) -> list[str]:
     from polaris.profiles.contract import readiness_issues
 
     issues: list[str] = []
@@ -135,7 +138,7 @@ def _profile_readiness_issues(profile: SupplierProfile) -> list[str]:
         issues.append("No output type specified")
     if profile.status not in PROFILE_STATUSES:
         issues.append(f"Invalid status '{profile.status}' (allowed: {', '.join(PROFILE_STATUSES)})")
-    issues.extend(readiness_issues(profile))
+    issues.extend(readiness_issues(profile, require_date_formats=require_date_formats))
     if profile.status in ("training", "active"):
         # Authoring evidence helps users review AI decisions, but it is not an
         # execution gate. Users may save an active profile and validate changes
@@ -337,16 +340,28 @@ def create_profile(profile: SupplierProfile, current_user: CurrentUser):
 def update_profile(profile_id: str, profile: SupplierProfile, current_user: CurrentUser):
     if profile.profile_id != profile_id:
         raise HTTPException(status_code=400, detail="Profile ID cannot be changed")
-    if get_profile(profile_id) is None:
+    stored = get_profile(profile_id)
+    if stored is None:
         raise HTTPException(status_code=404, detail="Profile not found")
-    issues = _profile_readiness_issues(profile)
+    # Missing date formats block entering training/active, not editing a
+    # profile that is already there; the save reports them as warnings.
+    keeps_status = stored.status == profile.status
+    issues = _profile_readiness_issues(profile, require_date_formats=not keeps_status)
     if issues:
         raise HTTPException(status_code=422, detail={"issues": issues})
 
     rekey = _persist_profile(profile, actor=current_user)
     summary = _summary(get_profile(profile_id) or profile)
     summary.rekey = rekey
+    if keeps_status and profile.status in ("training", "active"):
+        summary.warnings = _date_format_warnings(profile)
     return summary
+
+
+def _date_format_warnings(profile: SupplierProfile) -> list[str]:
+    from polaris.profiles.contract import date_format_issues, field_set, output_columns
+
+    return date_format_issues(output_columns(profile), field_set(profile))
 
 
 @router.delete("/{profile_id}")

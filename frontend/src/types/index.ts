@@ -503,6 +503,8 @@ export interface ProfileSummary {
   account_count?: number;
   audit?: Record<string, unknown> | null;
   rekey?: ModelRekeySummary | null;
+  /** Rules the save let through that block the next move into training or active. */
+  warnings?: string[];
 }
 
 // ── AI profile authoring assistant ─────────────────────────
