@@ -13,6 +13,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from polaris.output.columns import OutputColumn
+
 
 class ModelStatus(StrEnum):
     CANDIDATE = "candidate"
@@ -396,6 +398,10 @@ class ExtractionModel(BaseModel):
         description="subtotal, tax, fees, total_due, tax_rate, current_charges",
     )
     self_checks: list[SelfCheck] = Field(default_factory=list)
+
+    # A template may ship its own column set. Empty means "deliver the profile's
+    # columns"; when set, these win (see profiles/contract.output_columns).
+    output_columns: list[OutputColumn] = Field(default_factory=list)
 
     # Delivered-tax policy carried on the model, so a hand-built model is
     # self-contained and its preview computes EXT_TAX without needing a profile.

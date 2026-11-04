@@ -29,8 +29,8 @@ from polaris.models.interpreter import ModelExecutionError, execute_model
 from polaris.models.registry import save_failed_model, save_model
 from polaris.models.schema import ExtractionModel
 from polaris.output.review_artifacts import write_model_review_artifacts
+from polaris.profiles.contract import delivery_columns
 from polaris.profiles.schema import SupplierProfile
-from polaris.specs.loader import resolve_output_spec
 from polaris.validation.schema import CanonicalInvoice
 
 logger = structlog.get_logger()
@@ -495,7 +495,7 @@ def _train(
             continue
         write_model_review_artifacts(
             intake_id, ex.ai_invoice, model_invoice, execution_error=exec_error,
-            spec=resolve_output_spec(profile),
+            columns=delivery_columns(profile),
         )
 
     # Log the final per-invoice validation outcomes.
@@ -640,7 +640,7 @@ def _validate_holdout_examples(
         }
         write_model_review_artifacts(
             ex.intake_id, ex.ai_invoice, model_invoice, execution_error=exec_error,
-            spec=resolve_output_spec(profile),
+            columns=delivery_columns(profile),
         )
         crud.log_processing_step(
             db, intake_id=log_intake_id, step="model_holdout_validation",
@@ -873,7 +873,7 @@ def _validate_example(
             keep_zero_amount=profile.include_zero_amount_line_items,
             require_identifier=profile.require_line_item_identifier,
         )
-        diff = diff_invoices(example.ai_invoice, model_invoice, resolve_output_spec(profile))
+        diff = diff_invoices(example.ai_invoice, model_invoice, delivery_columns(profile, model))
         return model_invoice, diff, str(exc)
 
     _normalize_line_items(
@@ -881,7 +881,7 @@ def _validate_example(
         keep_zero_amount=profile.include_zero_amount_line_items,
         require_identifier=profile.require_line_item_identifier,
     )
-    diff = diff_invoices(example.ai_invoice, model_invoice, resolve_output_spec(profile))
+    diff = diff_invoices(example.ai_invoice, model_invoice, delivery_columns(profile, model))
     return model_invoice, diff, None
 
 

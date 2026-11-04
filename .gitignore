@@ -26,6 +26,9 @@ Thumbs.db
 polaris_data/
 extraction_models/
 polaris_work/
+# Pre-rename local folder names, still used by older .env files
+stencil_data/
+stencil_work/
 
 # Test artifacts
 .pytest_tmp/

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from polaris.fields.loader import default_field_schema
+from polaris.fields.catalogue import default_field_set
 from polaris.validation.schema import ExtractedDocument, _normalize_v1_payload
 
 
@@ -69,7 +69,7 @@ def build_extracted_from_ai_raw(
     from polaris.fields.coercion import coerce_field_value
     from polaris.fields.currency import normalize_currency_code
 
-    schema = field_schema or default_field_schema()
+    schema = field_schema or default_field_set()
     fields: dict[str, Any] = {"output_type": output_type}
     warnings = list(raw_data.get("warnings") or [])
     header = raw_data.get("header") or {}
@@ -121,7 +121,6 @@ def build_extracted_from_ai_raw(
 
     return ExtractedDocument(
         intake_id=intake_id,
-        schema_id=schema.schema_id,
         fields=fields,
         rows=rows,
         metadata=metadata,

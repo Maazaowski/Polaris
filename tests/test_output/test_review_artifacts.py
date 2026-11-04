@@ -12,6 +12,7 @@ from polaris.validation.schema import (
     LineItem,
     OutputType,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 
 def _invoice(**kw) -> CanonicalInvoice:
@@ -58,7 +59,7 @@ def test_writes_ai_and_model_xlsx(tmp_path, monkeypatch):
         ),
     ])
 
-    written = write_model_review_artifacts("intake-123", ai, model)
+    written = write_model_review_artifacts("intake-123", ai, model, columns=STANDARD_COLUMNS)
 
     review_dir = tmp_path / "intake-123" / "model_review"
     assert set(written) == {"ai_output.xlsx", "model_output.xlsx", "model_output.json"}
@@ -72,7 +73,7 @@ def test_writes_ai_only_when_model_missing(tmp_path, monkeypatch):
 
     monkeypatch.setattr(settings, "completed_dir", tmp_path)
 
-    written = write_model_review_artifacts("intake-456", _invoice(), None)
+    written = write_model_review_artifacts("intake-456", _invoice(), None, columns=STANDARD_COLUMNS)
 
     assert written == ["ai_output.xlsx"]
     assert (tmp_path / "intake-456" / "model_review" / "ai_output.xlsx").exists()

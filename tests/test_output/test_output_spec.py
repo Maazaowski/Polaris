@@ -20,6 +20,7 @@ from polaris.validation.schema import (
     InvoiceHeader,
     LineItem,
 )
+from tests.output_columns import STANDARD_COLUMNS, defs
 
 
 def _invoice(account: str = "A100", **kw) -> CanonicalInvoice:
@@ -58,7 +59,7 @@ def _three_col_spec() -> OutputSpec:
 
 
 def test_custom_spec_yields_exactly_its_columns_in_order():
-    rows = build_output_rows(_invoice(), _three_col_spec())
+    rows = build_output_rows(_invoice(), defs(_three_col_spec()))
     assert len(rows) == 1
     # Exactly 3 columns, in declared order: service_id, amount, computed tax.
     assert rows[0] == ["S1", 100.0, 25.0]  # tax = 100 * 0.25
@@ -87,11 +88,11 @@ def test_time_material_optional_cost_fields_are_mappable():
         ],
     )
 
-    assert build_output_rows(invoice, spec) == [[10.0, 20.0, 25.58, 144.0]]
+    assert build_output_rows(invoice, defs(spec)) == [[10.0, 20.0, 25.58, 144.0]]
 
 
 def test_default_spec_still_produces_eight_columns():
-    rows = build_output_rows(_invoice())  # no spec -> the standard default
+    rows = build_output_rows(_invoice(), STANDARD_COLUMNS)
     assert len(rows[0]) == 8
 
 
@@ -101,11 +102,11 @@ def test_diff_keys_off_the_passed_spec():
     b = _invoice(account="B999")
 
     # The default (standard) spec includes EXT_ACCOUNT -> they differ.
-    assert diff_invoices(a, b).is_match is False
+    assert diff_invoices(a, b, STANDARD_COLUMNS).is_match is False
 
     # A custom spec that omits account -> the model is validated only on the
     # columns it actually delivers, so the same two invoices now match.
-    assert diff_invoices(a, b, _three_col_spec()).is_match is True
+    assert diff_invoices(a, b, defs(_three_col_spec())).is_match is True
 
 
 def test_billing_reference_none_disables_service_id_fallback(monkeypatch):
@@ -198,7 +199,7 @@ def test_profile_output_mapping_can_replace_document_date_with_row_date(monkeypa
 
     assert resolved.columns[0].source == "row.billing_period_start"
     assert resolved.columns[0].fallback == "field.invoice_date"
-    assert build_output_rows(invoice, resolved) == [["02/01/2026"]]
+    assert build_output_rows(invoice, defs(resolved)) == [["02/01/2026"]]
 
 
 def test_profile_output_mapping_applies_safe_transform_after_resolution(monkeypatch):
@@ -220,7 +221,7 @@ def test_profile_output_mapping_applies_safe_transform_after_resolution(monkeypa
     resolved = resolve_output_spec(profile)
 
     assert resolved.columns[0].transforms == ["digits_only"]
-    assert build_output_rows(_invoice(account="49858-00"), resolved) == [["4985800"]]
+    assert build_output_rows(_invoice(account="49858-00"), defs(resolved)) == [["4985800"]]
 
 
 def test_profile_output_mapping_can_clear_fallback_and_wins_compatibility(monkeypatch):

@@ -76,3 +76,72 @@ def test_an_unverifiable_document_is_not_blocked():
 def test_zero_disables_the_gate(monkeypatch):
     monkeypatch.setattr(settings, "blocking_check_page_threshold", 0)
     assert _unverified_large_document_blockers(_invoice(656), _recon(reconciled=False)) == []
+
+
+# ---------------------------------------------------------------------------
+# A profile with nothing configured to deliver stops before any AI is spent;
+# an invoice with no profile at all ships the raw extraction workbook.
+# ---------------------------------------------------------------------------
+
+
+def _profile(**kw):
+    from polaris.profiles.schema import SupplierIdentity, SupplierProfile
+
+    base = dict(profile_id="acme.v1", identity=SupplierIdentity(canonical_name="Acme"))
+    base.update(kw)
+    return SupplierProfile(**base)
+
+
+def test_a_profile_with_no_columns_is_a_configuration_blocker():
+    from polaris.output.columns import OutputColumn
+    from polaris.pipeline.processor import _profile_configuration_blockers
+
+    assert _profile_configuration_blockers(None) == []
+    assert _profile_configuration_blockers(_profile()) == ["no output columns configured"]
+    ready = _profile(output_columns=[OutputColumn(header="A", source="row.amount")])
+    assert _profile_configuration_blockers(ready) == []
+
+
+def test_the_configuration_gate_parks_the_invoice_and_does_not_retry(tmp_path, monkeypatch):
+    from polaris.pipeline.processor import NonRetryablePipelineError, _stop_if_profile_cannot_deliver
+
+    monkeypatch.setattr(settings, "exceptions_dir", tmp_path / "exceptions")
+    logged = []
+
+    class _Db:
+        pass
+
+    monkeypatch.setattr(
+        "polaris.pipeline.processor.crud.log_processing_step",
+        lambda db, **kw: logged.append(kw),
+    )
+    with pytest.raises(NonRetryablePipelineError, match="no output columns configured"):
+        _stop_if_profile_cannot_deliver(_Db(), "intake-1", tmp_path / "missing.pdf", _profile())
+    assert (tmp_path / "exceptions" / "intake-1" / "error_log.json").exists()
+    assert logged and logged[0]["step"] == "configuration"
+
+
+def test_no_profile_invoice_gets_the_raw_workbook(tmp_path):
+    import openpyxl
+
+    from polaris.output.xlsx_writer import write_raw_workbook
+
+    invoice = ExtractedDocument(
+        intake_id="t",
+        fields={"supplier_name": "Acme", "invoice_number": "INV-1", "invoice_date": "2026-01-02",
+                "total_due": Decimal("10.50"), "cost_centre": "CC-9"},
+        rows=[{"line_number": 1, "description": "svc", "amount": Decimal("10.50"), "charge_type": "recurring",
+               "service_id": "S1", "site_code": "lhr"}],
+        metadata=ExtractionMetadata(extraction_path=ExtractionPath.AI),
+    )
+    path = write_raw_workbook(invoice, tmp_path / "raw.xlsx")
+    wb = openpyxl.load_workbook(path)
+    assert wb.sheetnames == ["Invoice", "Line items"]
+    invoice_sheet = {row[0]: row[1] for row in wb["Invoice"].iter_rows(min_row=2, values_only=True)}
+    assert invoice_sheet["invoice_number"] == "INV-1"
+    assert invoice_sheet["total_due"] == 10.5
+    assert invoice_sheet["cost_centre"] == "CC-9"
+    items = list(wb["Line items"].iter_rows(values_only=True))
+    assert items[0][:3] == ("service_id", "description", "charge_type")
+    assert "site_code" in items[0]
+    assert items[1][items[0].index("amount")] == 10.5

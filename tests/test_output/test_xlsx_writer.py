@@ -6,7 +6,6 @@ from decimal import Decimal
 import openpyxl
 
 from polaris.output.mapper import (
-    STANDARD_OUTPUT_COLUMNS,
     get_line_item_value,
 )
 from polaris.output.xlsx_writer import (
@@ -24,6 +23,7 @@ from polaris.validation.schema import (
     LineItem,
     OutputType,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 
 def _header(**kw) -> InvoiceHeader:
@@ -82,10 +82,10 @@ def _with_calculated_tax(inv: CanonicalInvoice, source: str = "auto") -> Canonic
 
 class TestStandardColumns:
     def test_exactly_8_columns(self):
-        assert len(STANDARD_OUTPUT_COLUMNS) == 8
+        assert len(STANDARD_COLUMNS) == 8
 
     def test_column_names(self):
-        names = [c.xlsx_header for c in STANDARD_OUTPUT_COLUMNS]
+        names = [c.xlsx_header for c in STANDARD_COLUMNS]
         assert names == [
             "EXT_SERVICEID", "EXT_BILLINGREFERENCE", "EXT_DATE", "formula",
             "EXT_AMOUNT", "EXT_ACCOUNT", "EXT_INVOICENUMBER", "EXT_TAX",
@@ -201,7 +201,7 @@ class TestRowFiltering:
         ]
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("0.23")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -223,7 +223,7 @@ class TestRowFiltering:
         ]
         inv = _invoice(line_items=items)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -240,7 +240,7 @@ class TestRowFiltering:
         inv = _invoice(line_items=items, subtotal=Decimal("1000.22"), tax=Decimal("0"))
         inv.fields["_tax_output_mode"] = "extract_exact"
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         ws = wb.active
@@ -261,7 +261,7 @@ class TestRowFiltering:
         inv = _invoice(line_items=items, subtotal=Decimal("750"), tax=Decimal("0"))
         inv.fields["_tax_output_mode"] = "extract_exact"
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         ws = wb.active
@@ -278,7 +278,7 @@ class TestXlsxOutput:
     def test_writes_8_columns(self, tmp_path):
         inv = _with_calculated_tax(_invoice(tax_rate=Decimal("0.23")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -294,7 +294,7 @@ class TestXlsxOutput:
         items = [_li("850.00")]
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("0.23")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -306,16 +306,16 @@ class TestXlsxOutput:
         from polaris.output.xlsx_writer import build_output_rows
 
         inv = _with_calculated_tax(_invoice(line_items=[_li("850.00")], tax_rate=Decimal("0.23")))
-        rows = build_output_rows(inv)
+        rows = build_output_rows(inv, STANDARD_COLUMNS)
         amount_col = next(
-            i for i, col in enumerate(STANDARD_OUTPUT_COLUMNS)
+            i for i, col in enumerate(STANDARD_COLUMNS)
             if col.xlsx_header == "EXT_AMOUNT"
         )
         assert isinstance(rows[0][amount_col], float)
         assert rows[0][amount_col] == 850.0
 
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
         wb = openpyxl.load_workbook(out)
         cell = wb.active.cell(row=2, column=amount_col + 1)
         assert isinstance(cell.value, (int, float))
@@ -325,7 +325,7 @@ class TestXlsxOutput:
         items = [_li("100.00", billing_reference="C99-123", service_id="S001")]
         inv = _invoice(line_items=items)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -337,7 +337,7 @@ class TestXlsxOutput:
         items = [_li("100.00", billing_reference=None, service_id="S001")]
         inv = _invoice(line_items=items)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -348,7 +348,7 @@ class TestXlsxOutput:
     def test_dates_formatted_mm_dd_yyyy(self, tmp_path):
         inv = _with_calculated_tax(_invoice(tax_rate=Decimal("0.23")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -359,7 +359,7 @@ class TestXlsxOutput:
     def test_formula_falls_back_to_invoice_date_when_due_date_missing(self, tmp_path):
         inv = _with_calculated_tax(_invoice(header=_header(due_date=None), tax_rate=Decimal("0.23")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -371,7 +371,7 @@ class TestXlsxOutput:
         items = [_li("100.00", line_number=1), _li("200.00", line_number=2)]
         inv = _invoice(line_items=items)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -385,7 +385,7 @@ class TestXlsxOutput:
         items = [_li("1000.00")]
         inv = _invoice(line_items=items, subtotal=None, tax=None, tax_rate=None)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -398,7 +398,7 @@ class TestLineTax:
         items = [_li("3071.00", tax_amount=Decimal("2020.81"))]
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("0.09")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -413,7 +413,7 @@ class TestLineTax:
         items = [_li("1000.00", tax_amount=None)]
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("0.10")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -424,7 +424,7 @@ class TestLineTax:
         items = [_li("72.00", tax_amount=None)]
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("19")))
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -439,7 +439,7 @@ class TestLineTax:
         inv = _with_calculated_tax(_invoice(line_items=items, tax_rate=Decimal("0.10")))
         inv.fields["_tax_output_mode"] = "extract_exact"
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         import openpyxl
         wb = openpyxl.load_workbook(out)
@@ -452,7 +452,7 @@ class TestLineTax:
         items = [_li("1000.00", tax_amount=None)]
         inv = _invoice(line_items=items, subtotal=Decimal("1000.00"), tax=Decimal("120.00"), tax_rate=None)
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         assert wb.active.cell(row=2, column=8).value == 120.0
@@ -465,7 +465,7 @@ class TestLineTax:
             source="invoice_tax_divided_by_subtotal",
         )
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         assert wb.active.cell(row=2, column=8).value == 120.0
@@ -475,7 +475,7 @@ class TestLineTax:
         inv = _invoice(line_items=items)
         inv.fields["_tax_output_mode"] = "none"
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         assert wb.active.cell(row=2, column=8).value is None
@@ -489,7 +489,7 @@ class TestLineTax:
         inv = _invoice(line_items=items, subtotal=Decimal("471.62"), tax=Decimal("56.59"), tax_rate=None)
         inv.fields["_tax_output_mode"] = "extract_exact"
         out = tmp_path / "test.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
 
         wb = openpyxl.load_workbook(out)
         ws = wb.active
@@ -559,7 +559,7 @@ class TestAutoTaxResolver:
         items = [_li("1000.00", tax_amount=Decimal("90.00")), _li("500.00", tax_amount=None, line_number=2)]
         inv = self._auto(line_items=items, subtotal=Decimal("1500"), tax=Decimal("90.00"))
         out = tmp_path / "t.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
         ws = openpyxl.load_workbook(out).active
         assert [ws.cell(row=i, column=8).value for i in (2, 3)] == [90.0, None]
         assert inv.fields["_tax_method"] == "per_line"
@@ -568,7 +568,7 @@ class TestAutoTaxResolver:
         items = [_li("600.00", tax_amount=None), _li("400.00", tax_amount=None, line_number=2)]
         inv = self._auto(line_items=items, subtotal=Decimal("1000"), tax=Decimal("100.00"))
         out = tmp_path / "t.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
         ws = openpyxl.load_workbook(out).active
         assert [ws.cell(row=i, column=8).value for i in (2, 3)] == [60.0, 40.0]
         assert delivered_tax_sum(inv) == Decimal("100.00")
@@ -580,7 +580,7 @@ class TestAutoTaxResolver:
         inv = self._auto(line_items=items, subtotal=Decimal("1000"), tax_rate=Decimal("0.10"))
         inv.fields.pop("tax", None)
         out = tmp_path / "t.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
         ws = openpyxl.load_workbook(out).active
         assert ws.cell(row=2, column=8).value == 100.0
         assert inv.fields["_tax_method"] == "rate"
@@ -590,7 +590,7 @@ class TestAutoTaxResolver:
         inv = self._auto(line_items=items, subtotal=Decimal("1000"), tax_rate=None)
         inv.fields.pop("tax", None)
         out = tmp_path / "t.xlsx"
-        write_xlsx(inv, out)
+        write_xlsx(inv, out, STANDARD_COLUMNS)
         ws = openpyxl.load_workbook(out).active
         assert ws.cell(row=2, column=8).value is None
         assert inv.fields["_tax_method"] == "none"

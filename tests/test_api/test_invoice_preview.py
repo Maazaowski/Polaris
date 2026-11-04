@@ -90,13 +90,16 @@ def test_preview_returns_rows_and_header(client):
     resp = tc.get(f"/api/v1/invoices/{intake_id}/preview")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert [c["header"] for c in body["columns"]][:1] == ["EXT_SERVICEID"]
+    # No profile on the intake: the preview is the raw extraction, every row
+    # field under its own name, exactly what the raw workbook delivers.
+    headers = [c["header"] for c in body["columns"]]
+    assert body["columns_source"] == "raw"
+    assert headers[:3] == ["service_id", "billing_reference", "description"]
     assert body["row_count"] == 1
     assert body["extraction_path"] == "ai"
     header = {f["label"]: f["value"] for f in body["header_fields"]}
     assert header["Supplier"] == "Colt"
-    # EXT_TAX computed from rate 0.20 on amount 100 = 20.
-    assert body["rows"][0][-1] == 20.0
+    assert body["rows"][0][headers.index("amount")] == 100.0
 
 
 def test_preview_404_when_no_output(client):

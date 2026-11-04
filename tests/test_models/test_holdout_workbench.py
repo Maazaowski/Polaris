@@ -30,6 +30,7 @@ from polaris.validation.schema import (
     LineItem,
     OutputType,
 )
+from tests.output_columns import STANDARD_OUTPUT_COLUMNS
 
 
 @pytest.fixture()
@@ -53,6 +54,7 @@ def _profile() -> SupplierProfile:
         profile_id="colt.standard.v1",
         identity=SupplierIdentity(canonical_name="Colt"),
         classification=ClassificationSignals(output_type="standard"),
+        output_columns=STANDARD_OUTPUT_COLUMNS,
     )
 
 

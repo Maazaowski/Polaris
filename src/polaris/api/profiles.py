@@ -36,7 +36,7 @@ class ProfileSummary(BaseModel):
     profile_id: str
     supplier_name: str
     output_type: str
-    output_spec_id: str
+    output_spec_id: str | None = None
     version: int
     status: str
     layout_description: str | None = None
@@ -53,7 +53,7 @@ class SimpleExtractionHints(BaseModel):
     all most sources need; the rest is optional 'advanced' help for tricky
     layouts that the AI extractor can't read unaided."""
 
-    output_spec_id: str = Field(default="standard.8col", description="Which output format to deliver")
+    output_spec_id: str | None = Field(default=None, description="Which output format to deliver")
     line_items_start_text: str | None = Field(
         default=None, description="Where do line items start? (text printed on the document)")
     table_header_texts: list[str] = Field(
@@ -124,13 +124,19 @@ def _profile_readiness_issues(profile: SupplierProfile) -> list[str]:
         issues.append("No output type specified")
     if profile.status not in PROFILE_STATUSES:
         issues.append(f"Invalid status '{profile.status}' (allowed: {', '.join(PROFILE_STATUSES)})")
-    if not field_schema_exists(profile.field_schema_id):
-        issues.append(f"Unknown field_schema_id '{profile.field_schema_id}'")
-    if not output_spec_exists(profile.output_spec_id):
-        issues.append(f"Unknown output_spec_id '{profile.output_spec_id}'")
-    if field_schema_exists(profile.field_schema_id) and output_spec_exists(profile.output_spec_id):
-        schema = resolve_merged_field_schema(profile)
-        issues.extend(validate_profile_output_mapping(profile, schema))
+    if profile.output_spec_id or profile.field_schema_id:
+        # Transitional: a profile still bound to the registries.
+        if profile.field_schema_id and not field_schema_exists(profile.field_schema_id):
+            issues.append(f"Unknown field_schema_id '{profile.field_schema_id}'")
+        if profile.output_spec_id and not output_spec_exists(profile.output_spec_id):
+            issues.append(f"Unknown output_spec_id '{profile.output_spec_id}'")
+        if not issues:
+            schema = resolve_merged_field_schema(profile)
+            issues.extend(validate_profile_output_mapping(profile, schema))
+    else:
+        from polaris.profiles.contract import readiness_issues
+
+        issues.extend(readiness_issues(profile))
     if profile.status in ("training", "active"):
         # Authoring evidence helps users review AI decisions, but it is not an
         # execution gate. Users may save an active profile and validate changes
@@ -256,9 +262,9 @@ def lint_profile(profile: SupplierProfile):
     exactly what would confuse extraction.
     """
     from polaris.extraction.instructions import compile_instructions
-    from polaris.fields.loader import resolve_merged_field_schema
+    from polaris.profiles.contract import field_set
 
-    schema = resolve_merged_field_schema(profile)
+    schema = field_set(profile)
     compiled = compile_instructions(
         profile.model_dump(),
         schema,
@@ -626,6 +632,12 @@ def create_manual_model(
         model = ExtractionModel.model_validate(body.model_json)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid model rules: {e}") from e
+    if model.output_columns:
+        from polaris.profiles.contract import field_set, validate_output_columns
+
+        column_issues = validate_output_columns(model.output_columns, field_set(profile))
+        if column_issues:
+            raise HTTPException(status_code=422, detail={"issues": column_issues})
 
     # Accepts an intake_id or builder sample_id; the resolver 404s if no PDF.
     pdf_path = resolve_intake_pdf_path(body.sample_intake_id)

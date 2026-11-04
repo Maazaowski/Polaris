@@ -302,8 +302,8 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
     import json
 
     from polaris.extraction.extractor import build_extracted_document, extract_invoice
-    from polaris.fields.loader import resolve_merged_field_schema
     from polaris.output.preview import preview_for_profile
+    from polaris.profiles.contract import field_set
     from polaris.profiles.loader import get_profile, load_all_profiles
 
     previews_dir = settings.work_dir / "previews"
@@ -322,7 +322,7 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
             return {"status": "error", "job_id": job_id}
         output_type = profile.classification.output_type
         result = extract_invoice(pdf, supplier_profile_id=profile_id, output_type=output_type)
-        schema = resolve_merged_field_schema(profile)
+        schema = field_set(profile)
         doc = build_extracted_document(
             result.raw_data, intake_id="preview", extraction_result=result,
             output_type=output_type, supplier_profile_id=profile_id, field_schema=schema,

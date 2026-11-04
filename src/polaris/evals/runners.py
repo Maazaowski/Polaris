@@ -107,10 +107,10 @@ def _extract_to_preview(case: EvalCase, profile):
     from polaris.extraction.extractor import build_extracted_document, extract_invoice
     from polaris.extraction.layout import extract_layout_document, render_layout_text
     from polaris.extraction.normalization import apply_layout_profile_hints
-    from polaris.fields.loader import resolve_merged_field_schema
     from polaris.output.preview import preview_for_profile
+    from polaris.profiles.contract import field_set
 
-    schema = resolve_merged_field_schema(profile)
+    schema = field_set(profile)
     layout = extract_layout_document(case.pdf_path)
     source_text = "\n".join(render_layout_text(layout))
     output_type = profile.classification.output_type
@@ -132,10 +132,7 @@ def _extract_to_preview(case: EvalCase, profile):
 
 
 def _score_deliverable(case, profile, preview, source_text, prompt_files) -> dict:
-    from polaris.output.mapper import output_spec_to_columns
-    from polaris.specs.loader import resolve_output_spec
-
-    columns = output_spec_to_columns(resolve_output_spec(profile))
+    columns = _columns_for(profile)
     actual_rows = preview.get("rows") or []
     expected_rows = scoring.expected_dicts_to_lists(case.expected_rows(), columns)
     return {
@@ -243,7 +240,6 @@ def _run_model_authoring(case: EvalCase) -> CaseResult:
 
 
 def _columns_for(profile):
-    from polaris.output.mapper import output_spec_to_columns
-    from polaris.specs.loader import resolve_output_spec
+    from polaris.profiles.contract import delivery_columns
 
-    return output_spec_to_columns(resolve_output_spec(profile))
+    return delivery_columns(profile)

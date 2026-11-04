@@ -199,11 +199,11 @@ def compute_fingerprint_profile(
 
 def layout_fingerprint_config_from_profile(profile: SupplierProfile) -> ResolvedFingerprintConfig:
     """Build the effective fingerprint config from profile fields + layout rules."""
-    from polaris.fields.loader import resolve_merged_field_schema
+    from polaris.profiles.contract import field_set
 
     hints = profile.line_item_hints
     rules = profile.layout_fingerprint or LayoutFingerprintRules()
-    schema = resolve_merged_field_schema(profile)
+    schema = field_set(profile)
 
     table_anchors = _dedupe_strings(
         list(hints.detail_table_anchors) + list(hints.table_column_labels)

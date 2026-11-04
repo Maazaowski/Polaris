@@ -13,6 +13,7 @@ from polaris.validation.schema import (
     LineItem,
     OutputType,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 
 def _invoice() -> CanonicalInvoice:
@@ -45,7 +46,7 @@ def _invoice() -> CanonicalInvoice:
 
 
 def test_preview_default_columns_and_rows():
-    payload = build_preview(_invoice())
+    payload = build_preview(_invoice(), STANDARD_COLUMNS)
     headers = [c["header"] for c in payload["columns"]]
     assert headers == [
         "EXT_SERVICEID", "EXT_BILLINGREFERENCE", "EXT_DATE", "formula",
@@ -57,7 +58,7 @@ def test_preview_default_columns_and_rows():
 
 
 def test_preview_computes_line_tax_from_rate():
-    payload = build_preview(_invoice())
+    payload = build_preview(_invoice(), STANDARD_COLUMNS)
     # EXT_TAX is the last column = amount * tax_rate (0.20): 100→20, 200→40.
     tax_values = [row[-1] for row in payload["rows"]]
     assert tax_values == [20.0, 40.0]
@@ -66,7 +67,7 @@ def test_preview_computes_line_tax_from_rate():
 
 
 def test_preview_header_and_totals_are_json_safe():
-    payload = build_preview(_invoice())
+    payload = build_preview(_invoice(), STANDARD_COLUMNS)
     header = {f["label"]: f["value"] for f in payload["header_fields"]}
     assert header["Supplier"] == "TestSupplier"
     assert header["Invoice Date"] == "12/02/2025"  # formatted, not a date object

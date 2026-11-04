@@ -8,13 +8,11 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from polaris.output.mapper import (
-    STANDARD_OUTPUT_COLUMNS,
+    ColumnDef,
     apply_output_transforms,
     normalize_output_value,
-    output_spec_to_columns,
     resolve_output_cell,
 )
-from polaris.output.spec import OutputSpec
 from polaris.validation.schema import CanonicalInvoice, ChargeType, LineItem
 
 HEADER_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -290,16 +288,17 @@ COMPUTED_FIELDS = {
 }
 
 
-def build_output_rows(invoice: CanonicalInvoice, spec: OutputSpec | None = None) -> list[list]:
+def build_output_rows(invoice: CanonicalInvoice, columns: list[ColumnDef]) -> list[list]:
     """Produce the delivered output rows (one list of column values per service line).
 
     This is the single source of truth for what the delivered XLSX contains, so
     it can be reused to compare two extractions for an exact, deliverable-level
     match (e.g. AI output vs. model output during candidate validation). The
-    column set comes from ``spec`` (the customer's OutputSpec); when omitted it
-    falls back to the built-in standard 8-column layout.
+    column set is the profile's (or template's) resolved ``delivery_columns``;
+    an empty list produces no rows.
     """
-    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
+    if not columns:
+        return []
     tax_rate = output_tax_rate(invoice)
     items = service_line_items(invoice)
     # Resolve delivered per-line taxes once (handles auto allocation without
@@ -327,27 +326,80 @@ def build_output_rows(invoice: CanonicalInvoice, spec: OutputSpec | None = None)
                     fallback_path=col_def.fallback_path,
                 )
             value = apply_output_transforms(value, col_def.transforms)
-            row.append(normalize_output_value(value, path))
+            row.append(normalize_output_value(value, path, col_def.value_type))
         rows.append(row)
     return rows
+
+
+def write_raw_workbook(invoice: CanonicalInvoice, output_path: Path) -> Path:
+    """The no-profile deliverable: everything that was read, as read.
+
+    Sheet ``Invoice`` lists every extracted document field (name, value); sheet
+    ``Line items`` has one column per extracted row field, headers being the
+    field names. It is a dump of the extraction, not a configured deliverable;
+    an invoice under a profile never gets this.
+    """
+    from polaris.profiles.contract import raw_document_fields, raw_workbook_columns
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Invoice"
+    for col_idx, title in enumerate(("Field", "Value"), start=1):
+        cell = ws.cell(row=1, column=col_idx, value=title)
+        cell.font = HEADER_FONT_WHITE
+        cell.fill = HEADER_FILL
+    ws.column_dimensions["A"].width = 24
+    ws.column_dimensions["B"].width = 40
+    for row_idx, (name, value) in enumerate(raw_document_fields(invoice), start=2):
+        ws.cell(row=row_idx, column=1, value=name).font = DATA_FONT
+        ws.cell(row=row_idx, column=2, value=_raw_cell(value)).font = DATA_FONT
+
+    columns = raw_workbook_columns(invoice)
+    items = wb.create_sheet("Line items")
+    for col_idx, col_def in enumerate(columns, start=1):
+        cell = items.cell(row=1, column=col_idx, value=col_def.xlsx_header)
+        cell.font = HEADER_FONT_WHITE
+        cell.fill = HEADER_FILL
+        items.column_dimensions[get_column_letter(col_idx)].width = max(col_def.width, len(col_def.xlsx_header) + 2)
+    for row_idx, row in enumerate(invoice.rows, start=2):
+        for col_idx, col_def in enumerate(columns, start=1):
+            name = col_def.canonical_path.removeprefix("line_item.")
+            value = normalize_output_value(row.get(name), col_def.canonical_path, col_def.value_type)
+            items.cell(row=row_idx, column=col_idx, value=_raw_cell(value)).font = DATA_FONT
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(str(output_path))
+    return output_path
+
+
+def _raw_cell(value: object) -> object:
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, list | dict):
+        return ", ".join(str(v) for v in value) if isinstance(value, list) else str(value)
+    if hasattr(value, "value") and not isinstance(value, str | int | float):
+        return getattr(value, "value")
+    return value
 
 
 def write_xlsx(
     invoice: CanonicalInvoice,
     output_path: Path,
-    spec: OutputSpec | None = None,
+    columns: list[ColumnDef],
 ) -> Path:
     """Write a canonical invoice to a deliverable XLSX.
 
-    Columns come from ``spec`` (the customer's OutputSpec); when omitted it falls
-    back to the built-in standard 8-column layout. Derived columns (e.g. EXT_TAX
-    via ``computed.line_tax``) are resolved from the invoice automatically.
+    ``columns`` are the profile's (or template's) resolved delivery columns.
+    Derived columns (e.g. a tax column via ``computed.line_tax``) are resolved
+    from the invoice automatically. Raises ``ValueError`` when no columns are
+    configured: a deliverable with no columns is a configuration error, not an
+    empty file.
     """
+    if not columns:
+        raise ValueError("no output columns configured for this deliverable")
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Invoice Data"
-
-    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
 
     # Write header row
     for col_idx, col_def in enumerate(columns, start=1):
@@ -358,7 +410,7 @@ def write_xlsx(
         ws.column_dimensions[get_column_letter(col_idx)].width = col_def.width
 
     # Write data rows from the shared row builder
-    rows = build_output_rows(invoice, spec)
+    rows = build_output_rows(invoice, columns)
     for row_idx, row in enumerate(rows, start=2):
         for col_idx, (col_def, value) in enumerate(zip(columns, row), start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)

@@ -19,6 +19,7 @@ from polaris.models.diff import diff_invoices
 from polaris.models.interpreter import execute_model
 from polaris.models.training import _normalize_line_items
 from polaris.profiles import loader as profiles_loader
+from polaris.profiles.contract import delivery_columns
 from tests.corpus_utils import discover_layouts
 from tests.test_models.test_corpus_authoring import _ai_ground_truth
 
@@ -92,7 +93,7 @@ def test_adding_failing_invoices_to_the_set_improves_coverage(eunetworks_layout)
                 except Exception:  # noqa: BLE001
                     continue
                 _normalize_line_items(out, keep_zero_amount=profile.include_zero_amount_line_items)
-                if diff_invoices(ex.ai_invoice, out).is_match:
+                if diff_invoices(ex.ai_invoice, out, delivery_columns(profile)).is_match:
                     ok.add(stem)
             return ok
 

@@ -31,6 +31,7 @@ from polaris.validation.schema import (
     OutputType,
 )
 from tests.corpus_utils import load_corpus_profile as _corpus_profile
+from tests.output_columns import STANDARD_COLUMNS
 
 EUNETWORKS_PDF = Path(
     r"C:\Polaris\Sample Data\EUNetworks\A837737\pdf\A837737 - IE-SI53564.pdf"
@@ -184,7 +185,7 @@ class TestAuthoringHintReconciliation:
         _tax_raw, tax_rate = find_total_value("tax_rate", model.totals["tax_rate"], page_texts)
         assert tax_rate == Decimal("0.23")
 
-        sample_rows = build_output_rows(ai_invoice)
+        sample_rows = build_output_rows(ai_invoice, STANDARD_COLUMNS)
         assert sample_rows[0][5] == "A837737"  # EXT_ACCOUNT
         assert sample_rows[0][3] == "01/01/2026"  # formula / due_date
         assert sample_rows[0][7] == 195.5  # EXT_TAX for 850 @ 23%
@@ -245,7 +246,7 @@ def test_build_target_derives_tax_rate_from_totals_for_ext_tax():
     target = _build_target(invoice)
     assert target["totals"]["tax_rate"] == "0.23"
 
-    rows = build_output_rows(invoice)
+    rows = build_output_rows(invoice, STANDARD_COLUMNS)
     assert rows[0][7] == 867.80  # EXT_TAX = 3773.04 × 0.23
 
 

@@ -18,6 +18,7 @@ from polaris.validation.schema import (
     InvoiceHeader,
     LineItem,
 )
+from tests.output_columns import defs
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -91,7 +92,7 @@ def test_time_material_blueprint_mapping():
     )
     apply_layout_profile_hints(invoice, layout, profile)
 
-    assert build_output_rows(invoice, _spec()) == [[
+    assert build_output_rows(invoice, defs(_spec())) == [[
         "8065237",
         None,
         "05/01/2026",

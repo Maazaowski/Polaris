@@ -1,4 +1,4 @@
-"""deliverable XLSX column mapping — maps canonical invoice fields to the standard 8-column import format."""
+"""Deliverable column mapping: resolves a column's source path against a canonical invoice."""
 
 from __future__ import annotations
 
@@ -32,45 +32,20 @@ class ColumnDef:
     number_format: str | None = None
     fallback_path: str | None = None
     transforms: tuple[str, ...] = ()
-
-
-STANDARD_OUTPUT_COLUMNS: list[ColumnDef] = [
-    ColumnDef(xlsx_header="EXT_SERVICEID", canonical_path="line_item.service_id", width=20,
-              fallback_path="line_item.billing_reference"),
-    ColumnDef(xlsx_header="EXT_BILLINGREFERENCE", canonical_path="line_item.billing_reference", width=20,
-              fallback_path="line_item.service_id"),
-    ColumnDef(xlsx_header="EXT_DATE", canonical_path="header.invoice_date", width=14),
-    ColumnDef(xlsx_header="formula", canonical_path="header.due_date", width=14,
-              fallback_path="header.invoice_date"),
-    ColumnDef(xlsx_header="EXT_AMOUNT", canonical_path="line_item.amount", width=14, number_format="#,##0.##"),
-    ColumnDef(xlsx_header="EXT_ACCOUNT", canonical_path="header.account_number", width=16),
-    ColumnDef(xlsx_header="EXT_INVOICENUMBER", canonical_path="header.invoice_number", width=20),
-    ColumnDef(xlsx_header="EXT_TAX", canonical_path="computed.line_tax", width=14, number_format="#,##0.00"),
-]
-
-
-def output_spec_to_columns(spec) -> list[ColumnDef]:
-    """Adapt a declarative ``OutputSpec`` to the internal ``ColumnDef`` list the
-    row builder/writer iterate over. Keeps the runtime loop unchanged while the
-    column set becomes customer-configurable."""
-    return [
-        ColumnDef(
-            xlsx_header=col.header,
-            canonical_path=normalize_source_path(col.source),
-            width=col.width,
-            number_format=col.number_format,
-            fallback_path=normalize_source_path(col.fallback) if col.fallback else None,
-            transforms=tuple(getattr(col, "transforms", None) or ()),
-        )
-        for col in spec.columns
-    ]
+    # The field type behind ``canonical_path`` (string/date/number/currency/
+    # integer/enum) when the contract knows it, so custom columns format
+    # correctly without a hard-coded path list.
+    value_type: str | None = None
 
 
 def get_header_value(canonical_path: str, header: dict, invoice: dict) -> object:
     """Resolve a canonical_path to a value from the invoice data."""
     if canonical_path.startswith("header."):
         field = canonical_path.removeprefix("header.")
-        return header.get(field)
+        value = header.get(field)
+        if value is None:
+            value = (invoice.get("fields") or {}).get(field)
+        return value
     if canonical_path in ("subtotal", "tax", "fees", "total_due", "tax_rate"):
         return invoice.get(canonical_path)
     return None
@@ -126,6 +101,9 @@ def resolve_output_cell(
     if canonical_path.startswith("header."):
         field = canonical_path.removeprefix("header.")
         value = getattr(invoice.header, field, None)
+        if value is None:
+            # A custom document field lives only in ``invoice.fields``.
+            value = (invoice.fields or {}).get(field)
         if value is None and fallback_path:
             value = resolve_output_cell(fallback_path, line_item, invoice)
         return value
@@ -149,11 +127,13 @@ _NUMERIC_OUTPUT_PATHS = frozenset({
 })
 
 
-def normalize_output_value(value: object, canonical_path: str) -> object:
+def normalize_output_value(value: object, canonical_path: str, value_type: str | None = None) -> object:
     """Normalize a deliverable cell value for comparison and XLSX output.
 
     Amounts and tax are coerced to float (2 dp for tax, flexible for amount).
     Dates become MM/DD/YYYY strings. Prevents 850 vs 850.00 false mismatches.
+    ``value_type`` (from the profile's field set) decides for paths this module
+    does not know, i.e. custom fields.
     """
     if value is None:
         return None
@@ -162,14 +142,19 @@ def normalize_output_value(value: object, canonical_path: str) -> object:
     if isinstance(value, date):
         return format_deliverable_date(value)
     if (
-        canonical_path.endswith("_date")
+        value_type == "date"
+        or canonical_path.endswith("_date")
         or canonical_path.endswith(".invoice_date")
         or canonical_path.endswith(".due_date")
         or canonical_path.endswith(".billing_period_start")
         or canonical_path.endswith(".billing_period_end")
     ):
         return format_deliverable_date(value)
-    if canonical_path in _NUMERIC_OUTPUT_PATHS or canonical_path == "computed.line_tax":
+    if (
+        canonical_path in _NUMERIC_OUTPUT_PATHS
+        or canonical_path == "computed.line_tax"
+        or value_type in ("number", "currency")
+    ):
         try:
             number = Decimal(str(value))
         except (InvalidOperation, ValueError):

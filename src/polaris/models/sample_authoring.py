@@ -133,7 +133,7 @@ def verify_against_stated_totals(
     ok: unverifiable is not the same as verified, and here we are deciding
     whether to skip reading it at all.
     """
-    from polaris.fields.loader import default_field_schema
+    from polaris.fields.catalogue import default_field_set
     from polaris.validation.reconciler import reconcile
 
     limit = settings.sample_authoring_max_variance if max_variance is None else max_variance
@@ -141,7 +141,7 @@ def verify_against_stated_totals(
     if not invoice.rows:
         return False, "replay produced no rows", {"row_count": 0}
 
-    recon = reconcile(invoice, default_field_schema())
+    recon = reconcile(invoice, default_field_set())
     metrics: dict[str, Any] = {"row_count": len(invoice.rows)}
     if recon is None:
         return False, "document states no total to verify against", metrics
@@ -214,12 +214,12 @@ def author_from_sample(
     """
     from polaris.extraction.evidence import build_model_authoring_evidence
     from polaris.extraction.extractor import build_extracted_document, extract_invoice
-    from polaris.fields.loader import resolve_merged_field_schema
     from polaris.models.authoring import author_extraction_model
     from polaris.models.interpreter import ModelExecutionError, execute_model
+    from polaris.profiles.contract import field_set
 
     page_count = pdf_page_count(pdf_path)
-    schema = field_schema or resolve_merged_field_schema(profile)
+    schema = field_schema or field_set(profile)
 
     try:
         document = extract_layout_document(pdf_path, include_markdown=False)

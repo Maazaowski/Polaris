@@ -470,10 +470,9 @@ def _apply_excluded_total_hints(invoice, document: LayoutDocument, profile: Supp
     the last money value on that row — rather than by AI. The reconciler then
     subtracts it from the target.
     """
-    overrides = getattr(profile, "field_overrides", None) or []
     labels = [
         (field.name, field.label_hint)
-        for field in overrides
+        for field in _hinted_profile_fields(profile)
         if getattr(field, "role", None) == "excluded_total"
         and getattr(field, "scope", None) == "document"
         and (field.label_hint or "").strip()
@@ -497,11 +496,24 @@ def _apply_excluded_total_hints(invoice, document: LayoutDocument, profile: Supp
                 break
 
 
+def _hinted_profile_fields(profile: SupplierProfile | None) -> list:
+    """The fields the profile itself lists (its picks and custom fields), as
+    opposed to the catalogue defaults merged in by ``field_set``. Only a label
+    the supplier's profile set should drive a deterministic layout repair."""
+    if profile is None:
+        return []
+    picks = list(getattr(profile, "fields", None) or [])
+    if picks:
+        return picks
+    # Transitional: a profile persisted before its contract was embedded.
+    return list(getattr(profile, "field_overrides", None) or [])
+
+
 def _apply_header_date_hints(invoice, document: LayoutDocument, profile: SupplierProfile | None) -> None:
     if profile is None:
         return
     labels: dict[str, tuple[str, str | None]] = {}
-    for override in profile.field_overrides or []:
+    for override in _hinted_profile_fields(profile):
         if (
             override.scope == "document"
             and override.name in {"invoice_date", "due_date", "billing_period_start", "billing_period_end"}

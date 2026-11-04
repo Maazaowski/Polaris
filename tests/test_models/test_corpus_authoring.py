@@ -31,6 +31,7 @@ from polaris.models.interpreter import execute_model
 from polaris.models.training import _normalize_line_items
 from polaris.output.xlsx_writer import build_output_rows
 from polaris.profiles import loader as profiles_loader
+from polaris.profiles.contract import delivery_columns
 from tests.corpus_utils import CorpusLayout, layout_params
 from tests.test_models.test_corpus_extraction import _compare_to_summary, _compare_to_xlsx
 
@@ -125,7 +126,7 @@ def test_authoring_generalizes_across_layout(layout: CorpusLayout, corpus_profil
             last_diff = None
             continue
         _normalize_line_items(model_invoice, keep_zero_amount=profile.include_zero_amount_line_items)
-        last_diff = diff_invoices(ai_invoice, model_invoice)
+        last_diff = diff_invoices(ai_invoice, model_invoice, delivery_columns(profile))
         if last_diff.is_match:
             break
         feedback = last_diff.feedback()
@@ -146,7 +147,7 @@ def test_authoring_generalizes_across_layout(layout: CorpusLayout, corpus_profil
     for pdf in layout.pdfs:
         invoice = execute_model(model, pdf, intake_id=f"corpus-{pdf.stem}")
         _normalize_line_items(invoice, keep_zero_amount=profile.include_zero_amount_line_items)
-        rows = build_output_rows(invoice)
+        rows = build_output_rows(invoice, delivery_columns(profile))
         if layout.expected_xlsx_for(pdf).exists():
             errors = _compare_to_xlsx(layout, pdf, rows)
         elif pdf.name in summary:

@@ -24,11 +24,11 @@ from polaris.extraction.prompts import (
     MODEL_AUTHORING_SYSTEM_PROMPT,
     build_authoring_user_prompt,
 )
-from polaris.fields.loader import (
+from polaris.fields.catalogue import (
     AUTHORING_HEADER_FIELD_NAMES,
     AUTHORING_ITEM_FIELD_NAMES,
     AUTHORING_TOTAL_FIELD_NAMES,
-    default_field_schema,
+    default_field_set,
 )
 from polaris.fields.schema import FieldSchema
 from polaris.llm import get_ai_client
@@ -239,7 +239,7 @@ def build_model_rules_json_schema(field_schema: FieldSchema | None = None) -> di
 
     from polaris.fields.schema import FieldRole
 
-    fs = field_schema or default_field_schema()
+    fs = field_schema or default_field_set()
     header_names = [f.name for f in fs.document_fields() if f.name in set(_HEADER_FIELDS)] or list(_HEADER_FIELDS)
     item_names = [f.name for f in fs.row_fields() if f.name in set(_ITEM_FIELDS)] or list(_ITEM_FIELDS)
     total_names = [f.name for f in fs.document_fields() if f.name in set(_TOTAL_NAMES)] or list(_TOTAL_NAMES)
@@ -471,9 +471,9 @@ def author_extraction_model(
         raise ValueError("model authoring requires a supplier profile")
 
     from polaris.extraction.normalization import has_grouping_policy
-    from polaris.fields.loader import resolve_merged_field_schema
+    from polaris.profiles.contract import field_set
 
-    field_schema = resolve_merged_field_schema(profile)
+    field_schema = field_set(profile)
     # FULL target drives the deterministic header/total repair + self-checks.
     target = _build_target(ai_invoice)
     # SAMPLED target/evidence keep each call bounded on large bills; the model is
@@ -621,9 +621,9 @@ _PROFILE_TOTAL_FIELDS = (
 
 
 def _profile_field_label_hint(profile: SupplierProfile, field_name: str) -> str | None:
-    from polaris.fields.loader import resolve_merged_field_schema
+    from polaris.profiles.contract import field_set
 
-    field = resolve_merged_field_schema(profile).field_by_name(field_name)
+    field = field_set(profile).field_by_name(field_name)
     if field is None or not field.label_hint:
         return None
     return field.label_hint

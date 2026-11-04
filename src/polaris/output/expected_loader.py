@@ -14,8 +14,7 @@ from pathlib import Path
 import structlog
 from openpyxl import load_workbook
 
-from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS, output_spec_to_columns
-from polaris.output.spec import OutputSpec
+from polaris.output.mapper import ColumnDef
 
 logger = structlog.get_logger()
 
@@ -76,15 +75,19 @@ def _sum_column(rows: list[list[object]], header_row: list[str], names: set[str]
     return str(total) if seen else None
 
 
-def load_blueprint_context(path: str | Path, spec: OutputSpec | None, *, sample_rows: int = 10) -> dict:
+def load_blueprint_context(
+    path: str | Path, columns: list[ColumnDef] | None, *, sample_rows: int = 10,
+) -> dict:
     """Read a blueprint workbook and return aligned rows plus prompt context.
 
     The first non-empty row is treated as the header. Columns are matched to the
-    active output spec by header text. If no headers match, columns are taken
-    positionally so headerless or odd legacy exports can still provide examples.
+    configured delivery ``columns`` by header text. If no headers match, columns
+    are taken positionally so headerless or odd legacy exports can still provide
+    examples. With no columns configured yet, the blueprint's own headers become
+    the column set, so the assistant can propose them.
     """
     workbook_path = Path(path)
-    columns = output_spec_to_columns(spec) if spec is not None else list(STANDARD_OUTPUT_COLUMNS)
+    columns = list(columns or [])
     spec_headers = [_norm_header(c.xlsx_header) for c in columns]
     sheet_name, all_rows = _workbook_rows(workbook_path)
     warnings: list[str] = []
@@ -112,6 +115,12 @@ def load_blueprint_context(path: str | Path, spec: OutputSpec | None, *, sample_
     raw_header_row = all_rows[header_idx]
     header_row = [_norm_header(c) for c in raw_header_row]
     raw_headers = [_cell_text(c) for c in raw_header_row]
+    if not columns:
+        columns = [
+            ColumnDef(xlsx_header=text, canonical_path="")
+            for text in raw_headers if text
+        ]
+        spec_headers = [_norm_header(c.xlsx_header) for c in columns]
 
     col_index: list[int | None] = []
     missing_headers: list[str] = []
@@ -126,7 +135,7 @@ def load_blueprint_context(path: str | Path, spec: OutputSpec | None, *, sample_
 
     matched = sum(1 for i in col_index if i is not None)
     if matched == 0:
-        warnings.append("No blueprint headers matched the selected output spec.")
+        warnings.append("No blueprint headers matched the configured output columns.")
     elif missing_headers:
         warnings.append("Blueprint is missing output columns: " + ", ".join(missing_headers))
 
@@ -164,6 +173,6 @@ def load_blueprint_context(path: str | Path, spec: OutputSpec | None, *, sample_
     }
 
 
-def load_expected_rows(xlsx_path: str | Path, spec: OutputSpec | None) -> list[list[str]]:
-    """Backward-compatible wrapper returning rows aligned to ``spec``."""
-    return list(load_blueprint_context(xlsx_path, spec)["aligned_rows"])
+def load_expected_rows(xlsx_path: str | Path, columns: list[ColumnDef] | None) -> list[list[str]]:
+    """Rows aligned to ``columns``."""
+    return list(load_blueprint_context(xlsx_path, columns)["aligned_rows"])

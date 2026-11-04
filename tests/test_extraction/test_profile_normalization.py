@@ -27,6 +27,7 @@ from polaris.validation.schema import (
     InvoiceHeader,
     LineItem,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 CORPUS_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "corpus" / "colt.standard"
 
@@ -328,7 +329,7 @@ def test_colt_subtotal_group_with_multiple_services_expands_to_service_rows(corp
     assert [item.service_id for item in service_rows] == ["FRO2006256138", "FRO2007419582GIG"]
     assert [item.billing_reference for item in service_rows] == [item.service_id for item in service_rows]
     assert [item.amount for item in service_rows] == [Decimal("348.56"), Decimal("843.30")]
-    assert len(build_output_rows(invoice)) == 2
+    assert len(build_output_rows(invoice, STANDARD_COLUMNS)) == 2
 
 
 def test_per_charge_row_profile_uses_layout_dates_and_only_real_tax_rows(corpus_profile):

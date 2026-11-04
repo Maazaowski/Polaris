@@ -8,7 +8,7 @@ import structlog
 
 from polaris.config import settings
 from polaris.output.formatting import format_deliverable_invoice_dates
-from polaris.output.spec import OutputSpec
+from polaris.output.mapper import ColumnDef
 from polaris.output.xlsx_writer import write_xlsx
 from polaris.validation.schema import CanonicalInvoice
 
@@ -21,28 +21,32 @@ def write_model_review_artifacts(
     model_invoice: CanonicalInvoice | None = None,
     *,
     execution_error: str | None = None,
-    spec: OutputSpec | None = None,
+    columns: list[ColumnDef] | None = None,
 ) -> list[str]:
     """Write comparison files under completed/{intake_id}/model_review/.
 
-    ``spec`` is the OutputSpec both sides are rendered with so the side-by-side
-    XLSX matches the real deliverable. Best-effort: never raises. Returns
-    filenames written.
+    ``columns`` are the delivery columns both sides are rendered with so the
+    side-by-side XLSX matches the real deliverable; with none configured the
+    workbooks are skipped and only the JSON/error files are written.
+    Best-effort: never raises. Returns filenames written.
     """
+    columns = list(columns or [])
     review_root = settings.completed_dir / intake_id / "model_review"
     written: list[str] = []
     try:
         review_root.mkdir(parents=True, exist_ok=True)
 
-        try:
-            write_xlsx(ai_invoice, review_root / "ai_output.xlsx", spec)
-            written.append("ai_output.xlsx")
-        except Exception as exc:
-            logger.warning("review.ai_xlsx_failed", intake_id=intake_id, error=str(exc))
+        if columns:
+            try:
+                write_xlsx(ai_invoice, review_root / "ai_output.xlsx", columns)
+                written.append("ai_output.xlsx")
+            except Exception as exc:
+                logger.warning("review.ai_xlsx_failed", intake_id=intake_id, error=str(exc))
 
         if model_invoice is not None:
-            write_xlsx(model_invoice, review_root / "model_output.xlsx", spec)
-            written.append("model_output.xlsx")
+            if columns:
+                write_xlsx(model_invoice, review_root / "model_output.xlsx", columns)
+                written.append("model_output.xlsx")
             model_data = format_deliverable_invoice_dates(model_invoice.model_dump(mode="json"))
             (review_root / "model_output.json").write_text(
                 json.dumps(model_data, indent=2, default=str),

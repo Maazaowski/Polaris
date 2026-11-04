@@ -290,16 +290,30 @@ def get_invoice_provenance(intake_id: str):
     return {"available": True, **data}
 
 
+def _delivered_model(db, invoice):
+    from polaris.models.schema import ExtractionModel
+
+    model_id = getattr(invoice.metadata, "model_id", None)
+    if not model_id:
+        return None
+    record = crud.get_extraction_model(db, model_id)
+    if record is None:
+        return None
+    try:
+        return ExtractionModel.model_validate(record.model_json)
+    except Exception:
+        return None
+
+
 @router.get("/{intake_id}/preview", response_model=ExtractionPreviewResponse)
 def preview_invoice_output(db: DbSession, intake_id: str):
     """Tabular preview of a processed invoice's deliverable, read from the
-    persisted ``canonical_invoice.json`` and rendered through the same OutputSpec
-    the XLSX uses — so the preview matches the delivered file exactly."""
+    persisted ``canonical_invoice.json`` and rendered through the same delivery
+    columns the XLSX used, so the preview matches the delivered file exactly."""
     import json
 
-    from polaris.output.preview import build_preview
+    from polaris.output.preview import build_preview, resolve_preview_columns
     from polaris.profiles.loader import get_profile
-    from polaris.specs.loader import default_output_spec, resolve_output_spec
     from polaris.validation.schema import ExtractedDocument
 
     record = crud.get_intake(db, intake_id)
@@ -319,9 +333,10 @@ def preview_invoice_output(db: DbSession, intake_id: str):
         raise HTTPException(status_code=500, detail="Could not read extracted output") from exc
 
     profile = get_profile(record.supplier_profile_id) if record.supplier_profile_id else None
-    spec = resolve_output_spec(profile) if profile else default_output_spec()
+    model = _delivered_model(db, invoice)
+    columns, columns_source = resolve_preview_columns(invoice, profile, model)
 
-    payload = build_preview(invoice, spec)
+    payload = build_preview(invoice, columns, columns_source=columns_source)
     payload["extraction_path"] = invoice.metadata.extraction_path.value
     payload["warnings"] = list(invoice.warnings or [])
     return payload

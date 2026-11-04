@@ -31,10 +31,8 @@ from polaris.extraction.markers import marker_in_text, marker_terms
 from polaris.extraction.page_roles import classify_pages
 from polaris.extraction.plan_executor import execute_extraction_plan, resolve_plan_page_numbers
 from polaris.extraction.prompts import build_extraction_user_prompt
-from polaris.output.mapper import output_spec_to_columns
 from polaris.profiles.plan import effective_extraction_plan
 from polaris.profiles.schema import SupplierProfile
-from polaris.specs.loader import resolve_output_spec
 
 logger = structlog.get_logger()
 
@@ -258,7 +256,7 @@ def extract_invoice_compact_chunked(
     if not detail_rows:
         detail_rows = all_rows
 
-    doc_fields, row_fields = _fields_needed_for_compact_output(supplier_profile)
+    doc_fields, row_fields = _compact_field_selection(supplier_profile, field_schema)
     page_map = classify_pages(layout_document)
     scalar_context = _scalar_context_rows(
         all_rows, supplier_profile_data, context_pages=set(page_map.context_pages())
@@ -289,7 +287,7 @@ def extract_invoice_compact_chunked(
         client,
         call_type="ai_scalars",
         prompt=scalar_prompt,
-        schema=build_compact_scalar_schema(doc_fields),
+        schema=build_compact_scalar_schema(doc_fields, field_schema),
         details={"row_count": len(scalar_context)},
         calls=calls,
     )
@@ -542,7 +540,7 @@ def extract_invoice_compact_chunked(
     )
 
 
-def build_compact_scalar_schema(doc_fields: set[str] | None = None) -> dict[str, Any]:
+def build_compact_scalar_schema(doc_fields: set[str] | None = None, field_schema=None) -> dict[str, Any]:
     aliases = _doc_aliases(doc_fields or DEFAULT_DOC_FIELDS)
     return {
         "name": "compact_invoice_scalars",
@@ -550,7 +548,9 @@ def build_compact_scalar_schema(doc_fields: set[str] | None = None) -> dict[str,
         "schema": {
             "type": "object",
             "properties": {
-                "h": _strict_object({alias: _schema_for_doc_field(field) for alias, field in aliases.items()}),
+                "h": _strict_object({
+                    alias: _schema_for_doc_field(field, field_schema) for alias, field in aliases.items()
+                }),
             },
             "required": ["h"],
             "additionalProperties": False,
@@ -558,7 +558,7 @@ def build_compact_scalar_schema(doc_fields: set[str] | None = None) -> dict[str,
     }
 
 
-def build_compact_line_item_schema(row_fields: set[str] | None = None) -> dict[str, Any]:
+def build_compact_line_item_schema(row_fields: set[str] | None = None, field_schema=None) -> dict[str, Any]:
     aliases = _row_aliases(row_fields or DEFAULT_ROW_FIELDS)
     return {
         "name": "compact_invoice_line_items",
@@ -569,7 +569,7 @@ def build_compact_line_item_schema(row_fields: set[str] | None = None) -> dict[s
                 "rows": {
                     "type": "array",
                     "items": _strict_object(
-                        {alias: _schema_for_row_field(field) for alias, field in aliases.items()}
+                        {alias: _schema_for_row_field(field, field_schema) for alias, field in aliases.items()}
                     ),
                 },
             },
@@ -1854,6 +1854,11 @@ def compact_to_legacy_raw(
             raw[canonical_field] = value
         else:
             header[canonical_field] = value
+    # Custom document fields travel under their own name (no alias).
+    for key, value in compact_header.items():
+        if key in DOC_ALIAS_TO_FIELD or _is_empty(value):
+            continue
+        header[key] = value
 
     if supplier_name and not header.get("supplier_name"):
         header["supplier_name"] = supplier_name
@@ -1885,6 +1890,10 @@ def compact_to_legacy_raw(
                 if _is_empty(value):
                     continue
             row[canonical_field] = value
+        for key, value in compact_row.items():
+            if key in ROW_ALIAS_TO_FIELD or _is_empty(value):
+                continue
+            row[key] = value
         if _is_empty(row.get("service_id")) and not _is_empty(line_item_defaults.get("service_id")):
             row["service_id"] = _clean_layout_value(line_item_defaults.get("service_id"))
         if _is_empty(row.get("billing_reference")) and not _is_empty(line_item_defaults.get("billing_reference")):
@@ -1925,7 +1934,7 @@ def _extract_chunk_rows(
             client,
             call_type="ai_line_items_chunk",
             prompt=prompt,
-            schema=build_compact_line_item_schema(row_fields),
+            schema=build_compact_line_item_schema(row_fields, field_schema),
             details={
                 "chunk_id": chunk.chunk_id,
                 "retry_depth": chunk.retry_depth,
@@ -2330,26 +2339,57 @@ def extraction_prompt_template() -> dict:
     }
 
 
-def _fields_needed_for_compact_output(profile: SupplierProfile | None) -> tuple[set[str], set[str]]:
-    doc_fields = set(DEFAULT_DOC_FIELDS)
-    row_fields = set(DEFAULT_ROW_FIELDS)
-    if profile is None:
-        return doc_fields, row_fields
+# Always-on fields the compact calls read even for a profile that lists nothing.
+_COMPACT_BASE_DOC_FIELDS = frozenset({"supplier_name", "currency"})
+_COMPACT_BASE_ROW_FIELDS = frozenset({"charge_type", "amount"})
 
-    spec = resolve_output_spec(profile)
-    for column in output_spec_to_columns(spec):
+
+def _compact_field_selection(profile: SupplierProfile | None, field_schema) -> tuple[set[str], set[str]]:
+    """Which document and row fields the compact calls ask the AI for.
+
+    No profile: the catalogue defaults. Otherwise the fields the profile lists
+    (catalogue picks that have a compact alias, plus custom fields under their
+    own name), widened by whatever the delivery columns need, but only to names
+    the profile's field set knows.
+    """
+    if profile is None:
+        return set(DEFAULT_DOC_FIELDS), set(DEFAULT_ROW_FIELDS)
+
+    from polaris.fields.catalogue import catalogue_by_key
+    from polaris.profiles.contract import delivery_columns
+
+    catalogue = catalogue_by_key()
+    picks = list(getattr(profile, "fields", None) or [])
+    if picks:
+        doc_fields = set(_COMPACT_BASE_DOC_FIELDS)
+        row_fields = set(_COMPACT_BASE_ROW_FIELDS)
+        for pick in picks:
+            scope = str(getattr(pick.scope, "value", pick.scope))
+            custom = (pick.scope, pick.name) not in catalogue
+            if scope == "document" and (pick.name in FIELD_TO_DOC_ALIAS or custom):
+                doc_fields.add(pick.name)
+            elif scope == "row" and (pick.name in FIELD_TO_ROW_ALIAS or custom):
+                row_fields.add(pick.name)
+    else:
+        # Transitional: a profile persisted before its contract was embedded.
+        doc_fields = set(DEFAULT_DOC_FIELDS)
+        row_fields = set(DEFAULT_ROW_FIELDS)
+
+    known_doc = {f.name for f in field_schema.document_fields()} if field_schema is not None else set()
+    known_row = {f.name for f in field_schema.row_fields()} if field_schema is not None else set()
+    for column in delivery_columns(profile):
         for path in (column.canonical_path, column.fallback_path):
             if not path:
                 continue
             if path.startswith("line_item."):
                 field = path.removeprefix("line_item.")
-                if field in FIELD_TO_ROW_ALIAS:
+                if field in known_row if known_row else field in FIELD_TO_ROW_ALIAS:
                     row_fields.add(field)
             elif path.startswith("header."):
                 field = path.removeprefix("header.")
-                if field in FIELD_TO_DOC_ALIAS:
+                if field in known_doc if known_doc else field in FIELD_TO_DOC_ALIAS:
                     doc_fields.add(field)
-            elif path in FIELD_TO_DOC_ALIAS:
+            elif path in FIELD_TO_DOC_ALIAS and (not known_doc or path in known_doc):
                 doc_fields.add(path)
             elif path == "computed.line_tax":
                 row_fields.update({"amount", "tax_amount"})
@@ -2496,21 +2536,56 @@ def _strict_object(properties: dict[str, Any]) -> dict[str, Any]:
 
 
 def _doc_aliases(fields: set[str]) -> dict[str, str]:
-    return {alias: field for alias, field in DOC_ALIAS_TO_FIELD.items() if field in fields}
+    aliases = {alias: field for alias, field in DOC_ALIAS_TO_FIELD.items() if field in fields}
+    # Custom fields have no alias: they are keyed by their own name.
+    for name in sorted(fields):
+        if name not in FIELD_TO_DOC_ALIAS and name not in aliases:
+            aliases[name] = name
+    return aliases
 
 
 def _row_aliases(fields: set[str]) -> dict[str, str]:
     wanted = {"_row_ref", *fields, "charge_type", "source_page"}
-    return {alias: field for alias, field in ROW_ALIAS_TO_FIELD.items() if field in wanted}
+    aliases = {alias: field for alias, field in ROW_ALIAS_TO_FIELD.items() if field in wanted}
+    for name in sorted(fields):
+        if name not in FIELD_TO_ROW_ALIAS and name not in aliases:
+            aliases[name] = name
+    return aliases
 
 
-def _schema_for_doc_field(field: str) -> dict[str, Any]:
-    if field in {"subtotal", "tax", "fees", "current_charges", "total_due", "tax_rate"}:
+def _custom_field_schema(field: str, field_schema, scope: str) -> dict[str, Any] | None:
+    """JSON type for a profile's custom field, from its definition."""
+    if field_schema is None:
+        return None
+    fields = field_schema.document_fields() if scope == "document" else field_schema.row_fields()
+    fdef = next((f for f in fields if f.name == field), None)
+    if fdef is None:
+        return None
+    ftype = str(getattr(fdef.type, "value", fdef.type))
+    if ftype in ("number", "currency"):
         return {"type": ["number", "null"]}
+    if ftype == "integer":
+        return {"type": ["integer", "null"]}
+    if ftype == "enum" and fdef.enum_values:
+        return {"type": ["string", "null"], "enum": [*fdef.enum_values, None]}
     return {"type": ["string", "null"]}
 
 
-def _schema_for_row_field(field: str) -> dict[str, Any]:
+def _schema_for_doc_field(field: str, field_schema=None) -> dict[str, Any]:
+    if field in {"subtotal", "tax", "fees", "current_charges", "total_due", "tax_rate"}:
+        return {"type": ["number", "null"]}
+    if field not in FIELD_TO_DOC_ALIAS:
+        custom = _custom_field_schema(field, field_schema, "document")
+        if custom is not None:
+            return custom
+    return {"type": ["string", "null"]}
+
+
+def _schema_for_row_field(field: str, field_schema=None) -> dict[str, Any]:
+    if field not in FIELD_TO_ROW_ALIAS and field != "_row_ref":
+        custom = _custom_field_schema(field, field_schema, "row")
+        if custom is not None:
+            return custom
     if field == "_row_ref":
         return {"type": "string", "pattern": r"^p\d+\.r\d+(?:\D.*)?$"}
     if field == "source_page":

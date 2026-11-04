@@ -25,6 +25,9 @@ class ExceptionReason:
     EXTRACTION_ERROR = "extraction_error"
     MISSING_SERVICE_ID = "missing_service_id"
     PROFILE_VALIDATION_FAILURE = "profile_validation_failure"
+    # The profile has nothing configured to deliver (no output columns); fixed in
+    # the profile editor, then reprocessed. No AI was spent.
+    CONFIGURATION = "configuration"
 
 
 def create_exception_package(

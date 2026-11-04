@@ -21,11 +21,12 @@ import pytest
 from polaris.models.interpreter import execute_model
 from polaris.models.training import _normalize_line_items
 from polaris.output.formatting import format_deliverable_date
-from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
 from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.contract import delivery_columns
 from tests.corpus_utils import CorpusLayout, layout_params, read_expected_xlsx_rows
+from tests.output_columns import STANDARD_COLUMNS, STANDARD_HEADERS
 
-OUTPUT_HEADERS = [column.xlsx_header for column in STANDARD_OUTPUT_COLUMNS]
+OUTPUT_HEADERS = list(STANDARD_HEADERS)
 SERVICE_ID_COL = OUTPUT_HEADERS.index("EXT_SERVICEID")
 AMOUNT_COL = OUTPUT_HEADERS.index("EXT_AMOUNT")
 
@@ -56,7 +57,8 @@ def _run_model(layout: CorpusLayout, pdf):
         invoice,
         keep_zero_amount=profile.include_zero_amount_line_items if profile else False,
     )
-    rows = build_output_rows(invoice)
+    columns = delivery_columns(profile) if profile is not None else STANDARD_COLUMNS
+    rows = build_output_rows(invoice, columns)
     return rows
 
 

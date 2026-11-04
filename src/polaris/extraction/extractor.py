@@ -18,7 +18,7 @@ from polaris.extraction.prompts import (
     EXTRACTION_SYSTEM_PROMPT,
     build_extraction_user_prompt,
 )
-from polaris.fields.loader import resolve_merged_field_schema
+from polaris.fields.catalogue import default_field_set
 from polaris.fields.schema_builder import build_extraction_json_schema
 from polaris.llm import get_ai_client
 from polaris.profiles.loader import get_profile
@@ -27,10 +27,8 @@ from polaris.validation.schema import ExtractedDocument
 
 logger = structlog.get_logger()
 
-# Legacy static schema - default invoice.standard built-in equivalent
-EXTRACTION_JSON_SCHEMA = build_extraction_json_schema(
-    __import__("polaris.fields.loader", fromlist=["default_field_schema"]).default_field_schema()
-)
+# Static schema over the whole catalogue (no-profile extraction).
+EXTRACTION_JSON_SCHEMA = build_extraction_json_schema(default_field_set())
 
 
 @dataclass
@@ -68,23 +66,24 @@ def extract_invoice(pdf_path: Path, supplier_name: str | None = None,
     """
     client = get_ai_client(purpose="extraction")
 
+    from polaris.profiles.contract import field_set
+
     profile = supplier_profile
     profile_data = None
     schema = field_schema
     if profile is not None:
         profile_data = profile.model_dump()
         if schema is None:
-            schema = resolve_merged_field_schema(profile)
+            schema = field_set(profile)
     elif supplier_profile_id:
         profile = get_profile(supplier_profile_id)
         if profile:
             profile_data = profile.model_dump()
             if schema is None:
-                schema = resolve_merged_field_schema(profile)
+                schema = field_set(profile)
 
     if schema is None:
-        from polaris.fields.loader import default_field_schema
-        schema = default_field_schema()
+        schema = default_field_set()
 
     mode = (runtime_settings.ai_extraction_mode() or "compact_chunked").lower()
     if mode == "compact_chunked":
@@ -212,8 +211,8 @@ def build_extracted_document(raw_data: dict, intake_id: str,
                              field_schema=None) -> ExtractedDocument:
     """Convert raw AI extraction output into a validated ExtractedDocument."""
 
-    from polaris.fields.loader import default_field_schema, resolve_merged_field_schema
     from polaris.pricing import estimate_cost_usd
+    from polaris.profiles.contract import field_set
     from polaris.profiles.loader import get_profile
     from polaris.validation.schema import ExtractionMetadata, ExtractionPath
 
@@ -224,9 +223,9 @@ def build_extracted_document(raw_data: dict, intake_id: str,
         if profile:
             currency_rules = profile.advanced.currency
             if schema is None:
-                schema = resolve_merged_field_schema(profile)
+                schema = field_set(profile)
     if schema is None:
-        schema = default_field_schema()
+        schema = default_field_set()
 
     estimated_cost = estimate_cost_usd(
         extraction_result.ai_model_name,

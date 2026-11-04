@@ -40,7 +40,6 @@ from polaris.fields.loader import (
 from polaris.models.authoring import _build_target
 from polaris.models.diff import diff_output_rows
 from polaris.output.expected_loader import load_blueprint_context
-from polaris.output.mapper import output_spec_to_columns
 from polaris.output.preview import preview_for_profile
 from polaris.output.xlsx_writer import build_output_rows
 from polaris.pricing import estimate_cost_usd
@@ -54,7 +53,12 @@ from polaris.profiles.discovery import ENGINE_VERSION, DiscoveryInput, discover_
 from polaris.profiles.loader import get_profile
 from polaris.profiles.schema import SupplierProfile
 from polaris.profiles.validation import grade_authoring_evidence
-from polaris.specs.loader import get_output_spec, load_all_output_specs, resolve_output_spec
+from polaris.specs.loader import (
+    get_output_spec,
+    load_all_output_specs,
+    output_spec_to_columns,
+    resolve_output_spec,
+)
 from polaris.validation.schema import ExtractedDocument
 
 logger = structlog.get_logger()
@@ -225,7 +229,7 @@ def run_discovery(db: Session, *, session_id: str) -> dict:
         blueprint = next(iter(artifact_dir.glob("blueprint.xls*")), None)
         if blueprint is not None:
             context = _add_compatible_spec_suggestions(
-                load_blueprint_context(str(blueprint), spec)
+                load_blueprint_context(str(blueprint), output_spec_to_columns(spec))
             )
             context["filename"] = blueprint.name
             context["_paired_invoice"] = invoice.filename
@@ -234,7 +238,7 @@ def run_discovery(db: Session, *, session_id: str) -> dict:
             _write_json(artifact_dir / "expected_rows.json", context["aligned_rows"])
     for blueprint in crud.list_authoring_blueprints(db, session.id):
         context = _add_compatible_spec_suggestions(
-            load_blueprint_context(blueprint.artifact_path, spec)
+            load_blueprint_context(blueprint.artifact_path, output_spec_to_columns(spec))
         )
         context["filename"] = blueprint.filename
         contexts.append(context)
@@ -287,7 +291,7 @@ def _parse_expected_blueprint(session, invoice, artifact_dir: Path) -> None:
     if invoice.has_expected and blueprint_path.exists():
         spec = get_output_spec(session.output_spec_id)
         blueprint_context = _add_compatible_spec_suggestions(
-            load_blueprint_context(str(blueprint_path), spec)
+            load_blueprint_context(str(blueprint_path), output_spec_to_columns(spec))
         )
         _write_json(artifact_dir / "blueprint_context.json", blueprint_context)
         _write_json(artifact_dir / "expected_rows.json", blueprint_context["aligned_rows"])
@@ -441,7 +445,7 @@ def _previews_for_draft(db: Session, session, draft: dict) -> dict:
         entry: dict = {"filename": inv.filename, "preview": preview}
         if (adir / "expected_rows.json").exists():
             expected = _read_json(adir / "expected_rows.json")
-            actual = build_output_rows(doc, spec)
+            actual = build_output_rows(doc, columns)
             diff = diff_output_rows(expected, actual, columns)
             entry["diff"] = diff.to_report()
             if not diff.is_match:

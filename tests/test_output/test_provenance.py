@@ -22,6 +22,7 @@ from polaris.validation.schema import (
     InvoiceHeader,
     LineItem,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 CORPUS = Path(__file__).resolve().parents[1] / "fixtures" / "corpus"
 LAYOUTS = [
@@ -47,7 +48,7 @@ def test_every_delivered_row_is_located(layout, pdf):
 
     assert package is not None and package["approximate"] is False
     assert package["extraction_path"] == "model"
-    delivered = build_output_rows(invoice)
+    delivered = build_output_rows(invoice, STANDARD_COLUMNS)
     assert [r["row_index"] for r in package["rows"]] == list(range(len(delivered)))
     for row in package["rows"]:
         assert row["page"] and row["row_ids"], row

@@ -11,7 +11,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 import structlog
 
 from polaris import runtime_settings
-from polaris.fields.loader import default_field_schema
+from polaris.fields.catalogue import default_field_set
 from polaris.fields.schema import FieldRole, FieldSchema, FieldScope
 from polaris.output.xlsx_writer import delivered_tax_sum
 from polaris.validation.schema import ExtractedDocument, ReconciliationResult
@@ -31,7 +31,7 @@ def reconcile(
     schema: FieldSchema | None = None,
 ) -> ReconciliationResult | None:
     """Run deterministic reconciliation on an extracted document."""
-    schema = schema or default_field_schema()
+    schema = schema or default_field_set()
     amount_fields = schema.fields_with_role(FieldRole.AMOUNT)
     total_fields = schema.fields_with_role(FieldRole.TOTAL)
     subtotal_fields = schema.fields_with_role(FieldRole.SUBTOTAL)

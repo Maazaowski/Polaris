@@ -8,7 +8,7 @@ from openpyxl import Workbook
 
 from polaris.models.diff import diff_output_rows
 from polaris.output.expected_loader import load_blueprint_context, load_expected_rows
-from polaris.output.mapper import output_spec_to_columns
+from polaris.profiles.contract import columns_to_defs
 from polaris.specs.loader import default_output_spec
 
 
@@ -32,13 +32,13 @@ def test_load_expected_rows_aligns_by_header(tmp_path):
     xlsx = tmp_path / "expected.xlsx"
     _write_xlsx(xlsx, headers, rows)
 
-    loaded = load_expected_rows(xlsx, spec)
+    loaded = load_expected_rows(xlsx, columns_to_defs(spec.columns))
     assert len(loaded) == 2
     assert loaded[0][0] == "SVC1"
     assert loaded[1][4] == "50.00"
 
     # Aligned rows diff cleanly against themselves through the diff engine.
-    diff = diff_output_rows(loaded, loaded, output_spec_to_columns(spec))
+    diff = diff_output_rows(loaded, loaded, columns_to_defs(spec.columns))
     assert diff.is_match
 
 
@@ -56,7 +56,7 @@ def test_load_expected_rows_reordered_columns(tmp_path):
     xlsx = tmp_path / "reordered.xlsx"
     _write_xlsx(xlsx, reordered, [[canonical[h] for h in reordered]])
 
-    loaded = load_expected_rows(xlsx, spec)
+    loaded = load_expected_rows(xlsx, columns_to_defs(spec.columns))
     assert loaded[0][0] == "SVC1"  # realigned back to spec order
     assert loaded[0][4] == "100.00"
 
@@ -70,7 +70,7 @@ def test_load_blueprint_context_includes_headers_samples_and_totals(tmp_path):
         ["SVC2", "REF2", "2026-01-01", "2026-02-01", "50.00", "ACC1", "INV1", "4.13"],
     ])
 
-    context = load_blueprint_context(xlsx, spec, sample_rows=1)
+    context = load_blueprint_context(xlsx, columns_to_defs(spec.columns), sample_rows=1)
 
     assert context["sheet_name"] == "Sheet"
     assert context["raw_headers"] == headers
@@ -88,7 +88,7 @@ def test_load_blueprint_context_rejects_nonempty_header_mismatch(tmp_path):
         ["SVC1", "REF1", "2026-01-01", "2026-02-01", "100.00", "ACC1", "INV1", "8.25"],
     ])
 
-    context = load_blueprint_context(xlsx, spec)
+    context = load_blueprint_context(xlsx, columns_to_defs(spec.columns))
 
     assert context["contract_compatible"] is False
     assert context["aligned_rows"] == []
@@ -113,7 +113,7 @@ def test_load_blueprint_context_supports_legacy_xls(monkeypatch, tmp_path):
     fake_xlrd = SimpleNamespace(open_workbook=lambda _path: SimpleNamespace(sheet_by_index=lambda _idx: FakeSheet()))
     monkeypatch.setitem(sys.modules, "xlrd", fake_xlrd)
 
-    context = load_blueprint_context(xls, spec)
+    context = load_blueprint_context(xls, columns_to_defs(spec.columns))
 
     assert context["sheet_name"] == "Legacy"
     assert context["aligned_rows"][0][0] == "SVC1"

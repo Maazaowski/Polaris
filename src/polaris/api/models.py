@@ -52,10 +52,6 @@ class DraftTestRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     intake_id: str
     model_json: dict
-    # The deliverable to preview against when the draft is not yet bound to a
-    # supplier profile. Ignored once it is — the profile is the authority.
-    output_spec_id: str | None = None
-    field_schema_id: str | None = None
 
 
 class DraftEvalFolderRequest(BaseModel):
@@ -633,9 +629,8 @@ def test_draft_model(db: DbSession, body: DraftTestRequest):
     from polaris.models.diff import diff_invoices
     from polaris.models.interpreter import execute_model_with_trace
     from polaris.models.schema import ExtractionModel
-    from polaris.output.preview import preview_for_profile
+    from polaris.output.preview import preview_for_profile, resolve_preview_columns
     from polaris.profiles.loader import get_profile
-    from polaris.specs.loader import get_output_spec, resolve_output_spec
     from polaris.validation.schema import CanonicalInvoice
 
     try:
@@ -656,15 +651,8 @@ def test_draft_model(db: DbSession, body: DraftTestRequest):
         raise HTTPException(status_code=422, detail=f"Model execution failed: {e}") from e
 
     profile = get_profile(model.supplier_profile_id) if model.supplier_profile_id else None
-    # No profile yet (the builder can author before one exists): fall back to the
-    # deliverable the author picked, so the preview shows the columns they will
-    # actually ship rather than the system default.
-    spec = (
-        resolve_output_spec(profile)
-        if profile is not None
-        else get_output_spec(body.output_spec_id) if body.output_spec_id
-        else resolve_output_spec(None)
-    )
+    # Template columns > profile columns > (no profile) the raw extraction dump.
+    columns, _columns_source = resolve_preview_columns(model_invoice, profile, model)
 
     baseline = None
     baseline_path = settings.completed_dir / body.intake_id / "canonical_invoice.json"
@@ -674,8 +662,8 @@ def test_draft_model(db: DbSession, body: DraftTestRequest):
         )
 
     is_match, diff_report = None, None
-    if baseline is not None:
-        diff = diff_invoices(baseline, model_invoice, spec)
+    if baseline is not None and columns:
+        diff = diff_invoices(baseline, model_invoice, columns)
         is_match, diff_report = diff.is_match, diff.to_report()
 
     return {
@@ -685,8 +673,7 @@ def test_draft_model(db: DbSession, body: DraftTestRequest):
             model_invoice,
             profile,
             extraction_path="model",
-            output_spec_id=body.output_spec_id,
-            field_schema_id=body.field_schema_id,
+            model=model,
         ),
         "trace": trace,
         "diff": diff_report,
@@ -710,9 +697,8 @@ def eval_draft_against_folder(body: DraftEvalFolderRequest):
     from polaris.evals.dataset import discover_cases
     from polaris.models.interpreter import execute_model_with_trace
     from polaris.models.schema import ExtractionModel
-    from polaris.output.mapper import output_spec_to_columns
     from polaris.output.preview import preview_for_profile
-    from polaris.specs.loader import resolve_output_spec
+    from polaris.profiles.contract import delivery_columns
 
     try:
         model = ExtractionModel.model_validate(body.model_json)
@@ -729,14 +715,14 @@ def eval_draft_against_folder(body: DraftEvalFolderRequest):
     files = []
     for case in cases:
         profile = case.load_profile()
-        columns = output_spec_to_columns(resolve_output_spec(profile))
+        columns = delivery_columns(profile, model)
         entry = {"file": case.pdf_path.name}
         try:
             invoice, _ = execute_model_with_trace(
                 model, case.pdf_path, f"eval-{case.case_id.replace('/', '-')}",
                 skip_self_checks=True, allow_empty=True,
             )
-            preview = preview_for_profile(invoice, profile, extraction_path="model")
+            preview = preview_for_profile(invoice, profile, extraction_path="model", model=model)
             metrics = scoring.diff_metrics(case.expected_rows(), preview.get("rows") or [], columns)
             entry.update({
                 "matched_rows": metrics["matched_rows"],
@@ -772,8 +758,8 @@ def test_model(db: DbSession, model_id: str, body: TestRequest):
     from polaris.models.interpreter import execute_model
     from polaris.models.schema import ExtractionModel
     from polaris.output.xlsx_writer import write_xlsx
+    from polaris.profiles.contract import delivery_columns
     from polaris.profiles.loader import get_profile
-    from polaris.specs.loader import resolve_output_spec
     from polaris.validation.schema import CanonicalInvoice
 
     record = crud.get_extraction_model(db, model_id)
@@ -808,19 +794,22 @@ def test_model(db: DbSession, model_id: str, body: TestRequest):
     if baseline_path.exists():
         baseline = CanonicalInvoice.model_validate(json.loads(baseline_path.read_text(encoding="utf-8")))
 
-    spec = resolve_output_spec(
-        get_profile(model.supplier_profile_id) if model.supplier_profile_id else None
+    columns = delivery_columns(
+        get_profile(model.supplier_profile_id) if model.supplier_profile_id else None, model,
     )
     is_valid, reason, diff_report = None, "no AI baseline available for comparison", None
-    if baseline is not None:
-        diff = diff_invoices(baseline, model_invoice, spec)
+    if not columns:
+        reason = "no output columns configured for this profile or template"
+    elif baseline is not None:
+        diff = diff_invoices(baseline, model_invoice, columns)
         is_valid, reason, diff_report = diff.is_match, diff.summary(), diff.to_report()
     review_root = settings.completed_dir / body.intake_id / "model_review"
     review_root.mkdir(parents=True, exist_ok=True)
-    try:
-        write_xlsx(model_invoice, review_root / "test_latest.xlsx", spec)
-    except Exception:
-        pass
+    if columns:
+        try:
+            write_xlsx(model_invoice, review_root / "test_latest.xlsx", columns)
+        except Exception:
+            pass
 
     return {
         "is_valid": is_valid,
@@ -858,7 +847,7 @@ async def preview_model_extraction(db: DbSession, model_id: str, file: UploadFil
     def _run() -> dict:
         # Layout parsing + replay is CPU-bound; keep it off the event loop.
         model_invoice = execute_model(model, pdf_path, "preview")
-        return preview_for_profile(model_invoice, profile, extraction_path="model")
+        return preview_for_profile(model_invoice, profile, extraction_path="model", model=model)
 
     try:
         return await run_in_threadpool(_run)

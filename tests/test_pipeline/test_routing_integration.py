@@ -39,6 +39,7 @@ from polaris.profiles.schema import (
     SupplierIdentity,
     SupplierProfile,
 )
+from tests.output_columns import STANDARD_FIELDS, STANDARD_OUTPUT_COLUMNS
 
 FIXTURE_PDF = (
     Path(__file__).resolve().parents[1]
@@ -111,6 +112,8 @@ def _make_profile(status: str) -> SupplierProfile:
         status=status,
         identity=SupplierIdentity(canonical_name="TestCo"),
         classification=ClassificationSignals(output_type="standard"),
+        fields=STANDARD_FIELDS,
+        output_columns=STANDARD_OUTPUT_COLUMNS,
         delivery={"inbound_path": "/data/TestCo/pdf", "output_path": None},
     )
 
@@ -405,6 +408,8 @@ def test_supplier_output_is_named_after_the_pdf_even_with_an_account_label(db, t
         status="active",
         identity=SupplierIdentity(canonical_name="TestCo"),
         classification=ClassificationSignals(output_type="standard"),
+        fields=STANDARD_FIELDS,
+        output_columns=STANDARD_OUTPUT_COLUMNS,
         delivery={"inbound_path": str(tmp_path / "supplier" / "pdf"), "output_path": str(supplier_xls)},
     )
     record = crud.create_intake(
@@ -444,6 +449,8 @@ def test_two_invoices_for_one_account_deliver_two_files(db, tmp_path):
         status="active",
         identity=SupplierIdentity(canonical_name="TestCo"),
         classification=ClassificationSignals(output_type="standard"),
+        fields=STANDARD_FIELDS,
+        output_columns=STANDARD_OUTPUT_COLUMNS,
         delivery={"inbound_path": str(tmp_path / "supplier" / "pdf"), "output_path": str(supplier_xls)},
     )
     for filename in ("82824706_january.pdf", "82824706_february.pdf"):
@@ -471,6 +478,8 @@ def test_supplier_output_copy_falls_back_to_pdf_named_xlsx_without_account_label
         status="active",
         identity=SupplierIdentity(canonical_name="TestCo"),
         classification=ClassificationSignals(output_type="standard"),
+        fields=STANDARD_FIELDS,
+        output_columns=STANDARD_OUTPUT_COLUMNS,
         delivery={"inbound_path": str(tmp_path / "supplier" / "pdf"), "output_path": str(supplier_xls)},
     )
     record = crud.create_intake(

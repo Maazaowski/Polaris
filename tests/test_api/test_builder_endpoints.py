@@ -227,43 +227,34 @@ def test_draft_test_returns_trace_and_output(client):
     assert body["output"]["row_count"] >= 1
 
 
-def test_draft_test_previews_through_the_requested_output_spec(client):
-    """A model authored before any profile exists must preview against the
-    deliverable the author picked, not the system default — otherwise the whole
-    session is spent checking output against the wrong columns."""
+_TWO_COLUMNS = [
+    {"header": "SERVICE", "source": "row.service_id", "width": 20},
+    {"header": "AMOUNT", "source": "row.amount", "width": 14},
+]
+
+
+def test_draft_test_previews_through_the_template_columns(client):
+    """A template may carry its own column set. Before any profile exists it is
+    the only deliverable there is, so the preview renders exactly those columns."""
     tc, sf, tmp_path = client
     intake_id = _seed_intake(sf, tmp_path)
 
-    created = tc.post(
-        "/api/v1/output-specs",
-        json={
-            "spec_id": "builder.twocol",
-            "name": "Two column",
-            "columns": [
-                {"header": "SERVICE", "source": "line_item.service_id", "width": 20},
-                {"header": "AMOUNT", "source": "line_item.amount", "width": 14},
-            ],
-        },
-    )
-    assert created.status_code == 201, created.text
-
     # What the builder sends before a profile is chosen: the placeholder id,
     # which resolves to no profile.
-    unbound = {**_corpus_model_json(), "supplier_profile_id": "draft"}
+    unbound = {**_corpus_model_json(), "supplier_profile_id": "draft", "output_columns": _TWO_COLUMNS}
     resp = tc.post(
         "/api/v1/models/draft/test",
-        json={
-            "intake_id": intake_id,
-            "model_json": unbound,
-            "output_spec_id": "builder.twocol",
-        },
+        json={"intake_id": intake_id, "model_json": unbound},
     )
     assert resp.status_code == 200, resp.text
-    headers = [c["header"] for c in resp.json()["output"]["columns"]]
-    assert headers == ["SERVICE", "AMOUNT"]
+    output = resp.json()["output"]
+    assert [c["header"] for c in output["columns"]] == ["SERVICE", "AMOUNT"]
+    assert output["columns_source"] == "template"
 
 
-def test_draft_test_defaults_to_the_standard_spec_without_an_override(client):
+def test_draft_test_without_profile_or_columns_shows_the_raw_rows(client):
+    """No profile and no template columns: nothing is assumed about the
+    deliverable, so the preview is the raw extraction (field names as headers)."""
     tc, sf, tmp_path = client
     intake_id = _seed_intake(sf, tmp_path)
 
@@ -273,37 +264,42 @@ def test_draft_test_defaults_to_the_standard_spec_without_an_override(client):
         json={"intake_id": intake_id, "model_json": unbound},
     )
     assert resp.status_code == 200, resp.text
-    headers = [c["header"] for c in resp.json()["output"]["columns"]]
-    assert headers[0] == "EXT_SERVICEID"
+    output = resp.json()["output"]
+    headers = [c["header"] for c in output["columns"]]
+    assert output["columns_source"] == "raw"
+    assert "service_id" in headers and "amount" in headers
+    assert output["row_count"] >= 1
 
 
-def test_draft_test_profile_binding_wins_over_a_spec_override(client):
-    """Once the draft names a real profile, that profile's deliverable is the
-    authority — the preview must never disagree with what it will ship."""
+def test_draft_test_profile_columns_apply_when_the_template_has_none(client):
+    """Once the draft names a real profile, that profile's columns are the
+    deliverable unless the template overrides them."""
     tc, sf, tmp_path = client
     intake_id = _seed_intake(sf, tmp_path)
 
-    created = tc.post(
-        "/api/v1/output-specs",
-        json={
-            "spec_id": "builder.ignored",
-            "name": "Ignored",
-            "columns": [{"header": "SERVICE", "source": "line_item.service_id", "width": 20}],
-        },
-    )
-    assert created.status_code == 201, created.text
-
     resp = tc.post(
         "/api/v1/models/draft/test",
-        json={
-            "intake_id": intake_id,
-            "model_json": _corpus_model_json(),  # carries a resolvable profile id
-            "output_spec_id": "builder.ignored",
-        },
+        json={"intake_id": intake_id, "model_json": _corpus_model_json()},
     )
     assert resp.status_code == 200, resp.text
-    headers = [c["header"] for c in resp.json()["output"]["columns"]]
-    assert headers[0] == "EXT_SERVICEID"
+    output = resp.json()["output"]
+    assert output["columns_source"] == "profile"
+    assert [c["header"] for c in output["columns"]][0] == "EXT_SERVICEID"
+
+
+def test_draft_test_template_columns_win_over_the_profile(client):
+    tc, sf, tmp_path = client
+    intake_id = _seed_intake(sf, tmp_path)
+
+    bound = {**_corpus_model_json(), "output_columns": _TWO_COLUMNS}
+    resp = tc.post(
+        "/api/v1/models/draft/test",
+        json={"intake_id": intake_id, "model_json": bound},
+    )
+    assert resp.status_code == 200, resp.text
+    output = resp.json()["output"]
+    assert output["columns_source"] == "template"
+    assert [c["header"] for c in output["columns"]] == ["SERVICE", "AMOUNT"]
 
 
 def test_draft_test_reports_dropped_rows_instead_of_failing(client):

@@ -14,8 +14,7 @@ from decimal import Decimal
 from typing import Any
 
 from polaris.output.formatting import format_deliverable_date
-from polaris.output.mapper import output_spec_to_columns
-from polaris.output.spec import OutputSpec
+from polaris.output.mapper import ColumnDef
 from polaris.output.xlsx_writer import build_output_rows, service_line_items
 from polaris.validation.schema import ExtractedDocument
 
@@ -49,20 +48,27 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def build_preview(invoice: ExtractedDocument, spec: OutputSpec | None = None) -> dict[str, Any]:
+def build_preview(
+    invoice: ExtractedDocument,
+    columns: list[ColumnDef],
+    *,
+    columns_source: str = "configured",
+) -> dict[str, Any]:
     """Render an extracted document as a preview payload.
 
-    ``columns`` + ``rows`` mirror the delivered XLSX exactly (same OutputSpec,
-    same computed fields). ``header_fields`` and ``totals`` are display label/value
-    pairs; ``reconciliation`` summarizes the stated-vs-computed total check.
+    ``columns`` + ``rows`` mirror the delivered XLSX exactly (same resolved
+    columns, same computed fields). ``header_fields`` and ``totals`` are display
+    label/value pairs; ``reconciliation`` summarizes the stated-vs-computed total
+    check. ``columns_source`` tells the UI where the column set came from:
+    ``template``, ``profile``, ``raw`` (the no-profile extraction dump) or
+    ``none`` (nothing configured yet).
     """
-    columns = output_spec_to_columns(spec) if spec is not None else None
     column_meta = [
         {"header": c.xlsx_header, "number_format": c.number_format}
-        for c in (columns or _standard_columns())
+        for c in columns
     ]
 
-    raw_rows = build_output_rows(invoice, spec)
+    raw_rows = build_output_rows(invoice, columns)
     rows = [[_json_safe(cell) for cell in row] for row in raw_rows]
 
     header = invoice.header
@@ -81,6 +87,7 @@ def build_preview(invoice: ExtractedDocument, spec: OutputSpec | None = None) ->
 
     return {
         "columns": column_meta,
+        "columns_source": columns_source,
         "rows": rows,
         "row_count": len(rows),
         "line_item_count": len(service_line_items(invoice)),
@@ -93,44 +100,46 @@ def build_preview(invoice: ExtractedDocument, spec: OutputSpec | None = None) ->
     }
 
 
+def resolve_preview_columns(invoice: ExtractedDocument, profile, model=None) -> tuple[list[ColumnDef], str]:
+    """Columns a preview renders with, and where they came from.
+
+    Precedence is the delivery rule: template columns, then the profile's, then
+    (no profile) the raw extraction dump. A profile with no columns yet renders
+    nothing, labelled ``none``, so the UI can say so instead of inventing a set.
+    """
+    from polaris.profiles.contract import delivery_columns, raw_workbook_columns
+
+    if getattr(model, "output_columns", None):
+        return delivery_columns(profile, model), "template"
+    if profile is not None:
+        columns = delivery_columns(profile)
+        return columns, ("profile" if columns else "none")
+    return raw_workbook_columns(invoice), "raw"
+
+
 def preview_for_profile(
     invoice: ExtractedDocument,
     profile,
     *,
     extraction_path: str,
-    output_spec_id: str | None = None,
-    field_schema_id: str | None = None,
+    model=None,
 ) -> dict[str, Any]:
     """Build an ad-hoc preview for a freshly extracted document under a profile.
 
     Runs the same deterministic reconciliation the pipeline does so the preview's
-    reconciliation banner matches production, then renders through the profile's
-    OutputSpec. Used by the profile (AI) and model (replay) preview endpoints.
-
-    ``output_spec_id`` / ``field_schema_id`` apply ONLY when there is no profile:
-    the model builder can author against a deliverable the user picked directly,
-    before any profile exists. A profile always wins over them, so the preview
-    can never disagree with what that profile will actually deliver.
+    reconciliation banner matches production, then renders through the resolved
+    delivery columns (template > profile > raw). Used by the profile (AI) and
+    model (replay) preview endpoints.
     """
-    from polaris.fields.loader import (
-        default_field_schema,
-        get_field_schema,
-        resolve_merged_field_schema,
-    )
     from polaris.pipeline.processor import (
         _keep_zero_line_items,
         _normalize_line_items,
         _require_identifier,
     )
-    from polaris.specs.loader import default_output_spec, get_output_spec, resolve_output_spec
+    from polaris.profiles.contract import field_set
     from polaris.validation.reconciler import reconcile
 
-    if profile is not None:
-        schema = resolve_merged_field_schema(profile)
-    elif field_schema_id:
-        schema = get_field_schema(field_schema_id)
-    else:
-        schema = default_field_schema()
+    schema = field_set(profile)
     # Mirror the pipeline: drop zero-amount / no-identifier rows (per profile) and
     # resequence, so the preview matches what production actually delivers.
     _normalize_line_items(
@@ -144,13 +153,8 @@ def preview_for_profile(
             invoice.reconciliation = recon
             invoice.warnings.extend(w for w in recon.warnings if w not in invoice.warnings)
 
-    if profile is not None:
-        spec = resolve_output_spec(profile)
-    elif output_spec_id:
-        spec = get_output_spec(output_spec_id)
-    else:
-        spec = default_output_spec()
-    payload = build_preview(invoice, spec)
+    columns, columns_source = resolve_preview_columns(invoice, profile, model)
+    payload = build_preview(invoice, columns, columns_source=columns_source)
     payload["extraction_path"] = extraction_path
     payload["warnings"] = list(invoice.warnings or [])
 
@@ -169,12 +173,6 @@ def preview_for_profile(
         payload["conflicts"] = compiled_payload["conflicts"]
         payload["ignored_notes"] = compiled_payload["ignored_notes"]
     return payload
-
-
-def _standard_columns():
-    from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
-
-    return STANDARD_OUTPUT_COLUMNS
 
 
 def _reconciliation_summary(invoice: ExtractedDocument) -> dict[str, Any] | None:

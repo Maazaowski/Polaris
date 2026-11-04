@@ -13,37 +13,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
-class OutputColumn(BaseModel):
-    """One column in the delivered output."""
-
-    header: str = Field(..., description="Column header written to the deliverable")
-    source: str = Field(
-        ...,
-        description=(
-            "Where the value comes from: a canonical path (e.g. 'header.invoice_date', "
-            "'line_item.amount', 'subtotal') or a derived field 'computed.<name>' "
-            "(e.g. 'computed.line_tax')."
-        ),
-    )
-    fallback: str | None = Field(
-        default=None,
-        description="Secondary canonical path used when 'source' resolves to empty.",
-    )
-    transforms: list[str] = Field(
-        default_factory=list,
-        description="Safe value transforms applied after resolving source/fallback.",
-    )
-    width: int = Field(default=15, description="Column width hint for XLSX output")
-    number_format: str | None = Field(
-        default=None, description="openpyxl number format (e.g. '#,##0.00'); null = text"
-    )
-
-    model_config = {"extra": "ignore"}
+from polaris.output.columns import OutputColumn
 
 
 class OutputSpec(BaseModel):
     """A named, versioned set of output columns a customer requires."""
+
+    __column_type__ = OutputColumn
 
     spec_id: str = Field(..., description="e.g. 'standard.8col'")
     name: str = Field(default="", description="Human-readable label")

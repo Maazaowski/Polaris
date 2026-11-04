@@ -35,6 +35,7 @@ from polaris.output.xlsx_writer import build_output_rows
 from polaris.profiles.schema import ExtractionPlan, RowContextRule
 from polaris.validation.document_io import build_extracted_from_ai_raw
 from polaris.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ExtractionMetadata, ExtractionPath
+from tests.output_columns import defs
 
 
 class _FakeCompletions:
@@ -1551,7 +1552,7 @@ def test_granite_compact_rows_map_to_standard_output():
         ],
     )
 
-    rows = build_output_rows(doc, spec)
+    rows = build_output_rows(doc, defs(spec))
 
     assert rows == [["08918899", "Granite Branch", 104.36, 12.53]]
 
@@ -1602,7 +1603,7 @@ def test_compact_charge_type_filters_fee_and_surcharge_output_rows():
         ],
     )
 
-    rows = build_output_rows(doc, spec)
+    rows = build_output_rows(doc, defs(spec))
 
     assert rows == [["BFEC565162", 1910.18, 80.64]]
 

@@ -34,10 +34,7 @@ from polaris.extraction.extractor import (
 )
 from polaris.extraction.layout import LayoutDocument, extract_layout_document
 from polaris.extraction.normalization import apply_layout_profile_hints
-from polaris.fields.loader import (
-    default_field_schema,
-    resolve_merged_field_schema,
-)
+from polaris.fields.catalogue import default_field_set
 from polaris.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
 from polaris.intake.service import process_new_pdf
 from polaris.models.diff import diff_invoices
@@ -65,13 +62,13 @@ from polaris.output.json_writer import (
 from polaris.output.naming import derive_output_xlsx_name
 from polaris.output.provenance import write_provenance
 from polaris.output.review_artifacts import write_model_review_artifacts
-from polaris.output.xlsx_writer import build_output_rows, write_xlsx
+from polaris.output.xlsx_writer import build_output_rows, write_raw_workbook, write_xlsx
 from polaris.pipeline.cancellation import check_cancelled, clear_cancel
 from polaris.pipeline.events import publish_completed, publish_event, publish_failed
 from polaris.pipeline.timing import stage_timer
+from polaris.profiles.contract import delivery_columns, field_set
 from polaris.profiles.loader import find_profile_by_supplier, get_profile
 from polaris.profiles.schema import LineItemHints, SupplierProfile
-from polaris.specs.loader import resolve_output_spec
 from polaris.validation.reconciler import reconcile
 from polaris.validation.schema import CanonicalInvoice, ChargeType, ExtractedDocument, ReconciliationResult
 
@@ -194,10 +191,7 @@ def continue_pipeline(db: Session, intake_id: str,
             find_profile_by_supplier(invoice.header.supplier_name)
             if invoice.header.supplier_name else None
         )
-        field_schema = (
-            resolve_merged_field_schema(reconciliation_profile)
-            if reconciliation_profile else default_field_schema()
-        )
+        field_schema = field_set(reconciliation_profile)
         with stage_timer() as recon_timer:
             recon = reconcile(invoice, field_schema)
         if recon is not None:
@@ -366,6 +360,8 @@ def _run_production_path(
         )
         return invoice, job_id, None
 
+    _stop_if_profile_cannot_deliver(db, intake_id, pdf_path, profile)
+
     # 1. Approved model with an EXACT fingerprint match -> zero-AI extraction.
     approved = find_approved_model(db, profile.profile_id, fingerprint)
     if approved is not None:
@@ -409,6 +405,39 @@ def _run_production_path(
         classification=classification, supplier_profile=profile,
     )
     return invoice, job_id, profile
+
+
+def _stop_if_profile_cannot_deliver(
+    db: Session, intake_id: str, pdf_path: Path, profile: SupplierProfile,
+) -> None:
+    """A profile with no output columns has nothing to deliver. Stop here,
+    before a template runs or the AI is paid, and park the invoice as a
+    configuration exception the user can fix and reprocess."""
+    blockers = _profile_configuration_blockers(profile)
+    if not blockers:
+        return
+    message = f"Profile '{profile.profile_id}' cannot deliver: " + "; ".join(blockers)
+    create_exception_package(
+        intake_id=intake_id,
+        reason=ExceptionReason.CONFIGURATION,
+        message=message,
+        pdf_path=pdf_path,
+        error_details={"profile_id": profile.profile_id, "blockers": blockers},
+    )
+    crud.log_processing_step(
+        db, intake_id=intake_id, step="configuration", status="failed",
+        message=message, details={"profile_id": profile.profile_id, "blockers": blockers},
+    )
+    raise NonRetryablePipelineError(message)
+
+
+def _profile_configuration_blockers(profile: SupplierProfile | None) -> list[str]:
+    """What stops this profile from delivering anything at all."""
+    if profile is None:
+        return []
+    if not delivery_columns(profile):
+        return ["no output columns configured"]
+    return []
 
 
 def _try_rules_before_reading(
@@ -962,7 +991,7 @@ def _process_ai_path(
         keep_zero_amount=_keep_zero_line_items(profile),
         require_identifier=_require_identifier(profile),
     )
-    output_row_count = len(build_output_rows(invoice, resolve_output_spec(profile)))
+    output_row_count = len(build_output_rows(invoice, delivery_columns(profile)))
     discovery_metadata = (extraction_result.artifacts or {}).get("discovery_plan")
     if discovery_metadata:
         crud.update_intake_scan_metadata(db, intake_id, discovery_metadata)
@@ -1123,13 +1152,14 @@ def _log_compact_ai_merge(
 def _model_matches_ai(
     model_invoice: CanonicalInvoice,
     ai_invoice: CanonicalInvoice,
+    columns: list,
 ) -> tuple[bool, str]:
     """Return (is_exact_match, reason).
 
     The model is a valid substitute for AI only if it produces the EXACT same
-    delivered output — every delivered column of every row.
+    delivered output: every delivered column of every row.
     """
-    diff = diff_invoices(ai_invoice, model_invoice)
+    diff = diff_invoices(ai_invoice, model_invoice, columns)
     return diff.is_match, diff.summary()
 
 
@@ -1149,7 +1179,7 @@ def _validate_and_credit_model(
         record_validation_failure(db, model.model_id, "model produced no output")
         return False
 
-    diff = diff_invoices(ai_invoice, model_invoice, resolve_output_spec(profile))
+    diff = diff_invoices(ai_invoice, model_invoice, delivery_columns(profile, model))
 
     # Always surface both outputs side-by-side for review.
     _write_model_review_artifacts(db, intake_id, model, ai_invoice, model_invoice, profile)
@@ -1199,7 +1229,7 @@ def _write_model_review_artifacts(
     """
     try:
         written = write_model_review_artifacts(
-            intake_id, ai_invoice, model_invoice, spec=resolve_output_spec(profile),
+            intake_id, ai_invoice, model_invoice, columns=delivery_columns(profile, model),
         )
         if not written:
             return
@@ -1227,7 +1257,7 @@ def _validate_model_output_for_reuse(invoice: ExtractedDocument) -> tuple[bool, 
     if all(item.amount == 0 for item in invoice.line_items):
         return False, "all extracted line items are zero amount"
 
-    recon = reconcile(invoice, default_field_schema())
+    recon = reconcile(invoice, default_field_set())
     if recon is not None and not recon.is_reconciled:
         return False, f"reconciliation failed: variance {recon.variance_pct:.4%}"
     return True, "validated"
@@ -1462,6 +1492,21 @@ def _deliver_without_clobbering(source: Path, dest_dir: Path) -> Path:
     return target
 
 
+def _delivered_model(db: Session, invoice: CanonicalInvoice) -> ExtractionModel | None:
+    """The template that produced ``invoice`` (template path only), so its own
+    output columns, when it has any, win over the profile's."""
+    model_id = getattr(invoice.metadata, "model_id", None)
+    if not model_id:
+        return None
+    record = crud.get_extraction_model(db, model_id)
+    if record is None:
+        return None
+    try:
+        return ExtractionModel.model_validate(record.model_json)
+    except Exception:  # pragma: no cover - a corrupt stored model must not block delivery
+        return None
+
+
 def _generate_output(db: Session, intake_id: str,
                      invoice: CanonicalInvoice,
                      custom_output_dir: Path | None = None,
@@ -1480,9 +1525,15 @@ def _generate_output(db: Session, intake_id: str,
     # an account produced the same filename and silently overwrote the last --
     # account 82824706 had 10 distinct invoices all delivered as 82824706.xlsx.
     xlsx_name = derive_output_xlsx_name(original_filename)
-    xlsx_path = write_xlsx(
-        invoice, output_dir / xlsx_name, resolve_output_spec(profile),
-    )
+    columns_profile = profile
+    if columns_profile is None and intake is not None and intake.supplier_profile_id:
+        columns_profile = get_profile(intake.supplier_profile_id)
+    columns = delivery_columns(columns_profile, _delivered_model(db, invoice)) if columns_profile else []
+    if columns:
+        xlsx_path = write_xlsx(invoice, output_dir / xlsx_name, columns)
+    else:
+        # No profile: ship what was read, every field, as a raw workbook.
+        xlsx_path = write_raw_workbook(invoice, output_dir / xlsx_name)
     json_path = write_canonical_json(invoice, output_dir / "canonical_invoice.json")
     log_path = write_extraction_log(invoice, output_dir / "extraction_log.json")
     # Where each delivered cell was read from (template path: exact boxes; AI

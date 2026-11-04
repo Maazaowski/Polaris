@@ -12,14 +12,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS, output_spec_to_columns
-from polaris.output.spec import OutputSpec
+from polaris.output.mapper import ColumnDef
 from polaris.output.xlsx_writer import build_output_rows
 from polaris.validation.schema import CanonicalInvoice
 
-# Default column names (standard 8-column). The diff is keyed off the columns of whatever
-# OutputSpec the invoice will be delivered with — see ``diff_invoices``.
-OUTPUT_COLUMN_NAMES = [col.xlsx_header for col in STANDARD_OUTPUT_COLUMNS]
 _TEXT_COMPARE_WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -31,7 +27,7 @@ class OutputDiff:
     missing_rows: list[list] = field(default_factory=list)
     extra_rows: list[list] = field(default_factory=list)
     cell_diffs: list[dict] = field(default_factory=list)
-    column_names: list[str] = field(default_factory=lambda: list(OUTPUT_COLUMN_NAMES))
+    column_names: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         if self.is_match:
@@ -97,12 +93,12 @@ class OutputDiff:
         return "\n".join(lines)
 
 
-def _row_key(row: list, columns=STANDARD_OUTPUT_COLUMNS) -> tuple:
+def _row_key(row: list, columns: list[ColumnDef]) -> tuple:
     from polaris.output.mapper import normalize_output_value
 
     normalized = []
     for col_def, value in zip(columns, row):
-        norm = normalize_output_value(value, col_def.canonical_path)
+        norm = normalize_output_value(value, col_def.canonical_path, col_def.value_type)
         if isinstance(norm, str):
             norm = _TEXT_COMPARE_WHITESPACE_RE.sub(" ", norm).strip()
         normalized.append("" if norm is None else str(norm))
@@ -112,12 +108,12 @@ def _row_key(row: list, columns=STANDARD_OUTPUT_COLUMNS) -> tuple:
 def diff_output_rows(
     expected_rows: list[list],
     actual_rows: list[list],
-    columns=STANDARD_OUTPUT_COLUMNS,
+    columns: list[ColumnDef],
 ) -> OutputDiff:
     """Compare two sets of delivered output rows (order-insensitive).
 
-    ``columns`` are the ColumnDefs of the active OutputSpec, so normalization and
-    the reported column names match the exact deliverable being produced.
+    ``columns`` are the resolved delivery columns, so normalization and the
+    reported column names match the exact deliverable being produced.
     """
     column_names = [c.xlsx_header for c in columns]
 
@@ -180,15 +176,13 @@ def diff_output_rows(
 def diff_invoices(
     expected: CanonicalInvoice,
     actual: CanonicalInvoice,
-    spec: OutputSpec | None = None,
+    columns: list[ColumnDef],
 ) -> OutputDiff:
     """Diff two canonical invoices at the delivered-output level.
 
-    ``spec`` is the OutputSpec the invoice will be delivered with; the model is
-    therefore validated against the EXACT columns it will produce, not a global
-    constant. Omitting it falls back to the built-in standard layout.
+    ``columns`` are the delivery columns the invoice will ship with, so a model
+    is validated against the EXACT columns it will produce.
     """
-    columns = output_spec_to_columns(spec) if spec is not None else STANDARD_OUTPUT_COLUMNS
-    expected_rows = build_output_rows(expected, spec)
-    actual_rows = build_output_rows(actual, spec)
+    expected_rows = build_output_rows(expected, columns)
+    actual_rows = build_output_rows(actual, columns)
     return diff_output_rows(expected_rows, actual_rows, columns)

@@ -69,6 +69,9 @@ class LineItem(BaseModel):
     )
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
+    # A profile's custom row fields ride along under their own names.
+    model_config = {"extra": "allow"}
+
     @field_validator("currency", mode="before")
     @classmethod
     def _normalize_currency(cls, value: Any) -> str:

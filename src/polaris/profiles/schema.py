@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 from polaris.fields.schema import FieldDef
+from polaris.output.columns import OutputColumn
 
 
 class SupplierIdentity(BaseModel):
@@ -366,10 +367,25 @@ class SupplierProfile(BaseModel):
 
     identity: SupplierIdentity
     classification: ClassificationSignals = Field(default_factory=ClassificationSignals)
-    output_spec_id: str = Field(
-        default="standard.8col", description="Which OutputSpec this profile delivers.")
-    field_schema_id: str = Field(
-        default="invoice.standard", description="Which FieldSchema defines extraction fields.")
+    fields: list[FieldDef] = Field(
+        default_factory=list,
+        description=(
+            "What this supplier's invoices are read for: picks from the field catalogue "
+            "(with per-supplier label/date-format/required hints) plus any custom fields. "
+            "Starts empty; a training/active profile needs at least one."
+        ),
+    )
+    output_columns: list[OutputColumn] = Field(
+        default_factory=list,
+        description=(
+            "What gets delivered, in order. Starts empty; nothing about the deliverable is "
+            "assumed. A template may carry its own columns, which win over these."
+        ),
+    )
+    # Transitional: profiles persisted before their contract was embedded still
+    # name a registry spec/schema. Absent on anything created since.
+    output_spec_id: str | None = Field(default=None)
+    field_schema_id: str | None = Field(default=None)
     field_overrides: list[FieldDef] = Field(
         default_factory=list,
         description="Profile-specific field definition overrides (label_hint, add/edit by name).",

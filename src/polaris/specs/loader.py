@@ -24,22 +24,29 @@ _specs_cache: dict[str, OutputSpec] = {}
 
 def _builtin_standard_spec() -> OutputSpec:
     """In-code fallback equal to the shipped standard.8col spec."""
-    from polaris.output.mapper import STANDARD_OUTPUT_COLUMNS
-
     return OutputSpec(
         spec_id=DEFAULT_OUTPUT_SPEC_ID,
         name="Standard (8-column)",
         columns=[
-            OutputColumn(
-                header=c.xlsx_header,
-                source=c.canonical_path,
-                fallback=c.fallback_path,
-                width=c.width,
-                number_format=c.number_format,
-            )
-            for c in STANDARD_OUTPUT_COLUMNS
+            OutputColumn(header="EXT_SERVICEID", source="row.service_id",
+                         fallback="row.billing_reference", width=20),
+            OutputColumn(header="EXT_BILLINGREFERENCE", source="row.billing_reference",
+                         fallback="row.service_id", width=20),
+            OutputColumn(header="EXT_DATE", source="field.invoice_date", width=14),
+            OutputColumn(header="formula", source="field.due_date", fallback="field.invoice_date", width=14),
+            OutputColumn(header="EXT_AMOUNT", source="row.amount", width=14, number_format="#,##0.##"),
+            OutputColumn(header="EXT_ACCOUNT", source="field.account_number", width=16),
+            OutputColumn(header="EXT_INVOICENUMBER", source="field.invoice_number", width=20),
+            OutputColumn(header="EXT_TAX", source="computed.line_tax", width=14, number_format="#,##0.00"),
         ],
     )
+
+
+def output_spec_to_columns(spec):
+    """Transitional adapter for callers that still hold an ``OutputSpec``."""
+    from polaris.profiles.contract import columns_to_defs
+
+    return columns_to_defs(spec.columns)
 
 
 def load_all_output_specs(specs_dir: Path | None = None) -> dict[str, OutputSpec]:

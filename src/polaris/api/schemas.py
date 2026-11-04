@@ -34,6 +34,9 @@ class ExtractionPreviewResponse(BaseModel):
     """The deliverable preview: columns + rows mirror the XLSX exactly."""
 
     columns: list[PreviewColumn] = Field(default_factory=list)
+    # Where the column set came from: template, profile, raw (no profile) or
+    # none (a profile with no columns configured yet).
+    columns_source: str = "configured"
     rows: list[list[Any]] = Field(default_factory=list)
     row_count: int = 0
     line_item_count: int = 0

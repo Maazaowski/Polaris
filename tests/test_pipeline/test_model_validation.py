@@ -12,6 +12,7 @@ from polaris.validation.schema import (
     LineItem,
     OutputType,
 )
+from tests.output_columns import STANDARD_COLUMNS
 
 
 def _invoice(*, invoice_date=date(2024, 2, 1), amounts=("3996.34", "3996.34"),
@@ -48,7 +49,7 @@ def _invoice(*, invoice_date=date(2024, 2, 1), amounts=("3996.34", "3996.34"),
 def test_identical_output_matches():
     ai = _invoice()
     model = _invoice()
-    ok, reason = _model_matches_ai(model, ai)
+    ok, reason = _model_matches_ai(model, ai, STANDARD_COLUMNS)
     assert ok is True
     assert reason == "exact match"
 
@@ -56,7 +57,7 @@ def test_identical_output_matches():
 def test_tax_mismatch_blocks():
     ai = _invoice(tax_amounts=("919.16", "919.16"))
     model = _invoice(tax_amounts=("11.50", "11.50"))  # the Colt bug
-    ok, reason = _model_matches_ai(model, ai)
+    ok, reason = _model_matches_ai(model, ai, STANDARD_COLUMNS)
     assert ok is False
     assert "differ" in reason
 
@@ -64,14 +65,14 @@ def test_tax_mismatch_blocks():
 def test_date_mismatch_blocks():
     ai = _invoice(invoice_date=date(2024, 2, 1))
     model = _invoice(invoice_date=date(2026, 6, 9))  # today() fallback bug
-    ok, reason = _model_matches_ai(model, ai)
+    ok, reason = _model_matches_ai(model, ai, STANDARD_COLUMNS)
     assert ok is False
 
 
 def test_row_count_mismatch_blocks():
     ai = _invoice(amounts=("3996.34", "3996.34"), tax_amounts=("919.16", "919.16"))
     model = _invoice(amounts=("3996.34",), tax_amounts=("919.16",))
-    ok, reason = _model_matches_ai(model, ai)
+    ok, reason = _model_matches_ai(model, ai, STANDARD_COLUMNS)
     assert ok is False
     assert "expected 2 row(s), got 1" in reason
 
@@ -84,5 +85,5 @@ def test_row_order_does_not_matter():
     model.rows[0]["billing_reference"] = "S2"
     model.rows[1]["service_id"] = "S1"
     model.rows[1]["billing_reference"] = "S1"
-    ok, _ = _model_matches_ai(model, ai)
+    ok, _ = _model_matches_ai(model, ai, STANDARD_COLUMNS)
     assert ok is True
