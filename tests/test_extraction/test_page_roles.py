@@ -269,7 +269,14 @@ class TestContextPages:
 
     def test_it_does_not_drag_in_the_body_of_the_table(self):
         context = classify_pages(self._doc()).context_pages()
-        assert not any(3 <= page <= 11 for page in context), context
+        assert not any(4 <= page <= 11 for page in context), context
+
+    def test_a_table_that_starts_on_page_one_keeps_the_header_page(self):
+        """The invoice header shares page 1 with the table on a short invoice;
+        with no page before the table, page 1 must still be read."""
+        pages = [_table_page(n, COLS, rows=20) for n in range(1, 5)]
+        context = classify_pages(LayoutDocument(pages=pages)).context_pages()
+        assert 1 in context and 4 in context, context
 
     def test_a_header_beyond_the_first_five_pages_is_still_found(self):
         """The case the old ``page <= 5`` rule could not express."""

@@ -158,6 +158,9 @@ class DocumentPageMap:
             take(page.page_number)
 
         if self.largest_run is not None:
+            # The table's first page: when the table starts on page 1 the
+            # invoice header shares that page, and no page precedes the anchor.
+            take(self.largest_run.first_page)
             take(self.largest_run.last_page)
             # Totals follow their table: the subtotal for a run that ends on
             # page 14 is routinely printed at the top of page 15.
