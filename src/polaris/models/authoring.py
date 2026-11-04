@@ -658,6 +658,7 @@ def _apply_profile_authoring_hints(
 
     _reconcile_tax_rate_total(model, profile, page_texts=page_texts, target=target)
     _reconcile_currency_header(model, profile, page_texts=page_texts, target=target)
+    _carry_tax_policy(model, profile)
 
     ds = profile.document_structure
     # Seed the line-item region anchors from the profile when the AI left them
@@ -682,6 +683,24 @@ def _apply_profile_authoring_hints(
     _reconcile_self_checks(model, target, has_per_line_tax=has_per_line_tax)
 
     return model
+
+
+def _carry_tax_policy(model: ExtractionModel, profile: SupplierProfile) -> None:
+    """Copy the profile's delivered-tax policy onto the model when it has none.
+
+    The AI ground truth is normalized with the profile's ``tax_output_mode`` /
+    ``tax_rate_source`` hints, but an approved model runs with no profile hints
+    at all: the interpreter only knows the policy the model itself carries. A
+    model that leaves it unset therefore computes EXT_TAX under the ``auto``
+    policy and can differ from the ground truth by rounding (one cent per row
+    for allocated tax), so authoring never converges. Builder models already
+    ship the policy; authored models get the profile's.
+    """
+    hints = profile.line_item_hints
+    if model.tax_output_mode is None and hints.tax_output_mode:
+        model.tax_output_mode = hints.tax_output_mode
+    if model.tax_rate_source is None and hints.tax_rate_source:
+        model.tax_rate_source = hints.tax_rate_source
 
 
 def _reconcile_self_checks(

@@ -215,6 +215,44 @@ def test_colt_currency_without_label_uses_literal():
     assert model.header_fields["currency"].required is False
 
 
+def _colt_model(profile: SupplierProfile, **policy: str) -> ExtractionModel:
+    return ExtractionModel(
+        model_id=profile.profile_id,
+        supplier_profile_id=profile.profile_id,
+        supplier=profile.identity.canonical_name,
+        header_fields={"currency": HeaderFieldRule(label="Total Amount Due", literal="USD", required=False)},
+        **policy,
+    )
+
+
+def test_authored_model_carries_the_profile_tax_policy():
+    """Colt delivers calculated tax; the authored template must say so itself."""
+    profile = _corpus_profile("colt.standard")
+    assert profile.line_item_hints.tax_output_mode == "calculate"
+    model = _colt_model(profile)
+
+    _apply_profile_authoring_hints(
+        model, profile, page_texts=["LAYOUT PAGE 1 (595x842) id=p1"],
+        target={"header": {}, "totals": {}, "line_items": []},
+    )
+
+    assert model.tax_output_mode == "calculate"
+    assert model.tax_rate_source == profile.line_item_hints.tax_rate_source
+
+
+def test_a_model_that_sets_its_own_tax_policy_keeps_it():
+    profile = _corpus_profile("colt.standard")
+    model = _colt_model(profile, tax_output_mode="none", tax_rate_source="invoice_tax_rate")
+
+    _apply_profile_authoring_hints(
+        model, profile, page_texts=["LAYOUT PAGE 1 (595x842) id=p1"],
+        target={"header": {}, "totals": {}, "line_items": []},
+    )
+
+    assert model.tax_output_mode == "none"
+    assert model.tax_rate_source == "invoice_tax_rate"
+
+
 def test_build_target_derives_tax_rate_from_totals_for_ext_tax():
     """Ground truth without explicit tax_rate must still carry the rate EXT_TAX uses."""
     invoice = CanonicalInvoice(
