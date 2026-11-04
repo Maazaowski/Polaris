@@ -479,6 +479,16 @@ export interface SupplierProfile {
   audit?: Record<string, unknown> | null;
 }
 
+/** What a profile save did to its templates when the edit changed the
+ * fingerprint salt (fingerprint rules, line-item anchors, label hints,
+ * document category). Absent when the edit did not touch the salt. */
+export interface ModelRekeySummary {
+  rekeyed: number;
+  unchanged: number;
+  /** Models that could not be re-keyed: their authoring invoice is no longer archived. */
+  failed: string[];
+}
+
 export interface ProfileSummary {
   profile_id: string;
   supplier_name: string;
@@ -492,6 +502,7 @@ export interface ProfileSummary {
   output_path: string | null;
   account_count?: number;
   audit?: Record<string, unknown> | null;
+  rekey?: ModelRekeySummary | null;
 }
 
 // ── AI profile authoring assistant ─────────────────────────

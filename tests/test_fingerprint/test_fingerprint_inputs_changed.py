@@ -1,6 +1,6 @@
 """Profile edits that salt the fingerprint must trigger a template re-key."""
 
-from polaris.api.profiles import fingerprint_inputs_changed
+from polaris.fingerprint.fingerprinter import fingerprint_inputs_changed
 from polaris.profiles.schema import LayoutFingerprintRules, SupplierProfile
 
 
@@ -21,6 +21,18 @@ def test_cosmetic_edits_do_not_count(monkeypatch):
     after = _profile(notes="Call Bob about the PO line")
 
     assert fingerprint_inputs_changed(before, after) is False
+
+    rules = {"summary_anchors": ["Grand Total"]}
+    assert fingerprint_inputs_changed(
+        _profile(layout_fingerprint=rules), _profile(layout_fingerprint=rules, notes="cosmetic"),
+    ) is False
+
+
+def test_switching_between_legacy_and_profile_hash_counts():
+    """No rules means the generic legacy hash; adding even empty rules switches
+    to the profile-scoped hash, so the resolved config alone cannot tell."""
+    assert fingerprint_inputs_changed(_profile(), _profile(layout_fingerprint={})) is True
+    assert fingerprint_inputs_changed(_profile(layout_fingerprint={}), _profile()) is True
 
 
 def test_fingerprint_rules_and_category_count(monkeypatch):

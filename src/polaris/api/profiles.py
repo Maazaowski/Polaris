@@ -32,6 +32,17 @@ router = APIRouter(prefix="/profiles", tags=["profiles"])
 PROFILE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
+class ModelRekeySummary(BaseModel):
+    """What a save did to the profile's templates when it changed the fingerprint salt."""
+
+    rekeyed: int = Field(default=0, description="Models re-keyed to a new layout fingerprint")
+    unchanged: int = Field(default=0, description="Models whose recomputed fingerprint was already current")
+    failed: list[str] = Field(
+        default_factory=list,
+        description="Models that could not be re-keyed (authoring invoice no longer available)",
+    )
+
+
 class ProfileSummary(BaseModel):
     profile_id: str
     supplier_name: str
@@ -47,6 +58,8 @@ class ProfileSummary(BaseModel):
     output_path: str | None = None
     account_count: int = 0
     audit: dict | None = None
+    # Set on a PUT whose edit changed the fingerprint salt; None otherwise.
+    rekey: ModelRekeySummary | None = None
 
 
 class SimpleExtractionHints(BaseModel):
@@ -173,11 +186,20 @@ def _account_ownership_conflicts(profile: SupplierProfile) -> list[str]:
     return issues
 
 
-def _persist_profile(profile: SupplierProfile, *, actor=None) -> None:
-    """Validate the id and upsert the profile into the DB (source of truth)."""
+def _persist_profile(profile: SupplierProfile, *, actor=None) -> ModelRekeySummary | None:
+    """Validate the id and upsert the profile into the DB (source of truth).
+
+    Returns what the save did to the profile's templates when the edit changed
+    the fingerprint salt (see ``loader.save_profile``), else None.
+    """
     if not PROFILE_ID_PATTERN.fullmatch(profile.profile_id):
         raise HTTPException(status_code=400, detail="Invalid profile ID")
-    save_profile(profile, actor=actor)
+    rekey = save_profile(profile, actor=actor)
+    if rekey is None:
+        return None
+    return ModelRekeySummary(
+        rekeyed=len(rekey.rekeyed), unchanged=len(rekey.unchanged), failed=rekey.failed_model_ids,
+    )
 
 
 def set_profile_status(
@@ -315,65 +337,16 @@ def create_profile(profile: SupplierProfile, current_user: CurrentUser):
 def update_profile(profile_id: str, profile: SupplierProfile, current_user: CurrentUser):
     if profile.profile_id != profile_id:
         raise HTTPException(status_code=400, detail="Profile ID cannot be changed")
-    previous = get_profile(profile_id)
-    if previous is None:
+    if get_profile(profile_id) is None:
         raise HTTPException(status_code=404, detail="Profile not found")
     issues = _profile_readiness_issues(profile)
     if issues:
         raise HTTPException(status_code=422, detail={"issues": issues})
 
-    _persist_profile(profile, actor=current_user)
-    if fingerprint_inputs_changed(previous, profile):
-        _rekey_models_after_profile_change(profile_id, actor=current_user)
-    return _summary(get_profile(profile_id) or profile)
-
-
-def fingerprint_inputs_changed(previous: SupplierProfile, current: SupplierProfile) -> bool:
-    """Did this edit change anything the layout fingerprint is salted with?
-
-    The hash depends on the resolved fingerprint config (fingerprint rules,
-    line-item anchors, the profile fields' label hints) and on the document
-    category. Compare the *resolved* config so a change routed through any of
-    those fields is caught.
-    """
-    from polaris.fingerprint.fingerprinter import layout_fingerprint_config_from_profile
-
-    if previous.classification.output_type != current.classification.output_type:
-        return True
-    try:
-        return layout_fingerprint_config_from_profile(previous) != layout_fingerprint_config_from_profile(current)
-    except Exception as exc:  # a schema that no longer resolves: treat as changed, re-key is idempotent
-        logger.warning("profiles.fingerprint_config_compare_failed", profile_id=current.profile_id, error=str(exc))
-        return True
-
-
-def _rekey_models_after_profile_change(profile_id: str, *, actor=None) -> None:
-    """Keep the profile's templates routable after a fingerprint-affecting edit.
-
-    Editing fingerprint rules used to orphan approved models silently: the
-    stored hash no longer matched, every invoice fell to AI with a layout-drift
-    exception, and nothing said why. Re-key from the archived authoring PDFs.
-    Never fails the save; a model whose PDF is gone is logged and skipped.
-    """
-    from polaris.audit import actor_label
-    from polaris.db.session import SessionLocal
-    from polaris.models.registry import rekey_profile_models
-
-    db = SessionLocal()
-    try:
-        results = rekey_profile_models(db, profile_id, updated_by=actor_label(actor) if actor else None)
-    except Exception as exc:  # pragma: no cover - never block a profile save
-        logger.warning("profiles.rekey_after_change_failed", profile_id=profile_id, error=str(exc))
-        return
-    finally:
-        db.close()
-    for result in results:
-        if result.error:
-            logger.warning("profiles.rekey_skipped", profile_id=profile_id, model_id=result.model_id,
-                           reason=result.error)
-        else:
-            logger.info("profiles.rekey_after_change", profile_id=profile_id, model_id=result.model_id,
-                        changed=result.changed)
+    rekey = _persist_profile(profile, actor=current_user)
+    summary = _summary(get_profile(profile_id) or profile)
+    summary.rekey = rekey
+    return summary
 
 
 @router.delete("/{profile_id}")

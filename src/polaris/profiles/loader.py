@@ -6,10 +6,14 @@ care that storage moved from disk to the database.
 """
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 
 from polaris.profiles.schema import SupplierProfile
+
+if TYPE_CHECKING:
+    from polaris.models.registry import ProfileRekeySummary
 
 logger = structlog.get_logger()
 
@@ -71,13 +75,26 @@ def get_profile(profile_id: str) -> SupplierProfile | None:
     return _profiles_cache.get(profile_id)
 
 
-def save_profile(profile: SupplierProfile, *, actor=None) -> None:
-    """Persist (insert or update) a profile in the DB and refresh the cache."""
+def save_profile(profile: SupplierProfile, *, actor=None) -> "ProfileRekeySummary | None":
+    """Persist (insert or update) a profile in the DB and refresh the cache.
+
+    A model is routed by (profile id, layout fingerprint) and the fingerprint is
+    salted by the profile's fingerprint rules, line-item anchors, field label
+    hints and document category. Saving an edit to any of those used to orphan
+    the profile's approved models silently: the pipeline computed a new hash
+    for the same layout, found no model, and sent every invoice to AI with a
+    layout-drift exception. So when the saved profile changes the salt, its
+    non-retired models are re-keyed from their archived authoring invoices
+    right here, on every write path. Returns what that did, or None when the
+    edit did not touch the salt. Re-keying never fails the save.
+    """
     from polaris.db import registry
     from polaris.db.session import SessionLocal
 
     db = SessionLocal()
     try:
+        previous_row = registry.get_profile(db, profile.profile_id)
+        previous = _row_to_profile(previous_row) if previous_row is not None else None
         registry.upsert_profile(
             db,
             profile_id=profile.profile_id,
@@ -89,6 +106,30 @@ def save_profile(profile: SupplierProfile, *, actor=None) -> None:
     finally:
         db.close()
     _profiles_cache[profile.profile_id] = profile
+    if previous is None:
+        return None
+    return _rekey_models_if_salt_changed(previous, profile, actor=actor)
+
+
+def _rekey_models_if_salt_changed(
+    previous: SupplierProfile, current: SupplierProfile, *, actor=None,
+) -> "ProfileRekeySummary | None":
+    # Imported here: the fingerprinter and the model registry sit above this
+    # module in the import graph (both load profiles through it).
+    from polaris.db.session import SessionLocal
+    from polaris.fingerprint.fingerprinter import fingerprint_inputs_changed
+    from polaris.models.registry import rekey_models_for_profile
+
+    if not fingerprint_inputs_changed(previous, current):
+        return None
+    db = SessionLocal()
+    try:
+        return rekey_models_for_profile(db, current.profile_id, actor=actor)
+    except Exception as exc:  # pragma: no cover - never block a profile save on the re-key
+        logger.warning("profiles.rekey_after_save_failed", profile_id=current.profile_id, error=str(exc))
+        return None
+    finally:
+        db.close()
 
 
 def delete_profile(profile_id: str, *, actor=None) -> bool:

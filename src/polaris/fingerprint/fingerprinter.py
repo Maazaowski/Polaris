@@ -17,8 +17,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import fitz  # pymupdf
+import structlog
 
 from polaris.profiles.schema import LayoutFingerprintRules, SupplierProfile
+
+logger = structlog.get_logger()
 
 
 @dataclass
@@ -228,6 +231,32 @@ def layout_fingerprint_config_from_profile(profile: SupplierProfile) -> Resolved
         optional_column_patterns=list(rules.optional_column_patterns),
         exclude_span_patterns=list(rules.exclude_span_patterns or _DEFAULT_EXCLUDE_SPAN_PATTERNS),
     )
+
+
+def fingerprint_inputs_changed(previous: SupplierProfile, current: SupplierProfile) -> bool:
+    """Did a profile edit change anything a model's layout fingerprint is salted with?
+
+    ``fingerprint_pdf`` hashes with the resolved profile config when the profile
+    carries ``layout_fingerprint`` rules and with the generic legacy heuristic
+    when it does not, and the family key folds in the document category. A
+    model keyed under the old salt stops matching the very same PDF, so the
+    caller re-keys the profile's models whenever this returns True. Compare the
+    *resolved* config so a change routed through any contributing field (the
+    rules, the line-item anchors, a field's label hint) is caught.
+    """
+    if previous.classification.output_type != current.classification.output_type:
+        return True
+    if (previous.layout_fingerprint is None) != (current.layout_fingerprint is None):
+        return True
+    if current.layout_fingerprint is None:
+        return False  # legacy hash: the PDF alone decides
+    try:
+        return layout_fingerprint_config_from_profile(previous) != layout_fingerprint_config_from_profile(current)
+    except Exception as exc:  # a contract that no longer resolves: treat as changed, re-keying is idempotent
+        logger.warning(
+            "fingerprint.config_compare_failed", profile_id=current.profile_id, error=str(exc),
+        )
+        return True
 
 
 def compute_layout_family_key(

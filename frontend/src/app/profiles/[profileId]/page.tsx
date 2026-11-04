@@ -89,11 +89,31 @@ import type {
   FieldDef,
   LayoutFingerprintRules,
   LineItemHints,
+  ModelRekeySummary,
   OutputColumn,
   SetupConflict,
   SupplierProfile,
   TrainingConfig,
 } from "@/types";
+
+// One line for the save toast: what the save did to the profile's templates
+// after an edit changed what the layout fingerprint is salted with.
+function rekeyToastLine(rekey: ModelRekeySummary): string {
+  const parts: string[] = [];
+  if (rekey.rekeyed > 0) {
+    const noun = rekey.rekeyed === 1 ? "template" : "templates";
+    parts.push(`${rekey.rekeyed} ${noun} re-keyed to the new fingerprint rules`);
+  }
+  if (rekey.failed.length > 0) {
+    parts.push(
+      `${rekey.failed.join(", ")} could not be re-keyed because the authoring invoice is no longer archived; use Re-key fingerprint on the model once it is`,
+    );
+  }
+  if (parts.length === 0) {
+    return "Fingerprint rules changed; existing templates already match.";
+  }
+  return `${parts.join(". ")}.`;
+}
 
 // Normalized accounts: explicit list when set, else the legacy single folder pair
 // as one account, else empty. Read-only in the editor now — accounts are mapped
@@ -1176,12 +1196,18 @@ export default function ProfileEditorPage({
         toast.success("Profile created.");
         router.push(`/profiles/${profileToSave.profile_id}`);
       } else {
-        await updateProfile.mutateAsync({
+        const saved = await updateProfile.mutateAsync({
           profileId,
           profile: profileToSave,
         });
         setProfile(profileToSave);
-        toast.success("Profile updated.");
+        if (!saved.rekey) {
+          toast.success("Profile updated.");
+        } else if (saved.rekey.failed.length > 0) {
+          toast.warning(`Profile updated. ${rekeyToastLine(saved.rekey)}`);
+        } else {
+          toast.success(`Profile updated. ${rekeyToastLine(saved.rekey)}`);
+        }
       }
     } catch (err) {
       toast.error(toastErrorMessage(err, "Failed to save profile."));

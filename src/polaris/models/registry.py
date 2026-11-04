@@ -5,7 +5,7 @@ variant), with the layout fingerprint stored for routing and drift detection.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -492,6 +492,71 @@ def rekey_profile_models(
         if result is not None:
             results.append(result)
     return results
+
+
+@dataclass
+class ProfileRekeySummary:
+    """What re-keying a profile's templates after a salt-changing edit did."""
+
+    profile_id: str
+    rekeyed: list[str] = field(default_factory=list)
+    unchanged: list[str] = field(default_factory=list)
+    failed: list[tuple[str, str]] = field(default_factory=list)  # (model_id, reason)
+
+    @property
+    def failed_model_ids(self) -> list[str]:
+        return [model_id for model_id, _ in self.failed]
+
+    @property
+    def touched(self) -> bool:
+        return bool(self.rekeyed or self.unchanged or self.failed)
+
+
+def rekey_models_for_profile(db: Session, profile_id: str, *, actor=None) -> ProfileRekeySummary:
+    """Re-key a profile's templates after an edit changed what the fingerprint is salted with.
+
+    Called from the profile save path. Each non-retired model is re-keyed from
+    its archived authoring PDF; a model whose PDF (or source intake, or profile)
+    is unavailable cannot be, so it is logged as a warning and named in an
+    ``audit_events`` row on the profile instead of failing the save. Nothing
+    raises for a per-model problem; the caller decides what to do with the
+    summary.
+    """
+    from polaris.audit import actor_label, append_event
+
+    summary = ProfileRekeySummary(profile_id=profile_id)
+    updated_by = actor_label(actor) if actor is not None else None
+    for result in rekey_profile_models(db, profile_id, updated_by=updated_by):
+        if result.error:
+            summary.failed.append((result.model_id, result.error))
+            logger.warning(
+                "registry.profile_rekey_skipped",
+                profile_id=profile_id, model_id=result.model_id, status=result.status, reason=result.error,
+            )
+        elif result.changed:
+            summary.rekeyed.append(result.model_id)
+        else:
+            summary.unchanged.append(result.model_id)
+    logger.info(
+        "registry.profile_models_rekeyed",
+        profile_id=profile_id, rekeyed=summary.rekeyed, unchanged=summary.unchanged,
+        failed=summary.failed_model_ids,
+    )
+    if summary.touched:
+        append_event(
+            db,
+            entity_type="profile",
+            entity_id=profile_id,
+            action="models_rekeyed",
+            actor=actor,
+            metadata={
+                "rekeyed": summary.rekeyed,
+                "unchanged": summary.unchanged,
+                "failed": [{"model_id": model_id, "reason": reason} for model_id, reason in summary.failed],
+            },
+        )
+        db.commit()
+    return summary
 
 
 def _archived_pdf_for(intake) -> Path | None:
