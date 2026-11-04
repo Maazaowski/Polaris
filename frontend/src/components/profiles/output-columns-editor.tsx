@@ -52,13 +52,22 @@ export function SourceSelect({
     ...rowFields.map((field) => `row.${field.name}`),
     ...COMPUTED_SOURCES,
   ]);
+  // Base UI's SelectValue renders the raw value unless given a render function;
+  // show the option's label so the trigger never reads "__none__" or "row.x".
+  const labelFor = (current: string | null): string => {
+    if (!current || current === "__none__") return "No fallback";
+    if (current.startsWith("field.")) return `${humanizeFieldName(current.slice(6))} · document`;
+    if (current.startsWith("row.")) return `${humanizeFieldName(current.slice(4))} · row`;
+    if (current.startsWith("computed.")) return `${humanizeFieldName(current.slice(9))} · computed`;
+    return current;
+  };
   return (
     <Select
       value={value || (allowNone ? "__none__" : undefined)}
       onValueChange={(next) => onChange(!next || next === "__none__" ? null : next)}
     >
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{(current: string | null) => labelFor(current)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {allowNone && <SelectItem value="__none__">No fallback</SelectItem>}
