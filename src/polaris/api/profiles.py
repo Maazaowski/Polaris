@@ -332,7 +332,7 @@ def fingerprint_inputs_changed(previous: SupplierProfile, current: SupplierProfi
     """Did this edit change anything the layout fingerprint is salted with?
 
     The hash depends on the resolved fingerprint config (fingerprint rules,
-    line-item anchors, the field schema's label hints) and on the document
+    line-item anchors, the profile fields' label hints) and on the document
     category. Compare the *resolved* config so a change routed through any of
     those fields is caught.
     """

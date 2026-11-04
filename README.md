@@ -15,7 +15,7 @@ Polaris replaces hand-built, per-supplier report templates (the Astera ReportMin
 - [First run: from empty database to first invoice](#first-run-from-empty-database-to-first-invoice)
 - [Processing pipeline, step by step](#processing-pipeline-step-by-step)
 - [Templates: how the system gets cheaper over time](#templates-how-the-system-gets-cheaper-over-time)
-- [The three configuration layers](#the-three-configuration-layers)
+- [What a profile configures](#what-a-profile-configures)
 - [Folders on disk](#folders-on-disk)
 - [The UI](#the-ui)
 - [API](#api)
@@ -70,7 +70,7 @@ Models are routed by **`supplier_profile_id` + `layout_fingerprint`**. Approved 
 ## What you get
 
 - **Three ways in.** A per-supplier watched folder, a drag-and-drop Upload page, or `POST /api/v1/invoices/upload`.
-- **One deliverable contract.** An Output Spec defines the columns delivered (the historical default is an 8-column "standard" XLSX); several specs ship for wireless, time-and-material and Orange layouts, and you can define your own.
+- **Each supplier owns its deliverable.** A profile lists the fields its invoices are read for (picked from a fixed catalogue, plus custom fields) and the columns it delivers, in order. Nothing is assumed: both start empty. A template drawn in the builder may carry its own columns.
 - **Two ways to build a template.** An AI training loop (author, execute, diff against the AI's answer, refine) and a **visual model builder** where you draw the same primitives by hand against a sample PDF. Both produce the same model JSON, run by the same interpreter.
 - **An AI profile assistant** that drafts a supplier profile from one or more invoices and an optional blueprint of the expected output.
 - **Deterministic safety nets.** Layout fingerprinting, arithmetic reconciliation against stated totals, self-checks inside each model, and a candidate/approved lifecycle with clone, rollback and retire.
@@ -170,7 +170,7 @@ To go from empty to a first invoice by hand instead:
 
 1. **Sign in** with `POLARIS_ADMIN_EMAIL` / `POLARIS_ADMIN_PASSWORD`. The bootstrap only runs while the users table is empty; manage people afterwards under **System → Users**.
 2. **Add an AI key** under **Settings → AI Configuration** if you did not put one in `.env`. Keys are stored encrypted in MySQL (`POLARIS_SECRET_KEY`), and you can switch provider between OpenAI and Anthropic there.
-3. **Add a supplier.** **Suppliers → Add supplier** opens the AI profile assistant: pick the output spec and field schema, drop one or more of that supplier's invoices, and let it draft the profile. Save it, then activate it.
+3. **Add a supplier.** **Suppliers → Add supplier** opens the AI profile assistant: drop one or more of that supplier's invoices (and, if you have one, a blueprint of the expected output) and let it propose the fields to read and the columns to deliver. Save it, review the fields and columns in the editor, then activate it.
 4. **Map a folder.** Under **Suppliers → Accounts**, assign the on-disk folder `<customer>/<account>/pdf` to the profile. The watcher picks up the folder within `POLARIS_WATCHER_REGISTRY_RESCAN_SECONDS`.
 5. **Process invoices.** Drop PDFs in the folder or use **Work → Upload**. Watch the timeline on the invoice page.
 6. **Cut a template.** From the profile's **Training** tab, upload a few training invoices, or build one by hand in **Templates → Build model**. When a candidate matches the AI's output exactly and passes its self-checks, **approve** it.
@@ -200,7 +200,7 @@ To go from empty to a first invoice by hand instead:
 
  4b. AI             text-first extraction over the PDF's text layer in layout-preserving chunks
                     (page images only for pages with little text). Structured Outputs enforce
-                    the field schema. Every call is priced and logged to `ai_cost_logs`.
+                    the profile's field set. Every call is priced and logged to `ai_cost_logs`.
 
  4c. TRAINING       on a profile in `training` status the AI output is ground truth; the authoring
                     loop writes rules, runs them, diffs the delivered rows, and refines up to
@@ -211,7 +211,8 @@ To go from empty to a first invoice by hand instead:
                     POLARIS_RECONCILIATION_VARIANCE_THRESHOLD lands the invoice in Needs review.
 
  6. OUTPUT          work_dir/completed/<intake_id>/
-                      <original name>.xlsx      the deliverable, in the profile's output spec
+                      <original name>.xlsx      the deliverable, in the profile's (or template's) columns;
+                                                with no profile, a raw workbook of every field read
                       canonical_invoice.json    the full normalized extraction
                       extraction_log.json       path taken, tokens, cost, confidence, warnings
                       provenance.json           where each delivered cell was read from (page, printed row, box)
@@ -249,19 +250,23 @@ python scripts/refingerprint_models.py              # dry run: shows which model
 python scripts/refingerprint_models.py --apply      # write the recomputed fingerprints
 ```
 
-## The three configuration layers
+## What a profile configures
 
-Polaris is domain-agnostic by design. Supplier knowledge never lives in code; it lives in three kinds of data, all editable in the UI and stored in MySQL.
+Polaris is domain-agnostic by design. Supplier knowledge never lives in code; it lives in the supplier profile, editable in the UI and stored in MySQL.
 
-| Layer | What it holds | Where |
+| Part | What it holds | Where |
 |---|---|---|
-| **Supplier profile** | Routing (aliases, folders), header and line-item hints for the AI, fingerprint rules, training settings, which field schema and output spec to use | **Suppliers → Profiles** (`profiles/schema.py`) |
-| **Field schema** | The extraction contract: document-level and row-level fields the AI or interpreter must produce | **Suppliers → Field schemas** (`fields/`) |
-| **Output spec** | The deliverable: columns, mappings from fields, formatting | **Suppliers → Output specs** (`specs/`, `output/mapper.py`) |
+| **Fields to read** | What this supplier's invoices are read for: picks from the **field catalogue** (a fixed vocabulary of canonical invoice fields with their type and role, `fields/catalogue.py`), each with the supplier's printed label, date format and required flag, plus custom fields the catalogue does not know | **Suppliers → Profiles → Setup** |
+| **Delivered columns** | The deliverable, in order: header, the field each column reads (or the computed per-line tax), fallback, transforms, formatting | **Suppliers → Profiles → Setup** |
+| **Hints and rules** | Routing (aliases, folders), header and line-item hints for the AI, fingerprint rules, training settings | **Suppliers → Profiles** (`profiles/schema.py`) |
+
+Both lists start empty for a new supplier. A profile cannot go into training or be activated until it has fields, columns, a printed date format on every delivered date and an amount field to reconcile against; an active profile with no columns parks its invoices as a configuration exception before any AI is spent. `profiles/contract.py` is the one place the pipeline asks what a profile reads and delivers; a template drawn in the builder may carry its own columns, which win over the profile's.
+
+An invoice that arrives with **no profile** is still extracted by AI and delivers the canonical JSON plus a *raw extraction workbook*: an Invoice sheet with every document field read and a Line items sheet with every row field, headers being the field names. That is a dump of what was read, not a configured deliverable.
 
 `validation/schema.py` defines `CanonicalInvoice`, the normalized form both extraction paths produce and everything downstream consumes.
 
-The JSON files under `supplier_profiles/`, `field_schemas/` and `output_specs/` are **seed files only**: they are imported into MySQL on startup when a row is missing, and the database is the source of truth after that.
+The JSON files under `supplier_profiles/` are **seed files only**: they are imported into MySQL on startup when a row is missing, and the database is the source of truth after that.
 
 ## Folders on disk
 
@@ -298,13 +303,12 @@ Three sections, reachable from the rail on the left or the command palette (`Ctr
 | | `/exceptions` | Failed and variance invoices with the reason; retry or resolve. |
 | | `/upload` | Drag-and-drop PDFs with per-file progress. |
 | **Suppliers** | `/profiles` | Every supplier profile with its template state (none, cutting, ready, drifted) and delivery folder. |
-| | `/profiles/[id]` | The editor: identify, output mapping, per-field hints, accounts, notes, advanced, preview output, training. **Edit with AI** opens the assistant on an existing profile. |
+| | `/profiles/[id]` | The editor: identify, fields to read, delivered columns, accounts, notes, advanced, preview output, training. **Edit with AI** opens the assistant on an existing profile. |
 | | `/profiles/new/assistant` | AI profile authoring session from sample invoices and an optional blueprint. |
 | | `/accounts` | Folders on disk vs profiles: unmapped, mapped, conflict, missing. Assign, unassign, create, rescan. |
 | | `/models` | Templates by profile: candidates, approved, failed; confidence, usage, who created them. |
 | | `/models/[id]` | A model's rules rendered as tables (header fields, region, columns, row classifiers, grouping, line-item fields), training set, versions, preview output. Clone, retire, delete. |
 | | `/models/builder` | The visual builder. |
-| | `/field-schemas`, `/output-specs` | Editors for the other two configuration layers, with clone and validate. |
 | **System** | `/settings` | Provider and keys, models per task, thresholds, worker concurrency, watcher timing, log level, debug mode, danger zone. |
 | | `/insights` | Totals, reconciliation rate, AI spend split into extraction vs training, 30-day volume and cost, monthly breakdown by model and by supplier. |
 | | `/logs` | Processing audit trail and per-call token usage and cost. |
@@ -322,11 +326,10 @@ Interactive docs at <http://localhost:8000/docs>. The main groups:
 | `/api/v1/auth` | `login`, `logout`, `me`, `change-password` |
 | `/api/v1/invoices` | list with filters and facets, detail, jobs, logs, `upload`, `cancel`, `reject`, output and model-review downloads, `provenance` (where each delivered value came from), `purge` (debug) |
 | `/api/v1/exceptions` | list, detail, partial output, PDF, `retry`, `resolve` |
-| `/api/v1/profiles` | CRUD, `activate`/`retire`, `lint`, `validate`, `preview`, training invoices and status, `simple-hints`, and the `authoring/sessions` assistant |
+| `/api/v1/profiles` | CRUD, `activate`/`retire`, `lint`, `validate`, `preview`, training invoices and status, `simple-hints`, `field-catalogue` (the read-only field vocabulary), and the `authoring/sessions` assistant |
 | `/api/v1/models` | list, detail, `approve`/`activate`/`retire`, `clone`/`rollback`, `rules` (edit in place), training set, versions, usage, `draft/test` and `draft/eval-folder` for the builder |
 | `/api/v1/intakes` | builder samples and the normalized page layout (`/{id}/layout`) the canvas renders |
 | `/api/v1/accounts` | snapshot, `sync`, `assign`/`unassign`/`create` |
-| `/api/v1/field-schemas`, `/api/v1/output-specs` | CRUD, clone, validate |
 | `/api/v1/dashboard` | stats, volume, costs, monthly, by model, by supplier, AI calls |
 | `/api/v1/settings` | runtime settings; `keys` to store or clear a provider key |
 | `/api/v1/users` | admin user management |

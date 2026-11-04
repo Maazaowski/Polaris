@@ -1,5 +1,6 @@
-"""DB persistence for the config registries: supplier profiles, field schemas,
-output specs. Each stores the full pydantic JSON in a ``data`` column keyed by id.
+"""DB persistence for the supplier-profile registry and the small key/value
+tables. A profile row stores the full pydantic JSON in a ``data`` column keyed
+by id.
 
 The profile loader (`profiles/loader.py`) calls
 these with their own short-lived session. The DB is the source of truth; disk

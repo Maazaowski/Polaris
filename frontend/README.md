@@ -35,7 +35,7 @@ npm start          # serve the production build
 | `src/components/layout/` | The shell: a 240px sidebar that lists every section, a phone-only top bar, the command palette (`Ctrl/Cmd+K`). `nav-config.ts` is the single source of navigation. |
 | `src/components/brand/` | The star mark, the wordmark, and the mascot plus confetti used in empty states and on sign in. |
 | `src/components/builder/` | The visual model builder (`/models/builder`): layout canvas plus editors for regions, columns, row classifiers, headers, grouping, tax and computed values. |
-| `src/components/profiles/` | Profile editor tabs and the AI profile assistant. |
+| `src/components/profiles/` | The profile editor's shared pieces: the fields editor (catalogue picker plus custom fields), the delivered-columns editor, fixed document values, generated details. |
 | `src/components/ui/` | shadcn/ui v4 primitives on top of Base UI. `data-table.tsx` is the one table every list goes through. |
 | `src/hooks/` | TanStack Query hooks, one file per API area (`use-invoices`, `use-models`, …). |
 | `src/lib/api/` | The typed fetch client. `src/types/` mirrors the backend schemas by hand; the profile type must be updated together with the backend (see the root `CLAUDE.md`). |
