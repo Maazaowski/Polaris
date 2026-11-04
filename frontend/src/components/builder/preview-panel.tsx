@@ -168,10 +168,19 @@ function OutputTable({ res, configured }: { res: DraftTestResult; configured: Se
       configured={configured}
     />
   );
+  const columnsNote = {
+    template: "Template columns",
+    profile: "Profile columns",
+    raw: "Raw extraction (no columns configured)",
+    none: "No columns configured",
+  }[res.output.columns_source ?? ""];
   if (res.output.row_count === 0) {
     return (
       <div>
         {summary}
+        {columnsNote && (
+          <p className="px-3 pb-1 text-[11px] text-muted-foreground">{columnsNote}</p>
+        )}
         <p className="p-3 text-sm text-muted-foreground">
           No line items produced — check the region, grouping, and that an{" "}
           <span className="font-mono">amount</span> field is mapped.
@@ -180,12 +189,6 @@ function OutputTable({ res, configured }: { res: DraftTestResult; configured: Se
       </div>
     );
   }
-  const columnsNote = {
-    template: "Template columns",
-    profile: "Profile columns",
-    raw: "Raw extraction (no columns configured)",
-    none: "No columns configured",
-  }[res.output.columns_source ?? ""];
   return (
     <div className="max-h-72 overflow-auto">
       {summary}
