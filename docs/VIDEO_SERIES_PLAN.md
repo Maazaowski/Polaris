@@ -121,6 +121,8 @@ The shared Field schema and Output spec registries were folded into each supplie
 
 Parts 1, 7 and 8 are unaffected.
 
+Silent 1080p footage of these changed scenes (dark theme, 125%, drawn cursor, no voice) can be regenerated for a voice-over with `frontend/scripts/record-episode-scenes.mjs` against a production build of the demo stack; its header lists the scenes, the demo data each needs and how to restore the demo afterwards. Output goes to the gitignored `recordings/` folder.
+
 ## Optional parts if the series runs longer
 
 - **The AI profile assistant**: drafting a whole supplier profile from two invoices and a blueprint XLSX.

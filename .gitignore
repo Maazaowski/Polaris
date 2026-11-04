@@ -42,3 +42,6 @@ eval_cases/
 eval_cases_archive/
 # Playwright MCP scratch (page snapshots, console logs)
 .playwright-mcp/
+
+# Screen recordings for the video series (scripts/record-episode-scenes.mjs)
+recordings/
