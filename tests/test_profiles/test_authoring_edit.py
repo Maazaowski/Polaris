@@ -7,8 +7,6 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from polaris.extraction.layout import LayoutDocument
-from polaris.fields.loader import default_field_schema
-from polaris.output.spec import OutputColumn, OutputSpec
 from polaris.profiles.authoring import (
     draft_to_supplier_profile_dict,
     supplier_profile_to_draft,
@@ -30,31 +28,20 @@ def _source_profile() -> SupplierProfile:
         "status": "active",
         "identity": {"canonical_name": "Acme Corp", "aliases": ["ACME", "Acme Inc"]},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "standard.8col",
-        "field_schema_id": "invoice.standard",
-        "field_overrides": [
+        "fields": [
             {
                 "name": "invoice_date",
                 "scope": "document",
-                "type": "date",
-                "role": "none",
                 "label_hint": "Invoice Date",
                 "date_format": "%d/%m/%Y",
             },
-            {
-                "name": "plan_cost",
-                "scope": "row",
-                "type": "currency",
-                "role": "none",
-                "label_hint": None,
-            }
+            {"name": "service_id", "scope": "row"},
+            {"name": "billing_period_start", "scope": "row"},
+            {"name": "plan_cost", "scope": "row"},
         ],
-        "output_mapping_overrides": [
-            {
-                "output_header": "EXT_DATE",
-                "source": "row.billing_period_start",
-                "fallback": "field.invoice_date",
-            }
+        "output_columns": [
+            {"header": "EXT_SERVICEID", "source": "row.service_id"},
+            {"header": "EXT_DATE", "source": "row.billing_period_start", "fallback": "field.invoice_date"},
         ],
         "delivery": {"accounts": [
             {"label": "East", "inbound_path": "C:/in/east", "output_path": "C:/out/east"},
@@ -82,10 +69,7 @@ def _source_profile() -> SupplierProfile:
 def test_profile_to_draft_round_trips_hints():
     prof = _source_profile()
     draft = supplier_profile_to_draft(prof)
-    authored = draft_to_supplier_profile_dict(
-        draft, output_spec_id=prof.output_spec_id, field_schema_id=prof.field_schema_id,
-        field_schema=default_field_schema(),
-    )
+    authored = draft_to_supplier_profile_dict(draft)
     rebuilt = SupplierProfile.model_validate({**authored, "profile_id": "acme.standard.v1", "status": "draft"})
 
     assert rebuilt.identity.canonical_name == "Acme Corp"
@@ -100,7 +84,9 @@ def test_profile_to_draft_round_trips_hints():
     assert rebuilt.document_structure.detail_start_marker == "Charges"
     assert rebuilt.document_structure.detail_end_marker == "Total Due"
     assert rebuilt.advanced.require_line_item_identifier is True
-    assert rebuilt.output_mapping_overrides[0].source == "row.billing_period_start"
+    assert [c.header for c in rebuilt.output_columns] == ["EXT_SERVICEID", "EXT_DATE"]
+    assert rebuilt.output_columns[1].source == "row.billing_period_start"
+    assert [f.name for f in rebuilt.fields] == ["invoice_date", "service_id", "billing_period_start", "plan_cost"]
 
 
 def test_finalize_merge_preserves_non_ai_config_as_new_version():
@@ -108,10 +94,7 @@ def test_finalize_merge_preserves_non_ai_config_as_new_version():
     training, owner, and version lineage carry into the new version."""
     prof = _source_profile()
     draft = supplier_profile_to_draft(prof)
-    authored = draft_to_supplier_profile_dict(
-        draft, output_spec_id=prof.output_spec_id, field_schema_id=prof.field_schema_id,
-        field_schema=default_field_schema(),
-    )
+    authored = draft_to_supplier_profile_dict(draft)
     from polaris.api.profile_authoring import _merge_source_profile_config
 
     merged = _merge_source_profile_config(prof, authored)
@@ -128,48 +111,48 @@ def test_finalize_merge_preserves_non_ai_config_as_new_version():
     assert new.training_config.min_validation_successes == 5
     assert new.owner == "denis"
     assert new.advanced.document_field_defaults == {"account_number": "East"}
-    assert any(field.name == "plan_cost" for field in new.field_overrides)
-    invoice_date = next(field for field in new.field_overrides if field.name == "invoice_date")
+    assert any(field.name == "plan_cost" for field in new.fields)
+    invoice_date = next(field for field in new.fields if field.name == "invoice_date")
     assert invoice_date.date_format == "%d/%m/%Y"
-    assert new.output_mapping_overrides[0].source == "row.billing_period_start"
+    assert new.output_columns[1].source == "row.billing_period_start"
     # AI-authored hints carried through.
     assert new.line_item_hints.line_item_granularity == "per_charge_row"
 
 
-def test_scoped_field_path_selects_row_field_without_name_ambiguity():
+def test_authored_field_with_scope_selects_the_row_field_without_name_ambiguity():
     draft = {
         "profile": {
             **supplier_profile_to_draft(_source_profile())["profile"],
-            "field_overrides": [
-                {
-                    "field_path": "row.billing_period_start",
-                    "label_hint": "Billing Period",
-                    "date_format": None,
-                }
+            "fields": [
+                {"name": "billing_period_start", "scope": "row", "label_hint": "Billing Period"},
             ],
         }
     }
 
-    authored = draft_to_supplier_profile_dict(
-        draft,
-        output_spec_id="standard.8col",
-        field_schema_id="invoice.standard",
-        field_schema=default_field_schema(),
-    )
+    authored = draft_to_supplier_profile_dict(draft)
 
-    assert authored["field_overrides"][0]["scope"] == "row"
+    assert authored["fields"] == [{
+        "name": "billing_period_start", "scope": "row", "type": "date", "role": "none",
+        "label_hint": "Billing Period", "date_format": None, "required": False,
+    }]
 
 
-def test_edit_merge_uses_complete_authored_mapping_list_and_legacy_omission_preserves():
+def test_edit_merge_uses_complete_authored_column_list_and_omission_preserves():
     from polaris.api.profile_authoring import _merge_source_profile_config
 
     source = _source_profile()
-    reset = _merge_source_profile_config(source, {"output_mapping_overrides": []})
-    assert reset["output_mapping_overrides"] == []
+    reset = _merge_source_profile_config(source, {"output_columns": []})
+    assert reset["output_columns"] == []
 
     legacy = _merge_source_profile_config(source, {"notes": "Legacy authored draft"})
-    assert legacy["output_mapping_overrides"] == source.model_dump(mode="json")[
-        "output_mapping_overrides"]
+    assert legacy["output_columns"] == source.model_dump(mode="json")["output_columns"]
+    # Fields merge by key: an authored hint lands on the matching source field.
+    merged = _merge_source_profile_config(
+        source, {"fields": [{"name": "service_id", "scope": "row", "label_hint": "Circuit"}]},
+    )
+    by_key = {(f["scope"], f["name"]): f for f in merged["fields"]}
+    assert by_key[("row", "service_id")]["label_hint"] == "Circuit"
+    assert ("row", "plan_cost") in by_key
 
 
 def test_edit_with_ai_endpoints_and_tasks_are_wired():
@@ -181,26 +164,14 @@ def test_edit_with_ai_endpoints_and_tasks_are_wired():
     from polaris.tasks.worker import authoring_reextract_task  # noqa: F401
 
     assert "source_profile_id" in CreateSessionRequest.model_fields
+    assert "output_spec_id" not in CreateSessionRequest.model_fields
     assert "source_profile_id" in inspect.signature(create_authoring_session).parameters
     assert "draft_profile" in inspect.signature(create_authoring_session).parameters
     assert hasattr(authoring_runtime, "_reextract_done_invoices_with_draft")
 
 
-def test_authoring_preview_and_blueprint_diff_use_effective_output_mapping(
-    tmp_path, monkeypatch,
-):
+def test_authoring_preview_and_blueprint_diff_use_the_draft_columns(tmp_path, monkeypatch):
     from polaris.profiles import authoring_runtime
-
-    spec = OutputSpec(
-        spec_id="date.mapping",
-        columns=[
-            OutputColumn(header="EXT_DATE", source="field.invoice_date"),
-            OutputColumn(header="formula", source="field.due_date"),
-        ],
-    )
-    monkeypatch.setattr(authoring_runtime, "get_output_spec", lambda _spec_id: spec)
-    monkeypatch.setattr("polaris.specs.loader.get_output_spec", lambda _spec_id: spec)
-    monkeypatch.setattr(authoring_runtime, "get_field_schema", lambda _schema_id: default_field_schema())
 
     invoice = CanonicalInvoice(
         intake_id="authoring-date-map",
@@ -227,31 +198,48 @@ def test_authoring_preview_and_blueprint_diff_use_effective_output_mapping(
         json.dumps([["07/01/2026", "07/31/2026"]]), encoding="utf-8")
     sample = SimpleNamespace(id="sample-1", filename="sample.pdf", extraction_status="done", artifact_dir=str(tmp_path))
     monkeypatch.setattr(authoring_runtime.crud, "list_authoring_invoices", lambda _db, _id: [sample])
-    session = SimpleNamespace(
-        id="session-1",
-        output_spec_id=spec.spec_id,
-        field_schema_id="invoice.standard",
-        source_profile_id=None,
-    )
+    session = SimpleNamespace(id="session-1", source_profile_id=None)
     draft = {"profile": {
-        "output_mapping_overrides": [
-            {
-                "output_header": "EXT_DATE",
-                "source": "row.billing_period_start",
-                "fallback": "field.invoice_date",
-            },
-            {
-                "output_header": "formula",
-                "source": "row.billing_period_end",
-                "fallback": "field.due_date",
-            },
-        ]
+        "fields": [
+            {"name": "billing_period_start", "scope": "row", "date_format": "%Y-%m-%d"},
+            {"name": "billing_period_end", "scope": "row", "date_format": "%Y-%m-%d"},
+        ],
+        "output_columns": [
+            {"header": "EXT_DATE", "source": "row.billing_period_start", "fallback": "field.invoice_date"},
+            {"header": "formula", "source": "row.billing_period_end", "fallback": "field.due_date"},
+        ],
     }}
 
     previews = authoring_runtime._previews_for_draft(object(), session, draft)
 
     assert previews["sample-1"]["preview"]["rows"] == [["07/01/2026", "07/31/2026"]]
+    assert previews["sample-1"]["preview"]["columns_source"] == "profile"
     assert previews["sample-1"]["diff"]["is_match"] is True
+
+
+def test_authoring_preview_without_columns_renders_nothing_and_skips_the_diff(tmp_path, monkeypatch):
+    from polaris.profiles import authoring_runtime
+
+    invoice = CanonicalInvoice(
+        intake_id="authoring-no-columns",
+        header=InvoiceHeader(supplier_name="Acme", invoice_number="INV-1", invoice_date=date(2026, 8, 3)),
+        line_items=[LineItem(line_number=1, description="service", amount=Decimal("100"))],
+        metadata=ExtractionMetadata(extraction_path=ExtractionPath.AI),
+    )
+    (tmp_path / "extracted.json").write_text(json.dumps(invoice.model_dump(mode="json")), encoding="utf-8")
+    (tmp_path / "layout.json").write_text(
+        json.dumps(LayoutDocument(pages=[]).model_dump(mode="json")), encoding="utf-8")
+    (tmp_path / "expected_rows.json").write_text(json.dumps([["x"]]), encoding="utf-8")
+    sample = SimpleNamespace(id="sample-1", filename="sample.pdf", extraction_status="done", artifact_dir=str(tmp_path))
+    monkeypatch.setattr(authoring_runtime.crud, "list_authoring_invoices", lambda _db, _id: [sample])
+
+    previews = authoring_runtime._previews_for_draft(
+        object(), SimpleNamespace(id="session-1", source_profile_id=None), {"profile": {}},
+    )
+
+    entry = previews["sample-1"]
+    assert entry["preview"]["columns"] == [] and entry["preview"]["columns_source"] == "none"
+    assert "diff" not in entry
 
 
 def test_authoring_preview_keeps_failed_samples_visible(monkeypatch):
@@ -265,8 +253,7 @@ def test_authoring_preview_keeps_failed_samples_visible(monkeypatch):
     )
     monkeypatch.setattr(authoring_runtime.crud, "list_authoring_invoices", lambda _db, _id: [sample])
     monkeypatch.setattr(authoring_runtime, "_preview_profile_from_draft", lambda session, draft: object())
-    monkeypatch.setattr(authoring_runtime, "resolve_output_spec", lambda profile: SimpleNamespace(columns=[]))
-    monkeypatch.setattr(authoring_runtime, "output_spec_to_columns", lambda spec: [])
+    monkeypatch.setattr(authoring_runtime, "delivery_columns", lambda profile, model=None: [])
 
     previews = authoring_runtime._previews_for_draft(
         object(), SimpleNamespace(id="session-1"), {"profile": {}}
@@ -278,25 +265,18 @@ def test_authoring_preview_keeps_failed_samples_visible(monkeypatch):
     }
 
 
-def test_initial_authoring_extraction_uses_selected_field_schema(tmp_path, monkeypatch):
+def test_initial_authoring_extraction_reads_the_whole_catalogue_without_a_source(tmp_path, monkeypatch):
     from polaris.profiles import authoring_runtime
 
     artifact_dir = tmp_path / "sample"
     artifact_dir.mkdir()
     (artifact_dir / "source.pdf").write_bytes(b"pdf")
-    session = SimpleNamespace(
-        id="session-1",
-        field_schema_id="custom.selected",
-        source_profile_id=None,
-        output_spec_id="standard.8col",
-    )
+    session = SimpleNamespace(id="session-1", source_profile_id=None)
     invoice = SimpleNamespace(id="invoice-1", artifact_dir=str(artifact_dir), has_expected=False)
-    selected_schema = SimpleNamespace(schema_id="custom.selected")
     captured = {}
     monkeypatch.setattr(authoring_runtime.crud, "get_authoring_session", lambda _db, _id: session)
     monkeypatch.setattr(authoring_runtime.crud, "get_authoring_invoice", lambda _db, _id: invoice)
     monkeypatch.setattr(authoring_runtime.crud, "update_authoring_invoice", lambda *args, **kwargs: None)
-    monkeypatch.setattr(authoring_runtime, "get_field_schema", lambda schema_id: selected_schema)
     monkeypatch.setattr(authoring_runtime, "_parse_expected_blueprint", lambda *args: None)
     monkeypatch.setattr(
         authoring_runtime,
@@ -306,7 +286,9 @@ def test_initial_authoring_extraction_uses_selected_field_schema(tmp_path, monke
 
     authoring_runtime.run_extraction(object(), session_id=session.id, invoice_id=invoice.id)
 
-    assert captured["field_schema"] is selected_schema
+    from polaris.fields.catalogue import CANONICAL_FIELDS
+
+    assert len(captured["field_schema"].fields) == len(CANONICAL_FIELDS)
 
 
 def test_authoring_turn_auto_reextracts_refine_turns_with_existing_draft():
@@ -349,8 +331,7 @@ def test_authoring_queue_serializes_turns_in_order(isolated_db, monkeypatch):
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard",
+            db, supplier_name="Acme",
         )
         crud.add_authoring_invoice(
             db, session_id=session.id, filename="sample.pdf",
@@ -386,8 +367,7 @@ def test_cancel_authoring_revokes_all_session_runners_and_resets_state(isolated_
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard",
+            db, supplier_name="Acme",
         )
         invoice = crud.add_authoring_invoice(
             db, session_id=session.id, filename="sample.pdf",
@@ -444,8 +424,7 @@ def test_delete_uploaded_authoring_invoice_removes_artifacts_and_preview(isolate
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard",
+            db, supplier_name="Acme",
         )
         artifact_dir = tmp_path / "authoring" / session.id / "inv1"
         artifact_dir.mkdir(parents=True)
@@ -480,8 +459,7 @@ def test_delete_authoring_invoice_rejects_finalized_or_busy_sessions(isolated_db
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard",
+            db, supplier_name="Acme",
         )
         artifact_dir = tmp_path / "authoring" / session.id / "inv1"
         artifact_dir.mkdir(parents=True)
@@ -527,15 +505,14 @@ def test_reextract_with_draft_includes_new_uploaded_samples(isolated_db, tmp_pat
         parsed.append(invoice.id)
 
     monkeypatch.setattr(authoring_runtime, "_preview_profile_from_draft", lambda session, draft: SimpleNamespace())
-    monkeypatch.setattr(authoring_runtime, "resolve_merged_field_schema", lambda profile: SimpleNamespace())
+    monkeypatch.setattr(authoring_runtime, "field_set", lambda profile: SimpleNamespace())
     monkeypatch.setattr(authoring_runtime, "_extract_and_cache", fake_extract_and_cache)
     monkeypatch.setattr(authoring_runtime, "_parse_expected_blueprint", fake_parse_blueprint)
 
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard", draft_profile={"profile": {}},
+            db, supplier_name="Acme", draft_profile={"profile": {}},
         )
         done_dir = tmp_path / "done"
         uploaded_dir = tmp_path / "uploaded"
@@ -572,7 +549,7 @@ def test_authoring_reextract_can_continue_after_one_sample_fails(isolated_db, tm
     from polaris.profiles import authoring_runtime
 
     monkeypatch.setattr(authoring_runtime, "_preview_profile_from_draft", lambda session, draft: SimpleNamespace())
-    monkeypatch.setattr(authoring_runtime, "resolve_merged_field_schema", lambda profile: SimpleNamespace())
+    monkeypatch.setattr(authoring_runtime, "field_set", lambda profile: SimpleNamespace())
     monkeypatch.setattr(authoring_runtime, "_parse_expected_blueprint", lambda *args: None)
 
     failed_id = None
@@ -586,8 +563,7 @@ def test_authoring_reextract_can_continue_after_one_sample_fails(isolated_db, tm
     db = SessionLocal()
     try:
         session = crud.create_authoring_session(
-            db, supplier_name="Acme", output_spec_id="standard.8col",
-            field_schema_id="invoice.standard", draft_profile={"profile": {}},
+            db, supplier_name="Acme", draft_profile={"profile": {}},
         )
         failed_dir = tmp_path / "failed"
         good_dir = tmp_path / "good"

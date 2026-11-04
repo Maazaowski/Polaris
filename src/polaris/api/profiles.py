@@ -36,7 +36,8 @@ class ProfileSummary(BaseModel):
     profile_id: str
     supplier_name: str
     output_type: str
-    output_spec_id: str | None = None
+    field_count: int = 0
+    output_column_count: int = 0
     version: int
     status: str
     layout_description: str | None = None
@@ -49,11 +50,10 @@ class ProfileSummary(BaseModel):
 
 
 class SimpleExtractionHints(BaseModel):
-    """Non-technical, UI-facing setup. Identity + which OutputSpec to deliver is
-    all most sources need; the rest is optional 'advanced' help for tricky
-    layouts that the AI extractor can't read unaided."""
+    """Non-technical, UI-facing setup: optional 'advanced' help for tricky
+    layouts that the AI extractor can't read unaided. Fields and columns are
+    configured on the profile itself."""
 
-    output_spec_id: str | None = Field(default=None, description="Which output format to deliver")
     line_items_start_text: str | None = Field(
         default=None, description="Where do line items start? (text printed on the document)")
     table_header_texts: list[str] = Field(
@@ -71,7 +71,8 @@ def _summary(profile: SupplierProfile) -> ProfileSummary:
         profile_id=profile.profile_id,
         supplier_name=profile.identity.canonical_name,
         output_type=profile.classification.output_type,
-        output_spec_id=profile.output_spec_id,
+        field_count=len(profile.fields),
+        output_column_count=len(profile.output_columns),
         version=profile.version,
         status=profile.status,
         layout_description=profile.layout_description,
@@ -84,7 +85,6 @@ def _summary(profile: SupplierProfile) -> ProfileSummary:
 
 def apply_simple_hints(profile: SupplierProfile, hints: SimpleExtractionHints) -> SupplierProfile:
     """Map the simplified UI hints onto the internal profile schema."""
-    profile.output_spec_id = hints.output_spec_id
     profile.advanced.document_structure.detail_start_marker = hints.line_items_start_text
     profile.advanced.line_item_hints.detail_table_anchors = hints.table_header_texts
     profile.advanced.line_item_hints.line_item_granularity = hints.charge_listing_style
@@ -95,7 +95,6 @@ def apply_simple_hints(profile: SupplierProfile, hints: SimpleExtractionHints) -
 
 def simple_hints_from_profile(profile: SupplierProfile) -> SimpleExtractionHints:
     return SimpleExtractionHints(
-        output_spec_id=profile.output_spec_id,
         line_items_start_text=profile.advanced.document_structure.detail_start_marker,
         table_header_texts=profile.advanced.line_item_hints.detail_table_anchors,
         charge_listing_style=profile.advanced.line_item_hints.line_item_granularity,
@@ -114,8 +113,7 @@ def _acknowledged_review_warnings(profile: SupplierProfile) -> set[str]:
 
 
 def _profile_readiness_issues(profile: SupplierProfile) -> list[str]:
-    from polaris.fields.loader import field_schema_exists, resolve_merged_field_schema
-    from polaris.specs.loader import output_spec_exists, validate_profile_output_mapping
+    from polaris.profiles.contract import readiness_issues
 
     issues: list[str] = []
     if not profile.identity.canonical_name:
@@ -124,19 +122,7 @@ def _profile_readiness_issues(profile: SupplierProfile) -> list[str]:
         issues.append("No output type specified")
     if profile.status not in PROFILE_STATUSES:
         issues.append(f"Invalid status '{profile.status}' (allowed: {', '.join(PROFILE_STATUSES)})")
-    if profile.output_spec_id or profile.field_schema_id:
-        # Transitional: a profile still bound to the registries.
-        if profile.field_schema_id and not field_schema_exists(profile.field_schema_id):
-            issues.append(f"Unknown field_schema_id '{profile.field_schema_id}'")
-        if profile.output_spec_id and not output_spec_exists(profile.output_spec_id):
-            issues.append(f"Unknown output_spec_id '{profile.output_spec_id}'")
-        if not issues:
-            schema = resolve_merged_field_schema(profile)
-            issues.extend(validate_profile_output_mapping(profile, schema))
-    else:
-        from polaris.profiles.contract import readiness_issues
-
-        issues.extend(readiness_issues(profile))
+    issues.extend(readiness_issues(profile))
     if profile.status in ("training", "active"):
         # Authoring evidence helps users review AI decisions, but it is not an
         # execution gate. Users may save an active profile and validate changes
@@ -232,6 +218,31 @@ def set_profile_status(
     _persist_profile(profile, actor=actor)
     logger.info("profiles.status_changed", profile_id=profile_id, status=status)
     return profile
+
+
+class FieldCatalogueResponse(BaseModel):
+    """The read-only vocabulary a profile picks its fields from."""
+
+    fields: list[dict]
+    always_on: list[str]
+    computed_sources: list[str]
+    transforms: list[str]
+
+
+@router.get("/field-catalogue", response_model=FieldCatalogueResponse)
+def get_field_catalogue():
+    from polaris.fields.catalogue import ALWAYS_ON_KEYS, CANONICAL_FIELDS, COMPUTED_SOURCES, field_path
+    from polaris.output.columns import TRANSFORMS
+
+    return FieldCatalogueResponse(
+        fields=[
+            {**f.model_dump(mode="json"), "path": field_path(f), "always_on": (f.scope, f.name) in ALWAYS_ON_KEYS}
+            for f in CANONICAL_FIELDS
+        ],
+        always_on=[f"{scope.value}.{name}" for scope, name in sorted(ALWAYS_ON_KEYS, key=lambda k: (k[0].value, k[1]))],
+        computed_sources=list(COMPUTED_SOURCES),
+        transforms=list(TRANSFORMS),
+    )
 
 
 @router.get("", response_model=list[SupplierProfile])

@@ -1,9 +1,9 @@
-"""Seed the config-registry tables from committed disk JSON (import-if-not-exists).
+"""Seed the supplier-profile table from committed disk JSON (import-if-not-exists).
 
-The DB is the source of truth. On boot we import any disk profile / field schema /
-output spec whose id is not already in the DB — so a fresh deployment is populated
-and newly committed records are picked up on later deploys, without ever
-overwriting a row that was edited at runtime through the UI.
+The DB is the source of truth. On boot we import any disk profile whose id is
+not already in the DB, so a fresh deployment is populated and newly committed
+profiles are picked up on later deploys, without ever overwriting a row that
+was edited at runtime through the UI.
 """
 
 from __future__ import annotations
@@ -36,12 +36,10 @@ def seed_registries_from_disk() -> dict[str, int]:
     Idempotent and safe to call from multiple processes (duplicate inserts are
     swallowed). Returns the per-registry insert counts."""
     from polaris.db.session import SessionLocal
-    from polaris.fields.schema import FieldSchema
-    from polaris.output.spec import OutputSpec
     from polaris.profiles.migrate import migrate_profile_dict
     from polaris.profiles.schema import SupplierProfile
 
-    inserted = {"profiles": 0, "field_schemas": 0, "output_specs": 0}
+    inserted = {"profiles": 0}
     db = SessionLocal()
     try:
         for path, raw in _iter_json(settings.supplier_profiles_dir):
@@ -62,39 +60,6 @@ def seed_registries_from_disk() -> dict[str, int]:
             except IntegrityError:  # pragma: no cover - concurrent boot
                 db.rollback()
 
-        for path, raw in _iter_json(settings.field_schemas_dir):
-            try:
-                schema = FieldSchema.model_validate(raw)
-            except Exception as e:
-                logger.error("seed.field_schema_invalid", path=str(path), error=str(e))
-                continue
-            if registry.field_schema_exists(db, schema.schema_id):
-                continue
-            try:
-                registry.upsert_field_schema(
-                    db, schema_id=schema.schema_id, name=schema.name,
-                    data=schema.model_dump(mode="json"),
-                )
-                inserted["field_schemas"] += 1
-            except IntegrityError:  # pragma: no cover - concurrent boot
-                db.rollback()
-
-        for path, raw in _iter_json(settings.output_specs_dir):
-            try:
-                spec = OutputSpec.model_validate(raw)
-            except Exception as e:
-                logger.error("seed.output_spec_invalid", path=str(path), error=str(e))
-                continue
-            if registry.output_spec_exists(db, spec.spec_id):
-                continue
-            try:
-                registry.upsert_output_spec(
-                    db, spec_id=spec.spec_id, name=spec.name,
-                    data=spec.model_dump(mode="json"),
-                )
-                inserted["output_specs"] += 1
-            except IntegrityError:  # pragma: no cover - concurrent boot
-                db.rollback()
     except (OperationalError, ProgrammingError) as e:
         # Tables not migrated yet (e.g. a process booted before the backend ran
         # alembic). Defer — the authoritative seed runs in the backend lifespan.

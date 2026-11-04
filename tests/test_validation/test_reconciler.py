@@ -484,10 +484,10 @@ class TestUncoercedTotals:
 def _anchored_schema():
     """Default schema with the subtotal + document tax fields given printed
     labels — i.e. a profile that 'configures' reconciliation anchors."""
-    from polaris.fields.loader import default_field_schema
+    from polaris.fields.catalogue import default_field_set
     from polaris.fields.schema import FieldSchema
 
-    base = default_field_schema()
+    base = default_field_set()
     fields = []
     for f in base.fields:
         if f.scope.value == "document" and f.name == "subtotal":
@@ -499,10 +499,10 @@ def _anchored_schema():
 
 
 def _tax_included_subtotal_schema():
-    from polaris.fields.loader import default_field_schema
+    from polaris.fields.catalogue import default_field_set
     from polaris.fields.schema import FieldSchema
 
-    base = default_field_schema()
+    base = default_field_set()
     fields = []
     for f in base.fields:
         if f.scope.value == "document" and f.name == "subtotal":
@@ -568,18 +568,19 @@ def test_anchored_flags_tax_mismatch_from_per_line_tax():
 
 
 def _excluded_total_schema():
-    """Base schema plus a document field flagged as an excluded section total."""
-    from polaris.fields.loader import default_field_schema, merge_field_schema
-    from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+    """The catalogue plus a custom document field flagged as an excluded section total."""
+    from polaris.fields.catalogue import default_field_set
+    from polaris.fields.schema import FieldDef, FieldRole, FieldSchema, FieldScope, FieldType
 
-    override = FieldDef(
+    custom = FieldDef(
         name="total_account_level_charges",
         scope=FieldScope.DOCUMENT,
         type=FieldType.CURRENCY,
         role=FieldRole.EXCLUDED_TOTAL,
         label_hint="Total Account Level Charges",
     )
-    return merge_field_schema(default_field_schema(), [override])
+    base = default_field_set()
+    return FieldSchema(fields=[*base.fields, custom])
 
 
 class TestExcludedTotal:

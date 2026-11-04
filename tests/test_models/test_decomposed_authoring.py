@@ -100,9 +100,9 @@ def test_non_grouped_layout_makes_two_section_calls(monkeypatch):
 
 
 def test_section_schemas_are_restricted_and_strict():
-    from polaris.fields.loader import default_field_schema
+    from polaris.fields.catalogue import default_field_set
 
-    fs = default_field_schema()
+    fs = default_field_set()
     scalars = authoring._section_schema(fs, "scalars")["schema"]
     line = authoring._section_schema(fs, "line_items")["schema"]
     assert set(scalars["properties"]) == {"header_fields", "totals", "self_checks", "confidence", "notes"}

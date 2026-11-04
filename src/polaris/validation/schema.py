@@ -372,15 +372,6 @@ class ExtractedDocument(BaseModel):
         else:
             self.fields.pop(name, None)
 
-    def fields_with_role(self, role: str) -> list[str]:
-        from polaris.fields.loader import get_field_schema
-        from polaris.fields.schema import FieldRole
-
-        schema = get_field_schema(self.schema_id)
-        role_enum = FieldRole(role)
-        return [f.name for f in schema.fields_with_role(role_enum)]
-
-
 class CanonicalInvoice(ExtractedDocument):
     """Backward-compatible alias for ExtractedDocument."""
 

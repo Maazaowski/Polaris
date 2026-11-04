@@ -205,30 +205,6 @@ class AuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
 
 
-class FieldSchemaRecord(Base):
-    """A field schema (extraction contract). Full JSON in ``data``."""
-
-    __tablename__ = "field_schemas"
-
-    schema_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    name: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    data: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-
-
-class OutputSpecRecord(Base):
-    """An output spec (deliverable columns). Full JSON in ``data``."""
-
-    __tablename__ = "output_specs"
-
-    spec_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    name: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    data: Mapped[dict] = mapped_column(JSON)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-
-
 class RuntimeSettingRecord(Base):
     """Persisted mutable runtime setting shared by backend, worker, and watcher."""
 
@@ -269,8 +245,6 @@ class ProfileAuthoringSession(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)  # active|running|finalized
     supplier_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    output_spec_id: Mapped[str] = mapped_column(String(128), default="standard.8col")
-    field_schema_id: Mapped[str] = mapped_column(String(128), default="invoice.standard")
     phase: Mapped[str] = mapped_column(String(32), default="setup")
     inferred_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     category_override: Mapped[str | None] = mapped_column(String(32), nullable=True)

@@ -10,8 +10,6 @@ def _profile(profile_id: str, *, status: str = "active") -> SupplierProfile:
         "status": status,
         "identity": {"canonical_name": "Acme", "aliases": []},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "standard.8col",
-        "field_schema_id": "invoice.standard",
         "delivery": {"inbound_path": "/in", "output_path": "/out"},
     })
 
@@ -36,11 +34,8 @@ def test_seed_is_idempotent(isolated_db):
     from polaris.db.seed import seed_registries_from_disk
 
     first = seed_registries_from_disk()
-    # Builtin field schema + output spec are committed and seed into the empty DB.
     # Supplier profiles are client data (not committed), so 0 profiles is expected.
-    assert first["field_schemas"] >= 1
-    assert first["output_specs"] >= 1
     assert first["profiles"] >= 0
-    # Running again imports nothing (ids already present) — the real contract.
+    # Running again imports nothing (ids already present), the real contract.
     second = seed_registries_from_disk()
-    assert second == {"profiles": 0, "field_schemas": 0, "output_specs": 0}
+    assert second == {"profiles": 0}

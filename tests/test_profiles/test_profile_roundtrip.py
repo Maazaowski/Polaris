@@ -90,11 +90,13 @@ def _full_profile_dict() -> dict:
         "last_updated_date": "2026-01-01",
         "identity": {"canonical_name": "Roundtrip", "aliases": []},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "standard.8col",
-        "field_schema_id": "invoice.standard",
-        "output_mapping_overrides": [
+        "fields": [
+            {"name": "invoice_date", "scope": "document", "date_format": "%d/%m/%Y"},
+            {"name": "billing_period_start", "scope": "row"},
+        ],
+        "output_columns": [
             {
-                "output_header": "EXT_DATE",
+                "header": "EXT_DATE",
                 "source": "row.billing_period_start",
                 "fallback": "field.invoice_date",
             }
@@ -158,14 +160,18 @@ def test_round_trip_preserves_training_config():
     assert reloaded.training_config.require_reconciliation is False
 
 
-def test_round_trip_preserves_output_mapping_overrides():
+def test_round_trip_preserves_fields_and_output_columns():
     reloaded = SupplierProfile.model_validate(
         SupplierProfile.model_validate(_full_profile_dict()).model_dump(mode="json")
     )
-    override = reloaded.output_mapping_overrides[0]
-    assert override.output_header == "EXT_DATE"
-    assert override.source == "row.billing_period_start"
-    assert override.fallback == "field.invoice_date"
+    column = reloaded.output_columns[0]
+    assert column.header == "EXT_DATE"
+    assert column.source == "row.billing_period_start"
+    assert column.fallback == "field.invoice_date"
+    assert [(f.scope.value, f.name) for f in reloaded.fields] == [
+        ("document", "invoice_date"), ("row", "billing_period_start"),
+    ]
+    assert reloaded.fields[0].date_format == "%d/%m/%Y"
 
 
 def test_round_trip_preserves_currency_rules():

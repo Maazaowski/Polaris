@@ -1,4 +1,5 @@
-"""Field schema — the user-defined extraction contract (mirrors output/spec.py)."""
+"""Field definitions: the FieldDef every profile field and catalogue entry uses,
+and FieldSchema, the in-memory view of a resolved field set."""
 
 from __future__ import annotations
 
@@ -54,9 +55,12 @@ class FieldDef(BaseModel):
 
 
 class FieldSchema(BaseModel):
-    schema_id: str = Field(..., description="e.g. 'invoice.standard'")
+    """A resolved set of fields (a profile's, or the whole catalogue). Not
+    persisted on its own: profiles store their own ``fields`` list."""
+
+    schema_id: str = Field(default="profile")
     name: str = Field(default="")
-    fields: list[FieldDef] = Field(..., min_length=1)
+    fields: list[FieldDef] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
 

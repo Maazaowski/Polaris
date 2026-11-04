@@ -179,25 +179,22 @@ def _run_classification(case: EvalCase) -> CaseResult:
 def _run_profile_authoring(case: EvalCase) -> CaseResult:
     from polaris.extraction.layout import render_layout_text
     from polaris.extraction.normalization import apply_layout_profile_hints
-    from polaris.fields.loader import resolve_merged_field_schema
     from polaris.models.authoring import _build_target
     from polaris.output.preview import preview_for_profile
     from polaris.profiles.authoring import (
         InvoiceEvidence,
         author_profile,
+        authoring_field_set,
         draft_to_supplier_profile_dict,
     )
+    from polaris.profiles.contract import delivery_columns, field_set, output_columns
     from polaris.profiles.schema import SupplierProfile
-    from polaris.specs.loader import resolve_output_spec
 
     base_profile = case.load_profile()
-    schema = resolve_merged_field_schema(base_profile)
-    spec = resolve_output_spec(base_profile)
 
     # Ground the assistant on a real extraction of the case, then author + score.
     doc, layout, source_text, _preview, extract_files = _extract_to_preview(case, base_profile)
-    from polaris.output.mapper import output_spec_to_columns
-    columns = output_spec_to_columns(spec)
+    columns = delivery_columns(base_profile)
     expected_lists = scoring.expected_dicts_to_lists(case.expected_rows(), columns)
     evidence = [InvoiceEvidence(
         label=case.pdf_path.name,
@@ -207,11 +204,11 @@ def _run_profile_authoring(case: EvalCase) -> CaseResult:
     )]
 
     with ai_debug.capture_session() as author_files:
-        authored = author_profile(field_schema=schema, output_spec=spec, invoices=evidence,
-                                  conversation=[], current_draft=None)
-    profile_dict = draft_to_supplier_profile_dict(
-        authored.draft, output_spec_id=base_profile.output_spec_id,
-        field_schema_id=base_profile.field_schema_id, field_schema=schema)
+        authored = author_profile(
+            field_set=authoring_field_set(field_set(base_profile)), columns=output_columns(base_profile),
+            invoices=evidence, conversation=[], current_draft=None,
+        )
+    profile_dict = draft_to_supplier_profile_dict(authored.draft)
     profile_dict["profile_id"] = "eval.authored"
     profile_dict["status"] = "draft"
     authored_profile = SupplierProfile.model_validate(profile_dict)

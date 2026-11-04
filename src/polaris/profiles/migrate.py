@@ -1,7 +1,11 @@
-"""One-shot migration of supplier profile JSON to the slim, output-spec schema.
+"""One-shot migration of supplier profile JSON to the slim schema.
 
 Relocates legacy top-level keys into ``advanced`` / ``delivery`` / ``notes``.
-Legacy ``header_mapping`` is converted to ``field_overrides`` and dropped.
+Legacy ``header_mapping`` becomes label hints on the profile's ``fields``.
+Registry-era keys (``output_spec_id``, ``field_schema_id``, ``field_overrides``,
+``output_mapping_overrides``) are passed through untouched so a stale file
+fails loudly in ``SupplierProfile`` instead of being silently emptied; run
+``scripts/embed_profile_contract.py`` on such a file first.
 
 Idempotent: a file already in the new shape round-trips unchanged.
 """
@@ -11,7 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from polaris.profiles.schema import SupplierProfile
+from polaris.profiles.schema import _LEGACY_CONTRACT_KEYS, SupplierProfile
 
 _HEADER_LABEL_FIELD_MAP = {
     "invoice_number_label": "invoice_number",
@@ -23,22 +27,13 @@ _HEADER_LABEL_FIELD_MAP = {
 }
 
 
-def _header_mapping_to_field_overrides(header_mapping: dict) -> list[dict]:
-    overrides: list[dict] = []
+def _header_mapping_to_fields(header_mapping: dict) -> list[dict]:
+    fields: list[dict] = []
     for label_key, field_name in _HEADER_LABEL_FIELD_MAP.items():
         label = header_mapping.get(label_key)
         if label:
-            overrides.append({
-                "name": field_name,
-                "scope": "document",
-                "type": "string",
-                "role": "none",
-                "label_hint": label,
-                "required": False,
-                "enum_values": [],
-                "description": "",
-            })
-    return overrides
+            fields.append({"name": field_name, "scope": "document", "label_hint": label})
+    return fields
 
 
 def _strip_header_mapping(advanced: dict) -> dict:
@@ -67,9 +62,14 @@ def migrate_profile_dict(old: dict) -> dict:
         }
         notes = old.get("notes") or old.get("extraction_notes") or old.get("billing_reference_hint")
 
-    field_overrides = old.get("field_overrides")
-    if not field_overrides and legacy_header:
-        field_overrides = _header_mapping_to_field_overrides(legacy_header)
+    fields = list(old.get("fields") or [])
+    if legacy_header:
+        present = {(f.get("scope", "document"), f.get("name")) for f in fields}
+        fields.extend(
+            f for f in _header_mapping_to_fields(legacy_header) if ("document", f["name"]) not in present
+        )
+
+    legacy = {k: old[k] for k in _LEGACY_CONTRACT_KEYS if old.get(k)}
 
     return {
         "profile_id": old["profile_id"],
@@ -78,9 +78,9 @@ def migrate_profile_dict(old: dict) -> dict:
         "layout_description": old.get("layout_description"),
         "identity": old.get("identity") or {"canonical_name": old["profile_id"]},
         "classification": {"output_type": (old.get("classification") or {}).get("output_type", "standard")},
-        "output_spec_id": old.get("output_spec_id", "standard.8col"),
-        "field_schema_id": old.get("field_schema_id", "invoice.standard"),
-        "field_overrides": field_overrides or [],
+        "fields": fields,
+        "output_columns": list(old.get("output_columns") or []),
+        **legacy,
         "delivery": delivery,
         "notes": notes,
         "advanced": advanced,

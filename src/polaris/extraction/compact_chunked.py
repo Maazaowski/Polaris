@@ -2319,8 +2319,8 @@ def extraction_prompt_template() -> dict:
         "variables": {
             "SUPPLIER_NAME": "profile identity.canonical_name",
             "OUTPUT_TYPE": "profile classification.output_type",
-            "HEADER_ALIASES": "compact doc-field aliases (h.*) selected from the field schema + output spec",
-            "ROW_ALIASES": "compact row-field aliases (row.*) selected from the field schema + output spec",
+            "HEADER_ALIASES": "compact doc-field aliases (h.*) selected from the profile's fields + columns",
+            "ROW_ALIASES": "compact row-field aliases (row.*) selected from the profile's fields + columns",
             "DELIVERED_ROW_POLICY": "structured delivered-row policy derived from profile advanced.line_item_hints",
             "PROFILE_HINTS": (
                 "Compiled instruction block (extraction/instructions.py): explicit precedence, "
@@ -2359,21 +2359,15 @@ def _compact_field_selection(profile: SupplierProfile | None, field_schema) -> t
     from polaris.profiles.contract import delivery_columns
 
     catalogue = catalogue_by_key()
-    picks = list(getattr(profile, "fields", None) or [])
-    if picks:
-        doc_fields = set(_COMPACT_BASE_DOC_FIELDS)
-        row_fields = set(_COMPACT_BASE_ROW_FIELDS)
-        for pick in picks:
-            scope = str(getattr(pick.scope, "value", pick.scope))
-            custom = (pick.scope, pick.name) not in catalogue
-            if scope == "document" and (pick.name in FIELD_TO_DOC_ALIAS or custom):
-                doc_fields.add(pick.name)
-            elif scope == "row" and (pick.name in FIELD_TO_ROW_ALIAS or custom):
-                row_fields.add(pick.name)
-    else:
-        # Transitional: a profile persisted before its contract was embedded.
-        doc_fields = set(DEFAULT_DOC_FIELDS)
-        row_fields = set(DEFAULT_ROW_FIELDS)
+    doc_fields = set(_COMPACT_BASE_DOC_FIELDS)
+    row_fields = set(_COMPACT_BASE_ROW_FIELDS)
+    for pick in getattr(profile, "fields", None) or []:
+        scope = str(getattr(pick.scope, "value", pick.scope))
+        custom = (pick.scope, pick.name) not in catalogue
+        if scope == "document" and (pick.name in FIELD_TO_DOC_ALIAS or custom):
+            doc_fields.add(pick.name)
+        elif scope == "row" and (pick.name in FIELD_TO_ROW_ALIAS or custom):
+            row_fields.add(pick.name)
 
     known_doc = {f.name for f in field_schema.document_fields()} if field_schema is not None else set()
     known_row = {f.name for f in field_schema.row_fields()} if field_schema is not None else set()

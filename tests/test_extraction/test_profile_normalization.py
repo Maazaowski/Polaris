@@ -1023,7 +1023,7 @@ def test_profile_date_label_overrides_today_fallback_for_granite():
     profile = SupplierProfile.model_validate({
         "profile_id": "granite.test",
         "identity": {"canonical_name": "Granite"},
-        "field_overrides": [{
+        "fields": [{
             "name": "invoice_date",
             "scope": "document",
             "type": "date",
@@ -1063,7 +1063,7 @@ def test_profile_date_label_uses_next_row_month_first_value_for_bell():
     profile = SupplierProfile.model_validate({
         "profile_id": "bell.test",
         "identity": {"canonical_name": "Bell Aliant"},
-        "field_overrides": [
+        "fields": [
             {
                 "name": "invoice_date",
                 "scope": "document",
@@ -1106,7 +1106,7 @@ def test_profile_date_label_uses_supplier_day_first_date_format():
     profile = SupplierProfile.model_validate({
         "profile_id": "eunetworks.test",
         "identity": {"canonical_name": "euNetworks"},
-        "field_overrides": [
+        "fields": [
             {
                 "name": "invoice_date",
                 "scope": "document",
@@ -1169,7 +1169,7 @@ def test_profile_date_label_parses_dotted_month_abbreviation():
     profile = SupplierProfile.model_validate({
         "profile_id": "coltjapan.test",
         "identity": {"canonical_name": "Colt Japan"},
-        "field_overrides": [
+        "fields": [
             {
                 "name": "due_date",
                 "scope": "document",
@@ -1444,7 +1444,7 @@ def test_excluded_total_read_from_labelled_layout_row():
     ])])
     profile = SupplierProfile.model_validate({
         "profile_id": "t", "identity": {"canonical_name": "Lumen"}, "delivery": {},
-        "field_overrides": [FieldDef(
+        "fields": [FieldDef(
             name="total_account_level_charges", scope=FieldScope.DOCUMENT, type=FieldType.CURRENCY,
             role=FieldRole.EXCLUDED_TOTAL, label_hint="Total Account Level Charges",
         ).model_dump()],
@@ -1466,7 +1466,7 @@ def test_excluded_total_absent_label_is_a_no_op():
     ])])
     profile = SupplierProfile.model_validate({
         "profile_id": "t", "identity": {"canonical_name": "Lumen"}, "delivery": {},
-        "field_overrides": [FieldDef(
+        "fields": [FieldDef(
             name="total_account_level_charges", scope=FieldScope.DOCUMENT, type=FieldType.CURRENCY,
             role=FieldRole.EXCLUDED_TOTAL, label_hint="Total Account Level Charges",
         ).model_dump()],

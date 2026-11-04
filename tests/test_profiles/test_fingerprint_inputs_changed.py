@@ -8,8 +8,6 @@ def _profile(**overrides) -> SupplierProfile:
     base = {
         "profile_id": "acme.standard.v1",
         "identity": {"canonical_name": "Acme"},
-        "output_spec_id": "standard.8col",
-        "field_schema_id": "invoice.standard",
     }
     base.update(overrides)
     return SupplierProfile.model_validate(base)

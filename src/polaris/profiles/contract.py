@@ -82,10 +82,6 @@ def field_set(profile: Any) -> FieldSchema:
     if profile is None:
         return default_field_set()
     picks = _profile_fields(profile)
-    if not picks:
-        legacy = _legacy_field_set(profile)
-        if legacy is not None:
-            return legacy
     by_key: dict[tuple[FieldScope, str], FieldDef] = {}
     catalogue = catalogue_by_key()
     for key in ALWAYS_ON_KEYS:
@@ -99,18 +95,6 @@ def field_set(profile: Any) -> FieldSchema:
             ordered.append(by_key.pop(key))
     ordered.extend(by_key.values())
     return FieldSchema(schema_id="profile", name=getattr(profile, "profile_id", "") or "", fields=ordered)
-
-
-def _legacy_field_set(profile: Any) -> FieldSchema | None:
-    """Transitional: a profile persisted before its contract was embedded still
-    resolves through the registry. Removed once every profile is migrated."""
-    if not (getattr(profile, "field_overrides", None) or getattr(profile, "field_schema_id", None)):
-        return None
-    try:
-        from polaris.fields.loader import resolve_merged_field_schema
-    except ImportError:  # pragma: no cover - registry removed
-        return None
-    return resolve_merged_field_schema(profile)
 
 
 def validate_fields(fields: Iterable[FieldDef | dict[str, Any]]) -> list[ContractIssue]:
@@ -173,31 +157,7 @@ def output_columns(profile: Any, model: Any = None) -> list[OutputColumn]:
     template = [_coerce_column(c) for c in (getattr(model, "output_columns", None) or [])]
     if template:
         return template
-    own = [_coerce_column(c) for c in (getattr(profile, "output_columns", None) or [])]
-    if own:
-        return own
-    if profile is not None:
-        legacy = _legacy_output_columns(profile)
-        if legacy:
-            return legacy
-    return []
-
-
-def _legacy_output_columns(profile: Any) -> list[OutputColumn]:
-    """Transitional: resolve a not-yet-embedded profile through the registry."""
-    if not getattr(profile, "output_spec_id", None):
-        return []
-    try:
-        from polaris.specs.loader import resolve_output_spec
-    except ImportError:  # pragma: no cover - registry removed
-        return []
-    return [
-        OutputColumn(
-            header=c.header, source=c.source, fallback=c.fallback,
-            transforms=list(c.transforms), width=c.width, number_format=c.number_format,
-        )
-        for c in resolve_output_spec(profile).columns
-    ]
+    return [_coerce_column(c) for c in (getattr(profile, "output_columns", None) or [])]
 
 
 def _value_types(fields: FieldSchema) -> dict[str, str]:

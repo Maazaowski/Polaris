@@ -4,19 +4,31 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
-from polaris.fields.loader import default_field_schema
+from polaris.fields.catalogue import CANONICAL_FIELDS, default_field_set
+from polaris.fields.schema import FieldDef, FieldRole, FieldScope, FieldType
+from polaris.output.columns import OutputColumn
 from polaris.profiles import authoring
 from polaris.profiles.authoring import (
     InvoiceEvidence,
     author_profile,
+    authoring_field_set,
     build_profile_authoring_schema,
     draft_to_supplier_profile_dict,
     supplier_profile_to_draft,
 )
+from polaris.profiles.contract import field_set, validate_output_columns
 from polaris.profiles.schema import SupplierProfile
-from polaris.specs.loader import default_output_spec
+from tests.output_columns import STANDARD_OUTPUT_COLUMNS
+
+
+def _column(header: str, source: str, **kw) -> dict:
+    return {"header": header, "source": source, "fallback": None, "transforms": [], "number_format": None,
+            "width": None, "reason": "test", **kw}
+
+
+def _field(name: str, scope: str = "document", **kw) -> dict:
+    return {"name": name, "scope": scope, "type": None, "role": None, "label_hint": None, "date_format": None,
+            "required": False, "description": None, **kw}
 
 
 def _flat_draft() -> dict:
@@ -25,12 +37,17 @@ def _flat_draft() -> dict:
         "aliases": ["Acme Inc", "Acme Telecom"],
         "output_type": "standard",
         "notes": "Header is a label/value table on page 1.",
-        "field_overrides": [{
-            "field_path": "field.due_date",
-            "label_hint": "Payment Due",
-            "date_format": "%d/%m/%Y",
-        }],
-        "output_mapping_overrides": [],
+        "fields": [
+            _field("invoice_number", label_hint="Invoice No"),
+            _field("due_date", label_hint="Payment Due", date_format="%d/%m/%Y"),
+            _field("service_id", "row"),
+            _field("site_code", "row", type="string", role="none", label_hint="Site"),
+        ],
+        "output_columns": [
+            _column("EXT_SERVICEID", "row.service_id"),
+            _column("EXT_DUE", "field.due_date"),
+            _column("SITE", "row.site_code", transforms=["uppercase"]),
+        ],
         "detail_start_marker": "Service Charges",
         "detail_end_marker": None,
         "line_item_granularity": "per_charge_row",
@@ -56,88 +73,32 @@ def _flat_draft() -> dict:
     }
 
 
-def test_schema_pins_scoped_fields_and_output_mapping_paths():
-    fs = default_field_schema()
-    spec = default_output_spec()
-    schema = build_profile_authoring_schema(fs, spec)
-    enum = schema["schema"]["properties"]["profile"]["properties"]["field_overrides"]["items"][
-        "properties"
-    ]["field_path"]["enum"]
-    assert set(enum) == {
-        f"{'field' if str(field.scope) == 'document' else 'row'}.{field.name}"
-        for field in fs.fields
-    }
+def test_schema_pins_column_sources_to_the_field_set_and_lets_fields_be_custom():
+    schema = build_profile_authoring_schema(default_field_set())
+    profile_props = schema["schema"]["properties"]["profile"]["properties"]
     assert schema["strict"] is True
-    assert schema["schema"]["properties"]["profile"]["properties"]["field_overrides"][
-        "items"
-    ]["properties"]["date_format"] == {"type": ["string", "null"]}
-    assert schema["schema"]["properties"]["profile"]["properties"]["field_overrides"][
-        "items"
-    ]["properties"]["label_hint"] == {"type": ["string", "null"]}
-    mapping = schema["schema"]["properties"]["profile"]["properties"][
-        "output_mapping_overrides"]["items"]
-    assert mapping["properties"]["output_header"]["enum"] == [
-        column.header for column in spec.columns]
-    assert "row.billing_period_start" in mapping["properties"]["source"]["enum"]
-    assert "computed.line_tax" in mapping["properties"]["source"]["enum"]
-    assert mapping["properties"]["fallback"]["type"] == ["string", "null"]
-    assert mapping["properties"]["transforms"]["items"]["enum"] == [
-        "digits_only", "trim", "uppercase", "lowercase",
-    ]
-    assert "uniqueItems" not in mapping["properties"]["transforms"]
+    field_item = profile_props["fields"]["items"]["properties"]
+    assert "enum" not in field_item["name"]  # custom names are allowed
+    assert field_item["scope"]["enum"] == ["document", "row"]
+    assert field_item["date_format"] == {"type": ["string", "null"]}
+    column = profile_props["output_columns"]["items"]["properties"]
+    assert "row.billing_period_start" in column["source"]["enum"]
+    assert "computed.line_tax" in column["source"]["enum"]
+    assert column["fallback"]["type"] == ["string", "null"]
+    assert column["transforms"]["items"]["enum"] == ["digits_only", "trim", "uppercase", "lowercase"]
+    assert "uniqueItems" not in column["transforms"]
 
 
-def test_draft_removes_redundant_mapping_but_preserves_transform_override():
-    fs = default_field_schema()
-    spec = default_output_spec()
-    inherited = spec.columns[5]
-    draft = _flat_draft()
-    draft["output_mapping_overrides"] = [{
-        "output_header": inherited.header,
-        "source": inherited.source,
-        "fallback": inherited.fallback,
-        "transforms": [],
-    }]
-    result = draft_to_supplier_profile_dict(
-        {"profile": draft}, output_spec_id=spec.spec_id,
-        field_schema_id=fs.schema_id, field_schema=fs, output_spec=spec,
-    )
-    assert result["output_mapping_overrides"] == []
-
-    draft["output_mapping_overrides"][0]["transforms"] = ["digits_only"]
-    result = draft_to_supplier_profile_dict(
-        {"profile": draft}, output_spec_id=spec.spec_id,
-        field_schema_id=fs.schema_id, field_schema=fs, output_spec=spec,
-    )
-    assert result["output_mapping_overrides"][0]["transforms"] == ["digits_only"]
+def test_custom_fields_in_play_become_mappable_sources():
+    vocabulary = authoring_field_set(None, [_field("site_code", "row", type="string")])
+    schema = build_profile_authoring_schema(vocabulary)
+    column = schema["schema"]["properties"]["profile"]["properties"]["output_columns"]["items"]["properties"]
+    assert "row.site_code" in column["source"]["enum"]
+    assert len(vocabulary.fields) == len(CANONICAL_FIELDS) + 1
 
 
 def test_draft_maps_to_valid_supplier_profile():
-    fs = default_field_schema()
-    draft = _flat_draft()
-    draft["output_mapping_overrides"] = [
-        {
-            "output_header": "EXT_DATE",
-            "source": "row.billing_period_start",
-            "fallback": "field.invoice_date",
-            "transforms": [],
-            "reason": "The blueprint uses each service period start.",
-        },
-        {
-            "output_header": "formula",
-            "source": "row.billing_period_end",
-            "fallback": "field.due_date",
-            "transforms": [],
-            "reason": "The blueprint uses each service period end.",
-        },
-    ]
-    profile_dict = draft_to_supplier_profile_dict(
-        {"profile": draft},
-        output_spec_id="standard.8col",
-        field_schema_id="invoice.standard",
-        field_schema=fs,
-        output_spec=default_output_spec(),
-    )
+    profile_dict = draft_to_supplier_profile_dict({"profile": _flat_draft()})
     profile_dict["profile_id"] = "acme.standard.v1"
     profile = SupplierProfile.model_validate(profile_dict)
 
@@ -145,95 +106,70 @@ def test_draft_maps_to_valid_supplier_profile():
     assert "Acme Telecom" in profile.identity.aliases
     assert profile.line_item_hints.line_item_granularity == "per_charge_row"
     assert profile.line_item_hints.service_id_column_label == "Service Number"
-    assert profile.line_item_hints.amount_column_label == "Amount"
-    assert profile.line_item_hints.tax_source == "table_tax_column"
     assert profile.line_item_hints.tax_output_mode == "extract_exact"
     assert profile.require_line_item_identifier is True
-    due_date_override = next(item for item in profile.field_overrides if item.name == "due_date")
-    assert due_date_override.date_format == "%d/%m/%Y"
-    # Label override is applied as a label-only merge (scope/type from base schema).
-    override = next(o for o in profile.field_overrides if o.name == "due_date")
-    assert override.label_hint == "Payment Due"
-    assert str(override.scope) == "document"
-    assert [mapping.model_dump() for mapping in profile.output_mapping_overrides] == [
-        {
-            "output_header": "EXT_DATE",
-            "source": "row.billing_period_start",
-            "fallback": "field.invoice_date",
-            "transforms": [],
-        },
-        {
-            "output_header": "formula",
-            "source": "row.billing_period_end",
-            "fallback": "field.due_date",
-            "transforms": [],
-        },
-    ]
+
+    by_key = {(f.scope, f.name): f for f in profile.fields}
+    # A catalogue pick keeps the catalogue's type and role and takes the hints.
+    number = by_key[(FieldScope.DOCUMENT, "invoice_number")]
+    assert number.role == FieldRole.IDENTIFIER and number.label_hint == "Invoice No"
+    due = by_key[(FieldScope.DOCUMENT, "due_date")]
+    assert due.type == FieldType.DATE and due.date_format == "%d/%m/%Y"
+    # A custom field is taken as written.
+    site = by_key[(FieldScope.ROW, "site_code")]
+    assert site.type == FieldType.STRING and site.label_hint == "Site"
+
+    assert [c.header for c in profile.output_columns] == ["EXT_SERVICEID", "EXT_DUE", "SITE"]
+    assert profile.output_columns[2].transforms == ["uppercase"]
+    assert validate_output_columns(profile.output_columns, field_set(profile)) == []
 
 
-def test_draft_rejects_unknown_or_duplicate_output_mappings():
-    fs = default_field_schema()
-    spec = default_output_spec()
+def test_draft_dedupes_columns_by_header_and_fields_by_key():
     draft = _flat_draft()
-    draft["output_mapping_overrides"] = [
-        {
-            "output_header": "EXT_DATE",
-            "source": "row.billing_period_start",
-            "fallback": None,
-        },
-        {
-            "output_header": "EXT_DATE",
-            "source": "row.billing_period_end",
-            "fallback": None,
-        },
-    ]
-    with pytest.raises(ValueError, match="duplicate output mapping"):
-        draft_to_supplier_profile_dict(
-            {"profile": draft},
-            output_spec_id=spec.spec_id,
-            field_schema_id=fs.schema_id,
-            field_schema=fs,
-            output_spec=spec,
-        )
-
-    draft["output_mapping_overrides"] = [{
-        "output_header": "EXT_DATE",
-        "source": "row.not_a_field",
-        "fallback": None,
-    }]
-    with pytest.raises(ValueError, match="unknown output mapping source"):
-        draft_to_supplier_profile_dict(
-            {"profile": draft},
-            output_spec_id=spec.spec_id,
-            field_schema_id=fs.schema_id,
-            field_schema=fs,
-            output_spec=spec,
-        )
+    draft["output_columns"].append(_column("EXT_SERVICEID", "row.billing_reference"))
+    draft["fields"].append(_field("service_id", "row", label_hint="Circuit"))
+    result = draft_to_supplier_profile_dict({"profile": draft})
+    assert [c["header"] for c in result["output_columns"]] == ["EXT_SERVICEID", "EXT_DUE", "SITE"]
+    assert result["output_columns"][0]["source"] == "row.service_id"
+    service = next(f for f in result["fields"] if f["name"] == "service_id")
+    assert service["label_hint"] == "Circuit"  # the later entry wins
 
 
-def test_date_only_override_survives_profile_to_authoring_draft():
-    fs = default_field_schema()
+def test_draft_omitting_fields_and_columns_leaves_them_to_the_source_profile():
     draft = _flat_draft()
-    draft["field_overrides"] = [{
-        "field_path": "field.invoice_date",
-        "label_hint": None,
-        "date_format": "%d/%m/%Y",
-    }]
-    profile_dict = draft_to_supplier_profile_dict(
-        {"profile": draft},
-        output_spec_id="standard.8col",
-        field_schema_id="invoice.standard",
-        field_schema=fs,
-    )
-    profile_dict["profile_id"] = "acme.date-only.v1"
+    del draft["fields"]
+    del draft["output_columns"]
+    result = draft_to_supplier_profile_dict({"profile": draft})
+    assert "fields" not in result and "output_columns" not in result
 
-    restored = supplier_profile_to_draft(SupplierProfile.model_validate(profile_dict))
 
-    assert restored["profile"]["field_overrides"] == [{
-        "field_path": "field.invoice_date",
-        "label_hint": None,
-        "date_format": "%d/%m/%Y",
+def test_legacy_field_path_entries_still_resolve():
+    draft = _flat_draft()
+    draft["fields"] = [{"field_path": "row.billing_period_start", "label_hint": "Period", "date_format": "%d/%m/%Y"}]
+    result = draft_to_supplier_profile_dict({"profile": draft})
+    assert result["fields"] == [{
+        "name": "billing_period_start", "scope": "row", "type": "date", "role": "none",
+        "label_hint": "Period", "date_format": "%d/%m/%Y", "required": False,
     }]
+
+
+def test_profile_round_trips_through_the_draft():
+    profile_dict = draft_to_supplier_profile_dict({"profile": _flat_draft()})
+    profile_dict["profile_id"] = "acme.round-trip"
+    profile = SupplierProfile.model_validate(profile_dict)
+
+    restored = supplier_profile_to_draft(profile)["profile"]
+    assert [(f["name"], f["scope"], f["label_hint"], f["date_format"]) for f in restored["fields"]] == [
+        ("invoice_number", "document", "Invoice No", None),
+        ("due_date", "document", "Payment Due", "%d/%m/%Y"),
+        ("service_id", "row", None, None),
+        ("site_code", "row", "Site", None),
+    ]
+    assert [c["header"] for c in restored["output_columns"]] == ["EXT_SERVICEID", "EXT_DUE", "SITE"]
+    assert restored["output_columns"][2]["transforms"] == ["uppercase"]
+    again = draft_to_supplier_profile_dict({"profile": restored})
+    assert again["fields"] == profile_dict["fields"]
+    assert again["output_columns"] == profile_dict["output_columns"]
 
 
 def test_author_profile_with_stubbed_openai(monkeypatch):
@@ -280,8 +216,8 @@ def test_author_profile_with_stubbed_openai(monkeypatch):
         )
     ]
     result = author_profile(
-        field_schema=default_field_schema(),
-        output_spec=default_output_spec(),
+        field_set=default_field_set(),
+        columns=STANDARD_OUTPUT_COLUMNS,
         invoices=evidence,
         conversation=[{"role": "user", "content": "Service ID is the leftmost number, one row per charge."}],
         current_draft=None,
@@ -298,25 +234,26 @@ def test_author_profile_with_stubbed_openai(monkeypatch):
     assert "source" in system_prompt and "truth" in system_prompt
     assert "Use the blueprint to learn what" in system_prompt
     assert "PDF as evidence for printed facts and totals" in system_prompt
-    assert "Never relabel field.invoice_date" in system_prompt
-    assert "COMPLETE desired output_mapping_overrides" in system_prompt
+    assert "Never relabel invoice_date" in system_prompt
+    assert "COMPLETE list of fields" in system_prompt
+    assert "COMPLETE ordered list of delivered columns" in system_prompt
+    assert "its headers ARE the contract" in system_prompt
     assert "Explain every meaningful difference" in system_prompt
     assert "Build an internal extraction plan" in system_prompt
-    assert "service ID source" in system_prompt
-    assert "reconciliation targets" in system_prompt
     assert "Use the available extraction toolkit" in system_prompt
-    assert "treat matching it exactly as the goal" not in system_prompt
+    assert "field_overrides" not in system_prompt and "OutputSpec" not in system_prompt
     assert "blueprint_context" in user_prompt
     assert "baseline_extracted_evidence" in user_prompt
+    assert "field_catalogue" in user_prompt
+    assert "current_output_columns" in user_prompt
     assert "allowed_output_sources" in user_prompt
     assert "blueprint_vs_invoice_summary" in user_prompt
     assert "preview_vs_blueprint_diff" in user_prompt
 
 
 def test_schema_allows_blueprint_amount_and_tax_hints():
-    fs = default_field_schema()
-    profile_props = build_profile_authoring_schema(
-        fs, default_output_spec())["schema"]["properties"]["profile"]["properties"]
+    profile_props = build_profile_authoring_schema(default_field_set())["schema"]["properties"]["profile"][
+        "properties"]
 
     assert profile_props["amount_source"]["enum"] == [
         "group_total", "first_amount", "label_amount", "label_amount_minus_tax", "table_charges_column", None]
@@ -369,10 +306,23 @@ def test_blueprint_summary_identifies_row_billing_period_as_date_mapping_evidenc
                 "billing_period_end": "2026-07-31",
             }],
         },
-        output_spec=default_output_spec(),
-        field_schema=default_field_schema(),
+        columns=[
+            OutputColumn(header="EXT_DATE", source="field.invoice_date"),
+            OutputColumn(header="formula", source="field.due_date"),
+        ],
+        field_set=default_field_set(),
     )
 
     evidence = {item["output_header"]: item for item in summary["output_mapping_evidence"]}
     assert evidence["EXT_DATE"]["matching_alternative_sources"] == ["row.billing_period_start"]
     assert evidence["formula"]["matching_alternative_sources"] == ["row.billing_period_end"]
+
+
+def test_authoring_field_set_merges_source_profile_customs():
+    source = SupplierProfile(
+        profile_id="s", identity={"canonical_name": "S"},
+        fields=[FieldDef(name="cost_centre", scope=FieldScope.DOCUMENT, type=FieldType.STRING)],
+    )
+    vocabulary = authoring_field_set(field_set(source), [_field("site_code", "row", type="number")])
+    paths = {f"{f.scope.value}.{f.name}" for f in vocabulary.fields}
+    assert {"document.cost_centre", "row.site_code"} <= paths

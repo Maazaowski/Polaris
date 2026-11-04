@@ -17,183 +17,6 @@
   "classification": {
     "output_type": "time_and_material"
   },
-  "output_spec_id": "standard.time_and_material",
-  "field_schema_id": "invoice.standard",
-  "field_overrides": [
-    {
-      "name": "supplier_name",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "LTM Limited",
-      "required": true,
-      "enum_values": [],
-      "description": "Supplier printed as LTM Limited, with LTIMindtree former-name variants."
-    },
-    {
-      "name": "invoice_number",
-      "scope": "document",
-      "type": "string",
-      "role": "identifier",
-      "label_hint": "Invoice Number",
-      "required": true,
-      "enum_values": [],
-      "description": "Invoice identifier from the summary page."
-    },
-    {
-      "name": "invoice_date",
-      "scope": "document",
-      "type": "date",
-      "role": "none",
-      "label_hint": "Invoice Date",
-      "date_format": "%d/%m/%Y",
-      "required": true,
-      "enum_values": [],
-      "description": "Issue date printed in day/month/year order."
-    },
-    {
-      "name": "billing_period_start",
-      "scope": "document",
-      "type": "date",
-      "role": "none",
-      "label_hint": "Billing Period",
-      "date_format": "%B %Y",
-      "required": true,
-      "enum_values": [],
-      "description": "First calendar day of the printed billing month; drives EXT_STARTDATE."
-    },
-    {
-      "name": "billing_period_end",
-      "scope": "document",
-      "type": "date",
-      "role": "none",
-      "label_hint": "Billing Period",
-      "date_format": "%B %Y",
-      "required": true,
-      "enum_values": [],
-      "description": "Last calendar day of the printed billing month; drives EXT_ENDDATE."
-    },
-    {
-      "name": "account_number",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "MindTreeTimeMaterial",
-      "required": true,
-      "enum_values": [],
-      "description": "Constant downstream account label. Never use the supplier bank Account No.(USD)."
-    },
-    {
-      "name": "po_number",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Purchase Order",
-      "required": true,
-      "enum_values": [],
-      "description": "Customer purchase-order reference."
-    },
-    {
-      "name": "payment_terms",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Payment Terms",
-      "required": false,
-      "enum_values": [],
-      "description": "Payment terms from the summary page."
-    },
-    {
-      "name": "total_due",
-      "scope": "document",
-      "type": "currency",
-      "role": "total",
-      "label_hint": "Total",
-      "required": true,
-      "enum_values": [],
-      "description": "Invoice total reconciled to the Annexure detail rows."
-    },
-    {
-      "name": "service_id",
-      "scope": "row",
-      "type": "string",
-      "role": "identifier",
-      "label_hint": "Description",
-      "required": true,
-      "enum_values": [],
-      "description": "Leading seven-digit employee/service identifier before the hyphen."
-    },
-    {
-      "name": "billing_reference",
-      "scope": "row",
-      "type": "string",
-      "role": "identifier",
-      "label_hint": "Description",
-      "required": false,
-      "enum_values": [],
-      "description": "Employee name printed after the seven-digit service id and the hyphen in the Description (e.g. 'Brijesh Dekivadiya' from '8065237 - Brijesh Dekivadiya'). Extract the name only, not the leading id, and do not copy service_id."
-    },
-    {
-      "name": "description",
-      "scope": "row",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Description",
-      "required": true,
-      "enum_values": [],
-      "description": "Full Annexure description, including the employee name."
-    },
-    {
-      "name": "amount",
-      "scope": "row",
-      "type": "currency",
-      "role": "amount",
-      "label_hint": "Amount (USD)",
-      "required": true,
-      "enum_values": [],
-      "description": "Annexure row amount."
-    },
-    {
-      "name": "quantity",
-      "scope": "row",
-      "type": "number",
-      "role": "none",
-      "label_hint": "Quantity",
-      "required": true,
-      "enum_values": [],
-      "description": "Billed hours; drives EXT_USAGE."
-    },
-    {
-      "name": "unit_rate",
-      "scope": "row",
-      "type": "currency",
-      "role": "none",
-      "label_hint": "Rate (USD)",
-      "required": true,
-      "enum_values": [],
-      "description": "Hourly rate; drives EXT_USAGECOST."
-    },
-    {
-      "name": "plan_cost",
-      "scope": "row",
-      "type": "currency",
-      "role": "none",
-      "label_hint": null,
-      "required": false,
-      "enum_values": [],
-      "description": "Source for EXT_PLANCOST; absent on current LTM invoices and therefore null."
-    },
-    {
-      "name": "equipment_cost",
-      "scope": "row",
-      "type": "currency",
-      "role": "none",
-      "label_hint": null,
-      "required": false,
-      "enum_values": [],
-      "description": "Source for EXT_EQUIPMENTCOST; absent on current LTM invoices and therefore null."
-    }
-  ],
   "delivery": {
     "inbound_path": null,
     "output_path": null,
@@ -212,8 +35,15 @@
       "detail_end_marker": "Total :"
     },
     "line_item_hints": {
-      "subtotal_keywords": ["Sub Total", "Sub-Total", "Subtotal"],
-      "tax_keywords": ["Sales Tax", "Integrated GST"],
+      "subtotal_keywords": [
+        "Sub Total",
+        "Sub-Total",
+        "Subtotal"
+      ],
+      "tax_keywords": [
+        "Sales Tax",
+        "Integrated GST"
+      ],
       "detail_table_anchors": [
         "Annexure To Invoice No:",
         "Description",
@@ -260,7 +90,9 @@
     },
     "currency": {
       "default_code": "USD",
-      "allowed_codes": ["USD"],
+      "allowed_codes": [
+        "USD"
+      ],
       "aliases": {
         "US Dollar": "USD"
       }
@@ -272,9 +104,19 @@
     "require_line_item_identifier": true
   },
   "layout_fingerprint": {
-    "summary_anchors": ["Billing Period", "Purchase Order", "Payment Terms", "Total"],
-    "currency_codes": ["USD"],
-    "ignore_label_patterns": ["(?i)^IRN:?$", "(?i)^HSN/SAC:?$"],
+    "summary_anchors": [
+      "Billing Period",
+      "Purchase Order",
+      "Payment Terms",
+      "Total"
+    ],
+    "currency_codes": [
+      "USD"
+    ],
+    "ignore_label_patterns": [
+      "(?i)^IRN:?$",
+      "(?i)^HSN/SAC:?$"
+    ],
     "optional_column_patterns": [],
     "exclude_span_patterns": []
   },
@@ -284,5 +126,321 @@
   },
   "owner": "polaris",
   "created_date": "2026-07-13",
-  "last_updated_date": "2026-07-14"
+  "last_updated_date": "2026-07-14",
+  "fields": [
+    {
+      "name": "supplier_name",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "LTM Limited",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Supplier printed as LTM Limited, with LTIMindtree former-name variants."
+    },
+    {
+      "name": "invoice_number",
+      "scope": "document",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": "Invoice Number",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Invoice identifier from the summary page."
+    },
+    {
+      "name": "invoice_date",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": "Invoice Date",
+      "date_format": "%d/%m/%Y",
+      "required": true,
+      "enum_values": [],
+      "description": "Issue date printed in day/month/year order."
+    },
+    {
+      "name": "due_date",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "account_number",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "MindTreeTimeMaterial",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Constant downstream account label. Never use the supplier bank Account No.(USD)."
+    },
+    {
+      "name": "billing_period_start",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": "Billing Period",
+      "date_format": "%B %Y",
+      "required": true,
+      "enum_values": [],
+      "description": "First calendar day of the printed billing month; drives EXT_STARTDATE."
+    },
+    {
+      "name": "billing_period_end",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": "Billing Period",
+      "date_format": "%B %Y",
+      "required": true,
+      "enum_values": [],
+      "description": "Last calendar day of the printed billing month; drives EXT_ENDDATE."
+    },
+    {
+      "name": "po_number",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "Purchase Order",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Customer purchase-order reference."
+    },
+    {
+      "name": "payment_terms",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "Payment Terms",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": "Payment terms from the summary page."
+    },
+    {
+      "name": "subtotal",
+      "scope": "document",
+      "type": "currency",
+      "role": "subtotal",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "tax",
+      "scope": "document",
+      "type": "currency",
+      "role": "tax",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "fees",
+      "scope": "document",
+      "type": "currency",
+      "role": "none",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "current_charges",
+      "scope": "document",
+      "type": "currency",
+      "role": "subtotal",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "total_due",
+      "scope": "document",
+      "type": "currency",
+      "role": "total",
+      "label_hint": "Total",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Invoice total reconciled to the Annexure detail rows."
+    },
+    {
+      "name": "tax_rate",
+      "scope": "document",
+      "type": "number",
+      "role": "tax_rate",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "service_id",
+      "scope": "row",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": "Description",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Leading seven-digit employee/service identifier before the hyphen."
+    },
+    {
+      "name": "billing_reference",
+      "scope": "row",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": "Description",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": "Employee name printed after the seven-digit service id and the hyphen in the Description (e.g. 'Brijesh Dekivadiya' from '8065237 - Brijesh Dekivadiya'). Extract the name only, not the leading id, and do not copy service_id."
+    },
+    {
+      "name": "description",
+      "scope": "row",
+      "type": "string",
+      "role": "none",
+      "label_hint": "Description",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Full Annexure description, including the employee name."
+    },
+    {
+      "name": "amount",
+      "scope": "row",
+      "type": "currency",
+      "role": "amount",
+      "label_hint": "Amount (USD)",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Annexure row amount."
+    },
+    {
+      "name": "tax_amount",
+      "scope": "row",
+      "type": "currency",
+      "role": "tax",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "quantity",
+      "scope": "row",
+      "type": "number",
+      "role": "none",
+      "label_hint": "Quantity",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Billed hours; drives EXT_USAGE."
+    },
+    {
+      "name": "unit_rate",
+      "scope": "row",
+      "type": "currency",
+      "role": "none",
+      "label_hint": "Rate (USD)",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": "Hourly rate; drives EXT_USAGECOST."
+    },
+    {
+      "name": "plan_cost",
+      "scope": "row",
+      "type": "currency",
+      "role": "none",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": "Source for EXT_PLANCOST; absent on current LTM invoices and therefore null."
+    },
+    {
+      "name": "equipment_cost",
+      "scope": "row",
+      "type": "currency",
+      "role": "none",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": "Source for EXT_EQUIPMENTCOST; absent on current LTM invoices and therefore null."
+    }
+  ],
+  "output_columns": [
+    {
+      "header": "EXT_SERVICEID",
+      "source": "row.service_id",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    },
+    {
+      "header": "EXT_BILLINGREFERENCE",
+      "source": "row.billing_reference",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    },
+    {
+      "header": "EXT_STARTDATE",
+      "source": "field.billing_period_start",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    },
+    {
+      "header": "EXT_ENDDATE",
+      "source": "field.billing_period_end",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    },
+    {
+      "header": "EXT_AMOUNT",
+      "source": "row.amount",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    },
+    {
+      "header": "EXT_ACCOUNT",
+      "source": "field.account_number",
+      "fallback": null,
+      "transforms": [],
+      "width": 15,
+      "number_format": null
+    }
+  ]
 }

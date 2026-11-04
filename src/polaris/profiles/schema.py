@@ -2,8 +2,9 @@
 Polaris how to recognise a source's documents and (optionally) how to read
 tricky layouts deterministically.
 
-Design intent: setup is dead simple. Identity + which OutputSpec to deliver is
-all most sources need — the AI extractor reads the document without hand-tuning.
+Design intent: setup is dead simple. Identity, the fields to read and the
+columns to deliver are all most sources need; the AI extractor reads the
+document without hand-tuning.
 The few genuinely load-bearing hints (used only by the layout fingerprint and
 the deterministic grouped-line-item model) live in an optional ``advanced``
 block that defaults empty.
@@ -11,7 +12,7 @@ block that defaults empty.
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 from polaris.fields.schema import FieldDef
 from polaris.output.columns import OutputColumn
@@ -25,7 +26,7 @@ class SupplierIdentity(BaseModel):
 class ClassificationSignals(BaseModel):
     """How this source's documents are categorised. ``output_type`` is a generic
     layout/category label (not domain-specific); it salts the layout fingerprint
-    and is informational. The delivered columns come from ``output_spec_id``."""
+    and is informational. The delivered columns are the profile's ``output_columns``."""
 
     output_type: str = Field(default="standard")
 
@@ -286,35 +287,10 @@ class TrainingConfig(BaseModel):
     require_reconciliation: bool = Field(default=True)
 
 
-class OutputMappingOverride(BaseModel):
-    """Profile-specific source mapping for one delivered output column.
-
-    Output headers/order/formatting remain owned by the OutputSpec.  A profile
-    may only replace the value source and its optional fallback.
-    """
-
-    output_header: str = Field(..., description="Unique delivered column header to override.")
-    source: str = Field(..., description="Profile-specific field/row/computed source path.")
-    fallback: str | None = Field(default=None, description="Optional fallback source path.")
-    transforms: list[Literal["digits_only", "trim", "uppercase", "lowercase"]] = Field(
-        default_factory=list,
-        description="Safe string transforms applied after source/fallback resolution.",
-    )
-
-    @field_validator("transforms")
-    @classmethod
-    def _unique_transforms(cls, value: list[str]) -> list[str]:
-        if len(value) != len(set(value)):
-            raise ValueError("output mapping transforms must not contain duplicates")
-        if "uppercase" in value and "lowercase" in value:
-            raise ValueError("output mapping cannot combine uppercase and lowercase")
-        return value
-
-
 class LayoutFingerprintRules(BaseModel):
     """Fingerprint-only tuning rules.
 
-    Header labels come from merged field schema ``label_hint`` values on the profile.
+    Header labels come from the ``label_hint`` values of the profile's field set.
     Tax wording from ``advanced.line_item_hints.tax_keywords``; table columns from
     ``advanced.line_item_hints.table_column_labels`` / ``detail_table_anchors``.
     This block holds only the extra normalization and ignore rules.
@@ -345,6 +321,10 @@ class LayoutFingerprintRules(BaseModel):
 
 
 PROFILE_STATUSES = ("draft", "training", "active", "retired")
+
+# Registry-era keys. A payload that still carries them is rejected (see
+# SupplierProfile._reject_unembedded_legacy_contract).
+_LEGACY_CONTRACT_KEYS = ("output_spec_id", "field_schema_id", "field_overrides", "output_mapping_overrides")
 
 
 class SupplierProfile(BaseModel):
@@ -382,18 +362,6 @@ class SupplierProfile(BaseModel):
             "assumed. A template may carry its own columns, which win over these."
         ),
     )
-    # Transitional: profiles persisted before their contract was embedded still
-    # name a registry spec/schema. Absent on anything created since.
-    output_spec_id: str | None = Field(default=None)
-    field_schema_id: str | None = Field(default=None)
-    field_overrides: list[FieldDef] = Field(
-        default_factory=list,
-        description="Profile-specific field definition overrides (label_hint, add/edit by name).",
-    )
-    output_mapping_overrides: list[OutputMappingOverride] = Field(
-        default_factory=list,
-        description="Profile-specific source/fallback mappings keyed by delivered output header.",
-    )
     delivery: DeliveryConfig = Field(default_factory=DeliveryConfig)
     notes: str | None = Field(default=None, description="Free-text guidance passed to the AI as context")
     advanced: AdvancedHints = Field(default_factory=AdvancedHints)
@@ -407,6 +375,25 @@ class SupplierProfile(BaseModel):
     audit: dict | None = Field(default=None)
 
     model_config = {"extra": "ignore"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unembedded_legacy_contract(cls, data: Any) -> Any:
+        """A payload still carrying the registry-era keys has not been migrated.
+
+        ``extra: ignore`` would otherwise drop them silently and the profile
+        would load with nothing to read and nothing to deliver.
+        """
+        if not isinstance(data, dict):
+            return data
+        legacy = [k for k in _LEGACY_CONTRACT_KEYS if data.get(k)]
+        if legacy and not (data.get("fields") or data.get("output_columns")):
+            raise ValueError(
+                f"profile {data.get('profile_id', '?')!r} still carries the legacy registry keys "
+                f"{', '.join(legacy)}; run scripts/embed_profile_contract.py (or the DB migration 024) "
+                "to embed its fields and output columns"
+            )
+        return data
 
     # ── Convenience proxies (read-only; not persisted) ──────────────────────
     @property

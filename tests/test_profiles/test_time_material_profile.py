@@ -6,11 +6,9 @@ from pathlib import Path
 from polaris.extraction.instructions import compile_instructions
 from polaris.extraction.layout import BBox, LayoutDocument, LayoutPage, VisualRow
 from polaris.extraction.normalization import apply_layout_profile_hints
-from polaris.fields.loader import _builtin_invoice_standard_schema, merge_field_schema
-from polaris.output.spec import OutputSpec
 from polaris.output.xlsx_writer import build_output_rows
+from polaris.profiles.contract import delivery_columns, field_set, validate_output_columns
 from polaris.profiles.schema import SupplierProfile
-from polaris.specs.loader import validate_spec_against_schema
 from polaris.validation.schema import (
     CanonicalInvoice,
     ExtractionMetadata,
@@ -18,7 +16,6 @@ from polaris.validation.schema import (
     InvoiceHeader,
     LineItem,
 )
-from tests.output_columns import defs
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,25 +27,13 @@ def _profile() -> SupplierProfile:
     return SupplierProfile.model_validate(raw)
 
 
-def _spec() -> OutputSpec:
-    return OutputSpec(
-        spec_id="standard.time_and_material",
-        columns=[
-            {"header": "EXT_SERVICEID", "source": "row.service_id"},
-            {"header": "EXT_BILLINGREFERENCE", "source": "row.billing_reference"},
-            {"header": "EXT_STARTDATE", "source": "field.billing_period_start"},
-            {"header": "EXT_ENDDATE", "source": "field.billing_period_end"},
-            {"header": "EXT_AMOUNT", "source": "row.amount"},
-            {"header": "EXT_ACCOUNT", "source": "field.account_number"},
-        ],
-    )
-
-
-def test_time_material_spec_is_valid_against_merged_profile_schema():
+def test_time_material_columns_are_valid_against_the_profile_field_set():
     profile = _profile()
-    merged = merge_field_schema(_builtin_invoice_standard_schema(), profile.field_overrides)
 
-    assert validate_spec_against_schema(_spec(), merged) == []
+    assert [c.header for c in profile.output_columns] == [
+        "EXT_SERVICEID", "EXT_BILLINGREFERENCE", "EXT_STARTDATE", "EXT_ENDDATE", "EXT_AMOUNT", "EXT_ACCOUNT",
+    ]
+    assert validate_output_columns(profile.output_columns, field_set(profile)) == []
 
 
 def test_time_material_blueprint_mapping():
@@ -92,7 +77,7 @@ def test_time_material_blueprint_mapping():
     )
     apply_layout_profile_hints(invoice, layout, profile)
 
-    assert build_output_rows(invoice, defs(_spec())) == [[
+    assert build_output_rows(invoice, delivery_columns(profile)) == [[
         "8065237",
         None,
         "05/01/2026",

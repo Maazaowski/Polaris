@@ -28,11 +28,12 @@ from polaris.extraction.compact_chunked import (
     detect_candidate_rows,
     merge_compact_rows,
 )
-from polaris.fields.loader import default_field_schema, merge_field_schema
+from polaris.fields.catalogue import default_field_set
 from polaris.fields.schema import FieldDef, FieldScope, FieldType
-from polaris.output.spec import OutputColumn, OutputSpec
+from polaris.output.columns import OutputColumn
 from polaris.output.xlsx_writer import build_output_rows
-from polaris.profiles.schema import ExtractionPlan, RowContextRule
+from polaris.profiles.contract import field_set
+from polaris.profiles.schema import ExtractionPlan, RowContextRule, SupplierIdentity, SupplierProfile
 from polaris.validation.document_io import build_extracted_from_ai_raw
 from polaris.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ExtractionMetadata, ExtractionPath
 from tests.output_columns import defs
@@ -321,7 +322,7 @@ def test_line_item_defaults_reuse_grouped_row_labels_from_scalar_context():
         ),
     ]
 
-    defaults = _line_item_defaults_from_context(rows, profile, default_field_schema())
+    defaults = _line_item_defaults_from_context(rows, profile, default_field_set())
 
     assert defaults == {
         "service_id": "TMPA1_988099",
@@ -330,9 +331,9 @@ def test_line_item_defaults_reuse_grouped_row_labels_from_scalar_context():
 
 
 def test_line_item_defaults_fall_back_to_output_field_label_hints():
-    schema = merge_field_schema(
-        default_field_schema(),
-        [
+    schema = field_set(SupplierProfile(
+        profile_id="t", identity=SupplierIdentity(canonical_name="T"),
+        fields=[
             FieldDef(name="service_id", scope=FieldScope.ROW, type=FieldType.STRING, label_hint="Circuit ID"),
             FieldDef(
                 name="billing_reference",
@@ -341,7 +342,7 @@ def test_line_item_defaults_fall_back_to_output_field_label_hints():
                 label_hint="Relationship number",
             ),
         ],
-    )
+    ))
     rows = [
         LayoutRowLine(page=2, row_id="p2.r0", text="Circuit ID : TMPA1_988099"),
         LayoutRowLine(page=2, row_id="p2.r1", text="Relationship number : 7038596705"),
@@ -371,7 +372,7 @@ def test_line_item_defaults_ignore_rows_inside_detail_region():
     defaults = _line_item_defaults_from_context(
         rows,
         profile,
-        default_field_schema(),
+        default_field_set(),
         excluded_row_ids={"p2.r8"},
     )
 
@@ -523,7 +524,7 @@ def test_chunk_json_length_error_splits_and_retries(monkeypatch, tmp_path):
         chunk,
         output_type="standard",
         supplier_profile_data=None,
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
         calls=calls,
         artifact_dir=tmp_path,
@@ -1131,7 +1132,7 @@ def test_chunk_prompt_includes_candidate_accountability():
         chunk,
         output_type="standard",
         supplier_profile_data=_granite_profile_for_candidates(),
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
     )
 
@@ -1155,7 +1156,7 @@ def test_chunk_prompt_treats_marker_candidates_as_distinct_services():
         chunk,
         output_type="standard",
         supplier_profile_data=profile,
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
     )
 
@@ -1190,7 +1191,7 @@ def test_chunk_missing_candidates_triggers_strict_retry(monkeypatch, tmp_path):
         LayoutChunk(chunk_id="0001", rows=rows, candidates=candidates),
         output_type="standard",
         supplier_profile_data=_granite_profile_for_candidates(),
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
         calls=calls,
         artifact_dir=tmp_path,
@@ -1262,7 +1263,7 @@ def test_rogers_marker_candidates_trigger_strict_retry(monkeypatch, tmp_path):
         LayoutChunk(chunk_id="0001", rows=rows, candidates=candidates),
         output_type="standard",
         supplier_profile_data=profile,
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
         calls=calls,
         artifact_dir=tmp_path,
@@ -1303,7 +1304,7 @@ def test_chunk_retry_failure_splits_missing_window(monkeypatch, tmp_path):
         LayoutChunk(chunk_id="0001", rows=rows, candidates=candidates),
         output_type="standard",
         supplier_profile_data=_granite_profile_for_candidates(),
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
         calls=calls,
         artifact_dir=tmp_path,
@@ -1342,7 +1343,7 @@ def test_chunk_split_after_strict_retry_focuses_only_still_missing_candidates(mo
         LayoutChunk(chunk_id="0001", rows=rows, candidates=candidates),
         output_type="standard",
         supplier_profile_data=_granite_profile_for_candidates(),
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
         calls=calls,
         artifact_dir=tmp_path,
@@ -1542,15 +1543,12 @@ def test_granite_compact_rows_map_to_standard_output():
         supplier_name="Granite",
     )
     doc = build_extracted_from_ai_raw(raw, intake_id="granite", metadata=_metadata())
-    spec = OutputSpec(
-        spec_id="standard.test",
-        columns=[
-            OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
-            OutputColumn(header="EXT_BILLINGREFERENCE", source="row.billing_reference"),
-            OutputColumn(header="EXT_AMOUNT", source="row.amount"),
-            OutputColumn(header="EXT_TAX", source="computed.line_tax"),
-        ],
-    )
+    spec = [
+        OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
+        OutputColumn(header="EXT_BILLINGREFERENCE", source="row.billing_reference"),
+        OutputColumn(header="EXT_AMOUNT", source="row.amount"),
+        OutputColumn(header="EXT_TAX", source="computed.line_tax"),
+    ]
 
     rows = build_output_rows(doc, defs(spec))
 
@@ -1594,14 +1592,11 @@ def test_compact_charge_type_filters_fee_and_surcharge_output_rows():
         supplier_name="AT&T",
     )
     doc = build_extracted_from_ai_raw(raw, intake_id="att", metadata=_metadata())
-    spec = OutputSpec(
-        spec_id="standard.test",
-        columns=[
-            OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
-            OutputColumn(header="EXT_AMOUNT", source="row.amount"),
-            OutputColumn(header="EXT_TAX", source="computed.line_tax"),
-        ],
-    )
+    spec = [
+        OutputColumn(header="EXT_SERVICEID", source="row.service_id"),
+        OutputColumn(header="EXT_AMOUNT", source="row.amount"),
+        OutputColumn(header="EXT_TAX", source="computed.line_tax"),
+    ]
 
     rows = build_output_rows(doc, defs(spec))
 
@@ -1631,7 +1626,7 @@ def test_chunk_prompt_renders_delivered_policy_and_structured_hints():
         ),
         output_type="standard",
         supplier_profile_data=profile,
-        field_schema=default_field_schema(),
+        field_schema=default_field_set(),
         row_fields={"service_id", "billing_reference", "amount", "tax_amount"},
     )
 
@@ -1646,9 +1641,9 @@ def test_chunk_prompt_renders_delivered_policy_and_structured_hints():
 
 
 def test_scalar_prompt_renders_document_label_hints_as_required_targets():
-    field_schema = merge_field_schema(
-        default_field_schema(),
-        [
+    field_schema = field_set(SupplierProfile(
+        profile_id="bell", identity=SupplierIdentity(canonical_name="Bell"),
+        fields=[
             FieldDef(
                 name="invoice_date",
                 scope=FieldScope.DOCUMENT,
@@ -1663,7 +1658,7 @@ def test_scalar_prompt_renders_document_label_hints_as_required_targets():
                 label_hint="Your payment is due by:",
             ),
         ],
-    )
+    ))
 
     prompt = _build_scalar_prompt(
         supplier_name="Bell",
@@ -1727,7 +1722,7 @@ def test_legacy_ai_mode_still_uses_document_extraction_schema(monkeypatch):
     monkeypatch.setattr(extractor, "get_ai_client", lambda *a, **k: fake_client)
     monkeypatch.setattr(extractor, "_extract_flat_text", lambda _pdf_path: ["Invoice Number INV-1"])
 
-    result = extractor.extract_invoice(Path("unused.pdf"), field_schema=default_field_schema())
+    result = extractor.extract_invoice(Path("unused.pdf"), field_schema=default_field_set())
 
     assert result.raw_data["header"]["invoice_number"] == "INV-1"
     response_format = fake_client.chat.completions.calls[0]["response_format"]

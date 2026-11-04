@@ -14,70 +14,6 @@
   "classification": {
     "output_type": "standard"
   },
-  "output_spec_id": "standard.8col",
-  "field_schema_id": "invoice.standard",
-  "field_overrides": [
-    {
-      "name": "invoice_number",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Invoice Number",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    },
-    {
-      "name": "invoice_date",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Invoice Date",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    },
-    {
-      "name": "due_date",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Payment Due",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    },
-    {
-      "name": "account_number",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Customer Number",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    },
-    {
-      "name": "total_due",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Total Amount Due",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    },
-    {
-      "name": "currency",
-      "scope": "document",
-      "type": "string",
-      "role": "none",
-      "label_hint": "Currency",
-      "required": false,
-      "enum_values": [],
-      "description": ""
-    }
-  ],
   "delivery": {
     "inbound_path": "/data/Colt/pdf",
     "output_path": "/data/Colt/xls"
@@ -166,5 +102,227 @@
   },
   "owner": "polaris",
   "created_date": "2026-05-20",
-  "last_updated_date": "2026-06-24"
+  "last_updated_date": "2026-06-24",
+  "fields": [
+    {
+      "name": "invoice_number",
+      "scope": "document",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": "Invoice Number",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "invoice_date",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": "Invoice Date",
+      "date_format": null,
+      "required": true,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "due_date",
+      "scope": "document",
+      "type": "date",
+      "role": "none",
+      "label_hint": "Payment Due",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "account_number",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "Customer Number",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": "Customer/account number identifying the billed account."
+    },
+    {
+      "name": "currency",
+      "scope": "document",
+      "type": "string",
+      "role": "none",
+      "label_hint": "Currency",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "subtotal",
+      "scope": "document",
+      "type": "currency",
+      "role": "subtotal",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "tax",
+      "scope": "document",
+      "type": "currency",
+      "role": "tax",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "fees",
+      "scope": "document",
+      "type": "currency",
+      "role": "none",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "current_charges",
+      "scope": "document",
+      "type": "currency",
+      "role": "subtotal",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "total_due",
+      "scope": "document",
+      "type": "currency",
+      "role": "total",
+      "label_hint": "Total Amount Due",
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "tax_rate",
+      "scope": "document",
+      "type": "number",
+      "role": "tax_rate",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "service_id",
+      "scope": "row",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "billing_reference",
+      "scope": "row",
+      "type": "string",
+      "role": "identifier",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    },
+    {
+      "name": "tax_amount",
+      "scope": "row",
+      "type": "currency",
+      "role": "tax",
+      "label_hint": null,
+      "date_format": null,
+      "required": false,
+      "enum_values": [],
+      "description": ""
+    }
+  ],
+  "output_columns": [
+    {
+      "header": "EXT_SERVICEID",
+      "source": "row.service_id",
+      "fallback": "row.billing_reference",
+      "transforms": [],
+      "width": 20,
+      "number_format": null
+    },
+    {
+      "header": "EXT_BILLINGREFERENCE",
+      "source": "row.billing_reference",
+      "fallback": "row.service_id",
+      "transforms": [],
+      "width": 20,
+      "number_format": null
+    },
+    {
+      "header": "EXT_DATE",
+      "source": "field.invoice_date",
+      "fallback": null,
+      "transforms": [],
+      "width": 14,
+      "number_format": null
+    },
+    {
+      "header": "formula",
+      "source": "field.due_date",
+      "fallback": "field.invoice_date",
+      "transforms": [],
+      "width": 14,
+      "number_format": null
+    },
+    {
+      "header": "EXT_AMOUNT",
+      "source": "row.amount",
+      "fallback": null,
+      "transforms": [],
+      "width": 14,
+      "number_format": "#,##0.##"
+    },
+    {
+      "header": "EXT_ACCOUNT",
+      "source": "field.account_number",
+      "fallback": null,
+      "transforms": [],
+      "width": 16,
+      "number_format": null
+    },
+    {
+      "header": "EXT_INVOICENUMBER",
+      "source": "field.invoice_number",
+      "fallback": null,
+      "transforms": [],
+      "width": 20,
+      "number_format": null
+    },
+    {
+      "header": "EXT_TAX",
+      "source": "computed.line_tax",
+      "fallback": null,
+      "transforms": [],
+      "width": 14,
+      "number_format": "#,##0.00"
+    }
+  ]
 }

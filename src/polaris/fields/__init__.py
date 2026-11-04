@@ -1,14 +1,6 @@
-"""Field schema registry — user-defined extraction contracts."""
+"""Field vocabulary: the catalogue of canonical invoice fields and the FieldDef type."""
 
-from polaris.fields.loader import (
-    DEFAULT_FIELD_SCHEMA_ID,
-    default_field_schema,
-    get_field_schema,
-    load_all_field_schemas,
-    merge_field_schema,
-    resolve_field_schema,
-    resolve_merged_field_schema,
-)
+from polaris.fields.catalogue import CANONICAL_FIELDS, default_field_set
 from polaris.fields.schema import (
     FieldDef,
     FieldRole,
@@ -18,16 +10,11 @@ from polaris.fields.schema import (
 )
 
 __all__ = [
-    "DEFAULT_FIELD_SCHEMA_ID",
+    "CANONICAL_FIELDS",
     "FieldDef",
     "FieldRole",
     "FieldSchema",
     "FieldScope",
     "FieldType",
-    "default_field_schema",
-    "get_field_schema",
-    "load_all_field_schemas",
-    "merge_field_schema",
-    "resolve_field_schema",
-    "resolve_merged_field_schema",
+    "default_field_set",
 ]

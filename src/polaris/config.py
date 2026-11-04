@@ -235,12 +235,6 @@ class Settings(BaseSettings):
     # Supplier profiles
     supplier_profiles_dir: Path = Path("supplier_profiles")
 
-    # Output specifications (customer deliverable column definitions)
-    output_specs_dir: Path = Path("output_specs")
-
-    # Field schemas (extraction contracts)
-    field_schemas_dir: Path = Path("field_schemas")
-
     # Extraction models
     extraction_models_dir: Path = Path("extraction_models")
 

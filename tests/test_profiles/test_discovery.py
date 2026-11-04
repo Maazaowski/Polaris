@@ -1,5 +1,4 @@
 from polaris.extraction.layout import PageTextScan, PDFTextScan
-from polaris.output.spec import OutputColumn, OutputSpec
 from polaris.profiles.discovery import (
     BlueprintSignature,
     _candidate_plan,
@@ -28,14 +27,9 @@ def test_discovery_scopes_blueprint_identifiers_to_invoice_account():
 
 
 def test_orange_french_fixed_line_invoice_is_wireless_family():
-    spec = OutputSpec(
-        spec_id="standard.orange",
-        columns=[OutputColumn(header="EXT_AMOUNT", source="row.amount")],
-    )
-
     family, confidence, reasons = infer_document_family(
         scans=[_scan("Orange Business facture - annexe synthèse des services ligne téléphonique")],
-        output_spec=spec,
+        column_headers=["EXT_AMOUNT"],
         supplier_name="Orange Business",
         override=None,
     )

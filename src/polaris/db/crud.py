@@ -1254,14 +1254,12 @@ def fail_stale_training_runs(db: Session, message: str = "Worker restarted") -> 
 # ── Profile authoring sessions ───────────────────────────────────────────────
 
 def create_authoring_session(
-    db: Session, *, supplier_name: str | None, output_spec_id: str, field_schema_id: str,
+    db: Session, *, supplier_name: str | None,
     source_profile_id: str | None = None, draft_profile: dict | None = None,
     category_override: str | None = None,
 ) -> ProfileAuthoringSession:
     session = ProfileAuthoringSession(
         supplier_name=supplier_name,
-        output_spec_id=output_spec_id,
-        field_schema_id=field_schema_id,
         source_profile_id=source_profile_id,
         draft_profile=draft_profile,
         conversation=[],

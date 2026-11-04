@@ -28,8 +28,6 @@ RUN pip install --upgrade pip setuptools wheel && \
 # Copy the real application code (cheap layers that change often).
 COPY src/ ./src/
 COPY supplier_profiles/ ./supplier_profiles/
-COPY field_schemas/ ./field_schemas/
-COPY output_specs/ ./output_specs/
 COPY migrations/ ./migrations/
 COPY alembic.ini ./
 

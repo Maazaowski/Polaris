@@ -25,20 +25,19 @@ from polaris.api.uploads import save_uploaded_file, save_uploaded_pdf
 from polaris.clock import utcnow
 from polaris.config import settings
 from polaris.db import crud
-from polaris.fields.loader import field_schema_exists, get_field_schema, resolve_merged_field_schema
 from polaris.profiles.authoring import (
     draft_to_supplier_profile_dict,
     merge_source_profile_config,
     supplier_profile_to_draft,
 )
+from polaris.profiles.contract import (
+    date_format_issues,
+    field_set,
+    validate_fields,
+    validate_output_columns,
+)
 from polaris.profiles.loader import get_profile, save_profile
 from polaris.profiles.schema import SupplierProfile
-from polaris.specs.loader import (
-    get_output_spec,
-    output_spec_exists,
-    resolve_output_spec,
-    validate_profile_output_mapping,
-)
 
 logger = structlog.get_logger()
 
@@ -49,8 +48,6 @@ PROFILE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 class CreateSessionRequest(BaseModel):
     supplier_name: str | None = None
-    output_spec_id: str = "standard.8col"
-    field_schema_id: str = "invoice.standard"
     # Seed the session from an existing profile to refine its extraction hints with
     # AI; finalizing saves a new version that re-merges the source's non-AI config.
     source_profile_id: str | None = None
@@ -64,8 +61,6 @@ class MessageRequest(BaseModel):
 class FinalizeRequest(BaseModel):
     profile_id: str
     layout_description: str | None = None
-    output_spec_id: str | None = None
-    field_schema_id: str | None = None
 
 
 def _invoice_summary(inv) -> dict:
@@ -110,8 +105,6 @@ def _session_state(db: DbSession, session) -> dict:
         "session_id": session.id,
         "status": session.status,
         "supplier_name": session.supplier_name,
-        "output_spec_id": session.output_spec_id,
-        "field_schema_id": session.field_schema_id,
         "phase": session.phase,
         "inferred_category": session.inferred_category,
         "category_override": session.category_override,
@@ -182,28 +175,19 @@ def _enqueue_runner(
 @router.post("/sessions")
 def create_session(db: DbSession, body: CreateSessionRequest):
     supplier_name = body.supplier_name
-    output_spec_id = body.output_spec_id
-    field_schema_id = body.field_schema_id
     seed_draft: dict | None = None
 
-    # Editing an existing profile with AI: seed the draft from it and inherit its
-    # output spec / field schema / supplier so refinements build on the current hints.
+    # Editing an existing profile with AI: seed the draft from it (its fields,
+    # columns and hints) so refinements build on the current configuration.
     if body.source_profile_id:
         source = get_profile(body.source_profile_id)
         if source is None:
             raise HTTPException(status_code=404, detail=f"Profile '{body.source_profile_id}' not found")
         supplier_name = source.identity.canonical_name
-        output_spec_id = source.output_spec_id
-        field_schema_id = source.field_schema_id
         seed_draft = supplier_profile_to_draft(source)
 
-    if not output_spec_exists(output_spec_id):
-        raise HTTPException(status_code=400, detail=f"Output spec '{output_spec_id}' does not exist")
-    if not field_schema_exists(field_schema_id):
-        raise HTTPException(status_code=400, detail=f"Field schema '{field_schema_id}' does not exist")
     session = crud.create_authoring_session(
         db, supplier_name=supplier_name,
-        output_spec_id=output_spec_id, field_schema_id=field_schema_id,
         source_profile_id=body.source_profile_id, draft_profile=seed_draft,
         category_override=body.category_override,
     )
@@ -490,12 +474,7 @@ def finalize_session(db: DbSession, session_id: str, body: FinalizeRequest, curr
     if get_profile(body.profile_id) is not None:
         raise HTTPException(status_code=409, detail=f"Profile '{body.profile_id}' already exists")
 
-    spec_id = body.output_spec_id or session.output_spec_id
-    schema_id = body.field_schema_id or session.field_schema_id
-    authored = draft_to_supplier_profile_dict(
-        session.draft_profile, output_spec_id=spec_id, field_schema_id=schema_id,
-        field_schema=get_field_schema(schema_id), output_spec=get_output_spec(spec_id),
-    )
+    authored = draft_to_supplier_profile_dict(session.draft_profile)
 
     # Editing an existing profile: layer the AI-authored hints over the source so
     # the new version keeps its delivery accounts, training config, and fingerprint
@@ -521,26 +500,14 @@ def finalize_session(db: DbSession, session_id: str, body: FinalizeRequest, curr
         profile = SupplierProfile.model_validate(profile_dict)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Authored profile is invalid: {exc}") from exc
-    mapping_issues = validate_profile_output_mapping(
-        profile, resolve_merged_field_schema(profile))
-    if mapping_issues:
-        raise HTTPException(
-            status_code=422,
-            detail={"issues": mapping_issues},
-        )
-    merged_schema = resolve_merged_field_schema(profile)
-    by_path = {
-        f"{'field' if str(field.scope) == 'document' else 'row'}.{field.name}": field
-        for field in merged_schema.fields
-    }
-    date_blockers = []
-    for column in resolve_output_spec(profile).columns:
-        for source in (column.source, column.fallback):
-            field = by_path.get(source or "")
-            if field is not None and str(field.type) == "date" and not field.date_format:
-                date_blockers.append(
-                    f"Mapped date field '{source}' requires an explicit printed date format."
-                )
+    resolved_fields = field_set(profile)
+    contract_issues = [
+        *validate_fields(profile.fields),
+        *validate_output_columns(profile.output_columns, resolved_fields),
+    ]
+    if contract_issues:
+        raise HTTPException(status_code=422, detail={"issues": contract_issues})
+    date_blockers = date_format_issues(profile.output_columns, resolved_fields)
     if profile.authoring_evidence and date_blockers:
         profile.authoring_evidence.hard_blockers = list(dict.fromkeys([
             *profile.authoring_evidence.hard_blockers,

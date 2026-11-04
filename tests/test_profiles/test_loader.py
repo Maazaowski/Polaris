@@ -18,8 +18,6 @@ def _profile(profile_id: str, *, version: int, status: str) -> SupplierProfile:
         "last_updated_date": "2026-01-01",
         "identity": {"canonical_name": "euNetworks", "aliases": ["euNetworks Ireland"]},
         "classification": {"output_type": "standard"},
-        "output_spec_id": "standard.8col",
-        "field_schema_id": "invoice.standard",
         "delivery": {"inbound_path": None, "output_path": None},
     })
 

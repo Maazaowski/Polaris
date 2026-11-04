@@ -2,13 +2,14 @@
 
 This is the profile-level analogue of ``polaris.models.authoring`` (which
 authors the declarative *ExtractionModel*). Here the AI authors the upstream
-*SupplierProfile* config — identity, field label hints, the deterministic
-grouped-line-item policy, fingerprint tuning, and notes — from a handful of
-sample invoices plus the user's chat guidance.
+*SupplierProfile* config: identity, the fields to read (catalogue picks with
+printed-label hints, plus custom fields), the delivered columns, the
+deterministic grouped-line-item policy, fingerprint tuning, and notes, from a
+handful of sample invoices plus the user's chat guidance.
 
 It makes ONE AI call per invocation and returns a draft profile (the authorable
 subset) plus a natural-language assistant message. The interactive loop
-(upload → chat → preview → refine) is orchestrated by the Celery task in
+(upload -> chat -> preview -> refine) is orchestrated by the Celery task in
 ``polaris.tasks.worker`` and the API in ``polaris.api.profile_authoring``.
 """
 
@@ -26,9 +27,10 @@ import structlog
 from polaris import runtime_settings
 from polaris.ai_debug import traced_chat_completion
 from polaris.config import settings
-from polaris.fields.schema import FieldSchema
+from polaris.fields.catalogue import COMPUTED_SOURCES, catalogue_by_key, default_field_set, field_path
+from polaris.fields.schema import FieldDef, FieldRole, FieldSchema, FieldScope, FieldType
 from polaris.llm import get_ai_client
-from polaris.output.spec import OutputSpec
+from polaris.output.columns import TRANSFORMS, OutputColumn
 
 logger = structlog.get_logger()
 
@@ -45,13 +47,15 @@ _AMOUNT_SOURCES = ["group_total", "first_amount", "label_amount", "label_amount_
 _TAX_SOURCES = ["none", "label_amount", "group_total_minus_amount", "table_tax_column"]
 _TAX_OUTPUT_MODES = ["auto", "extract_exact", "calculate", "none"]
 _TAX_RATE_SOURCES = ["auto", "invoice_tax_rate", "invoice_tax_divided_by_subtotal", "consistent_line_tax_rate"]
-_COMPUTED_OUTPUT_SOURCES = ["computed.line_tax"]
-_OUTPUT_TRANSFORMS = ["digits_only", "trim", "uppercase", "lowercase"]
+_COMPUTED_OUTPUT_SOURCES = list(COMPUTED_SOURCES)
+_OUTPUT_TRANSFORMS = list(TRANSFORMS)
+_FIELD_TYPES = [t.value for t in FieldType]
+_FIELD_ROLES = [r.value for r in FieldRole]
 
 PROFILE_AUTHORING_SYSTEM_PROMPT = """You are an extraction-onboarding assistant for Polaris.
 
 You configure a SupplierProfile: a small JSON config that tells the system how to
-read ONE supplier's invoice layout and deliver the customer's required columns.
+read ONE supplier's invoice layout and which columns to deliver for it.
 You are given, for each sample invoice: the coordinate-aware PDF text and a
 baseline AI extraction. The baseline is evidence, not guaranteed ground truth.
 You may also be given the user's guidance, an XLS/XLSX blueprint per invoice,
@@ -60,39 +64,44 @@ and the diff between the current draft's preview and that blueprint.
 Your job each turn:
 1. Read the layouts and the user's guidance.
 2. Build an internal extraction plan before choosing profile fields. The plan
-   must decide supplier/document type, requested output layout, header labels,
-   invoice totals, line-item section boundaries, row granularity, service ID source,
-   billing reference source, amount source, tax source, page-break
-   carry-forward rules, skip rules, reconciliation targets, and unresolved risks.
+   must decide supplier/document type, which fields to read, the delivered
+   columns, header labels, invoice totals, line-item section boundaries, row
+   granularity, service ID source, billing reference source, amount source, tax
+   source, page-break carry-forward rules, skip rules, reconciliation targets,
+   and unresolved risks.
 3. Produce the BEST SupplierProfile draft you can, conforming exactly to the
    provided JSON schema. Only set fields you have real evidence for; leave the
    rest at their defaults (empty string / empty list / null).
 4. Write a short, plain-language assistant_message explaining the extraction
    plan decisions you encoded in the draft, what changed, and why. Describe every
-   output mapping change by output header, source, fallback, and reason. Ask one
-   focused question when mapping evidence is ambiguous.
+   delivered column by header, source, fallback, and reason. Ask one focused
+   question when the evidence is ambiguous.
 
 Guidance on the load-bearing fields:
 - identity.canonical_name + aliases: the supplier's name and the variants printed
   on documents.
-- field_overrides: how an existing canonical extraction field is recognized on
-  THIS supplier's invoice. field_path identifies the exact document or row field;
-  label_hint is its printed label. For dates, encode an explicitly stated input
-  format such as %d/%m/%Y in date_format; delivery is normalized to %m/%d/%Y.
-  Never relabel field.invoice_date as "Billing Period Start" to simulate delivery.
-- output_mapping_overrides: exceptions to the selected OutputSpec. They decide
-  which already-extracted canonical value populates a delivered output column.
-  A field.* source repeats one document value; a row.* source resolves separately
-  for every delivered line. Use this for EXT_DATE -> row.billing_period_start.
+- fields: the COMPLETE list of fields to read from this supplier's invoices, every
+  turn. Pick from the field catalogue by name and scope (document or row); the
+  catalogue fixes each pick's type and role, you supply the printed label_hint and,
+  for dates, the explicitly printed input format such as %d/%m/%Y in date_format
+  (delivery is normalized to %m/%d/%Y). A name that is not in the catalogue is a
+  custom field: give it a scope, type and role. Never relabel invoice_date as
+  "Billing Period Start" to simulate delivery; add billing_period_start instead.
+- output_columns: the COMPLETE ordered list of delivered columns, every turn.
+  With a blueprint, its headers ARE the contract: deliver exactly those headers in
+  that order and map each to the field whose values match the blueprint. Without
+  a blueprint, propose the columns the invoice evidence supports (identifiers,
+  dates, amounts, tax) and say so. A field.* source repeats one document value;
+  a row.* source resolves separately for every delivered line; computed.line_tax
+  is the per-line tax the system derives.
 - transforms are safe delivery normalizations applied after source/fallback.
   Use digits_only for requests such as "remove dashes from account number";
   never claim a requested transform is implemented only by mentioning it in notes.
-- Only create an output mapping when the user explicitly requests it or blueprint
-  values consistently match the same alternative field across samples. Mixed or
-  weak evidence requires an open question and no speculative mapping.
-- Return the COMPLETE desired output_mapping_overrides list every turn. Preserve
-  existing mappings unless the user requests a reset/change or strong new evidence
-  contradicts them. Omitting an existing mapping resets it to the OutputSpec.
+- Only map a column to an alternative field when the user explicitly requests it
+  or blueprint values consistently match that field across samples. Mixed or weak
+  evidence requires an open question and no speculative mapping.
+- Preserve existing fields and columns unless the user requests a change or
+  strong new evidence contradicts them. Omitting a column removes it.
 - line_item_hints.line_item_granularity: per_charge_row (one row per charge),
   per_service_group, or per_total_group (one row per service/total block).
 - service_id_preference / billing_reference_preference: which printed identifier
@@ -154,53 +163,78 @@ class ProfileAuthoringResult:
 
 
 def _field_path(field) -> str:
-    return f"{'field' if str(field.scope) == 'document' else 'row'}.{field.name}"
+    return field_path(field)
 
 
-def available_output_source_paths(field_schema: FieldSchema) -> list[str]:
-    return [*[_field_path(field) for field in field_schema.fields], *_COMPUTED_OUTPUT_SOURCES]
+def available_output_source_paths(field_set: FieldSchema) -> list[str]:
+    return [*[_field_path(f) for f in field_set.fields], *_COMPUTED_OUTPUT_SOURCES]
 
 
-def _field_override_schema(field_paths: list[str]) -> dict:
+def authoring_field_set(*extra: FieldSchema | list | None) -> FieldSchema:
+    """The field vocabulary one authoring turn may map to: the whole catalogue
+    plus every custom field already present in ``extra`` (a source profile's
+    field set, the current draft's fields, ...)."""
+    fields = list(default_field_set().fields)
+    known = {(f.scope, f.name) for f in fields}
+    for item in extra:
+        if item is None:
+            continue
+        entries = item.fields if isinstance(item, FieldSchema) else item
+        for raw in entries:
+            fdef = raw if isinstance(raw, FieldDef) else _draft_entry_to_field(raw)
+            if fdef is None or (fdef.scope, fdef.name) in known:
+                continue
+            fields.append(fdef)
+            known.add((fdef.scope, fdef.name))
+    return FieldSchema(schema_id="authoring", name="Authoring", fields=fields)
+
+
+def _field_item_schema() -> dict:
     return {
         "type": "object",
         "properties": {
-            "field_path": {"type": "string", "enum": field_paths},
+            "name": {"type": "string"},
+            "scope": {"type": "string", "enum": ["document", "row"]},
+            "type": {"type": ["string", "null"], "enum": [*_FIELD_TYPES, None]},
+            "role": {"type": ["string", "null"], "enum": [*_FIELD_ROLES, None]},
             "label_hint": {"type": ["string", "null"]},
             "date_format": {"type": ["string", "null"]},
+            "required": {"type": "boolean"},
+            "description": {"type": ["string", "null"]},
         },
-        "required": ["field_path", "label_hint", "date_format"],
+        "required": ["name", "scope", "type", "role", "label_hint", "date_format", "required", "description"],
         "additionalProperties": False,
     }
 
 
-def _output_mapping_override_schema(output_spec: OutputSpec, source_paths: list[str]) -> dict:
-    headers = list(dict.fromkeys(column.header for column in output_spec.columns))
+def _output_column_schema(source_paths: list[str]) -> dict:
     return {
         "type": "object",
         "properties": {
-            "output_header": {"type": "string", "enum": headers},
+            "header": {"type": "string"},
             "source": {"type": "string", "enum": source_paths},
             "fallback": {"type": ["string", "null"], "enum": [*source_paths, None]},
             "transforms": {
                 "type": "array",
                 "items": {"type": "string", "enum": _OUTPUT_TRANSFORMS},
             },
+            "number_format": {"type": ["string", "null"]},
+            "width": {"type": ["integer", "null"]},
             "reason": {"type": "string"},
         },
-        "required": ["output_header", "source", "fallback", "transforms", "reason"],
+        "required": ["header", "source", "fallback", "transforms", "number_format", "width", "reason"],
         "additionalProperties": False,
     }
 
 
-def build_profile_authoring_schema(field_schema: FieldSchema, output_spec: OutputSpec) -> dict:
+def build_profile_authoring_schema(field_set: FieldSchema) -> dict:
     """Strict JSON schema for the authorable subset of a SupplierProfile.
 
-    Scoped label paths and output mappings are pinned to the merged field schema
-    and selected output spec so the model cannot invent fields or columns.
+    Column sources are pinned to ``field_set`` (the catalogue plus the custom
+    fields already in play) so the model cannot invent a source path. A custom
+    field it adds this turn becomes mappable on the next one.
     """
-    field_paths = list(dict.fromkeys(_field_path(field) for field in field_schema.fields))
-    source_paths = available_output_source_paths(field_schema)
+    source_paths = list(dict.fromkeys(available_output_source_paths(field_set)))
     return {
         "name": "supplier_profile_draft",
         "strict": True,
@@ -221,14 +255,8 @@ def build_profile_authoring_schema(field_schema: FieldSchema, output_spec: Outpu
                         "aliases": {"type": "array", "items": {"type": "string"}},
                         "output_type": {"type": "string"},
                         "notes": {"type": ["string", "null"]},
-                        "field_overrides": {
-                            "type": "array",
-                            "items": _field_override_schema(field_paths),
-                        },
-                        "output_mapping_overrides": {
-                            "type": "array",
-                            "items": _output_mapping_override_schema(output_spec, source_paths),
-                        },
+                        "fields": {"type": "array", "items": _field_item_schema()},
+                        "output_columns": {"type": "array", "items": _output_column_schema(source_paths)},
                         "detail_start_marker": {"type": ["string", "null"]},
                         "detail_end_marker": {"type": ["string", "null"]},
                         "line_item_granularity": {"type": ["string", "null"], "enum": [*_GRANULARITIES, None]},
@@ -254,8 +282,7 @@ def build_profile_authoring_schema(field_schema: FieldSchema, output_spec: Outpu
                         "require_line_item_identifier": {"type": "boolean"},
                     },
                     "required": [
-                        "canonical_name", "aliases", "output_type", "notes", "field_overrides",
-                        "output_mapping_overrides",
+                        "canonical_name", "aliases", "output_type", "notes", "fields", "output_columns",
                         "detail_start_marker", "detail_end_marker", "line_item_granularity",
                         "service_id_preference", "billing_reference_preference",
                         "service_id_column_label", "billing_reference_column_label",
@@ -277,55 +304,105 @@ def build_profile_authoring_schema(field_schema: FieldSchema, output_spec: Outpu
     }
 
 
-def draft_to_supplier_profile_dict(
-    draft: dict, *, output_spec_id: str, field_schema_id: str,
-    field_schema: FieldSchema | None = None, output_spec: OutputSpec | None = None,
-) -> dict:
+def _draft_entry_to_field(entry: dict) -> FieldDef | None:
+    """One authored ``fields`` entry (or a legacy ``field_path`` entry) as a
+    FieldDef: catalogue picks take type/role from the catalogue and keep only
+    the hints; anything else is a custom field taken as written."""
+    if not isinstance(entry, dict):
+        return None
+    name = str(entry.get("name") or "").strip()
+    scope = entry.get("scope")
+    path = entry.get("field_path")
+    if path and not name:
+        prefix, _, name = str(path).partition(".")
+        scope = "document" if prefix in ("field", "header") else "row"
+    if not name:
+        return None
+    try:
+        scope_val = FieldScope(str(scope or "document"))
+    except ValueError:
+        scope_val = FieldScope.DOCUMENT
+    base = catalogue_by_key().get((scope_val, name))
+    if base is None:
+        same_name = [k for k in catalogue_by_key() if k[1] == name]
+        if len(same_name) == 1 and not scope:
+            scope_val = same_name[0][0]
+            base = catalogue_by_key()[same_name[0]]
+    label_hint = entry.get("label_hint") or None
+    date_format = entry.get("date_format") or None
+    required = bool(entry.get("required", False))
+    if base is not None:
+        return FieldDef(
+            name=name, scope=scope_val, type=base.type, role=base.role,
+            label_hint=label_hint, date_format=date_format, required=required or base.required,
+            enum_values=list(base.enum_values), description=entry.get("description") or "",
+        )
+    try:
+        ftype = FieldType(str(entry.get("type") or "string"))
+    except ValueError:
+        ftype = FieldType.STRING
+    try:
+        role = FieldRole(str(entry.get("role") or "none"))
+    except ValueError:
+        role = FieldRole.NONE
+    return FieldDef(
+        name=name, scope=scope_val, type=ftype, role=role, label_hint=label_hint,
+        date_format=date_format, required=required, enum_values=list(entry.get("enum_values") or []),
+        description=entry.get("description") or "",
+    )
+
+
+def _field_to_profile_entry(fdef: FieldDef) -> dict:
+    base = catalogue_by_key().get((fdef.scope, fdef.name))
+    entry = {
+        "name": fdef.name,
+        "scope": fdef.scope.value,
+        "type": fdef.type.value,
+        "role": fdef.role.value,
+        "label_hint": fdef.label_hint,
+        "date_format": fdef.date_format,
+        "required": bool(fdef.required),
+    }
+    if base is None:
+        entry["enum_values"] = list(fdef.enum_values)
+        entry["description"] = fdef.description or ""
+    elif fdef.description and fdef.description != base.description:
+        entry["description"] = fdef.description
+    return entry
+
+
+def _draft_column_to_profile_entry(entry: dict) -> dict | None:
+    header = str(entry.get("header") or "").strip()
+    if not header:
+        return None
+    column = OutputColumn(
+        header=header,
+        source=str(entry.get("source") or "").strip(),
+        fallback=(str(entry.get("fallback")).strip() or None) if entry.get("fallback") else None,
+        transforms=list(entry.get("transforms") or []),
+        width=int(entry.get("width") or 15),
+        number_format=entry.get("number_format") or None,
+    )
+    return column.model_dump(mode="json")
+
+
+def draft_to_supplier_profile_dict(draft: dict, *, field_set: FieldSchema | None = None) -> dict:
     """Map the flat authored ``draft`` onto the SupplierProfile JSON shape.
 
     Returns a dict that ``SupplierProfile.model_validate`` accepts. ``profile_id``
     and ``delivery`` are intentionally left for the user to set at finalize time.
-    Overrides carry the base field's scope/type/role (the merge is label-only) so
-    the resulting ``FieldDef`` validates.
+    ``fields`` / ``output_columns`` are written only when the draft carries them,
+    so an edit session that omits them keeps the source profile's. Structural
+    validity (sources resolve, headers unique) is checked at finalize time, not
+    here, so a preview can always be rendered.
     """
     p = draft.get("profile", draft)
-    base_by_name = {}
-    base_by_path = {}
-    if field_schema:
-        for field in field_schema.fields:
-            # Legacy name-only drafts default ambiguous names to the first
-            # (normally document-scoped) schema field. New drafts use field_path.
-            base_by_name.setdefault(field.name, field)
-            base_by_path[_field_path(field)] = field
-    overrides = []
-    for o in (p.get("field_overrides") or []):
-        field_path = o.get("field_path")
-        base = base_by_path.get(field_path) if field_path else None
-        name = base.name if base else o.get("name")
-        if not name:
-            continue
-        if base is None and o.get("scope"):
-            prefix = "field" if o.get("scope") == "document" else "row"
-            base = base_by_path.get(f"{prefix}.{name}")
-        if base is None:
-            base = base_by_name.get(name)
-        overrides.append({
-            "name": name,
-            "scope": str(base.scope) if base else "document",
-            "type": str(base.type) if base else "string",
-            "role": str(base.role) if base else "none",
-            "label_hint": o.get("label_hint") or None,
-            "date_format": o.get("date_format") or None,
-        })
     result = {
         "identity": {
             "canonical_name": p.get("canonical_name") or "",
             "aliases": list(p.get("aliases") or []),
         },
         "classification": {"output_type": p.get("output_type") or "standard"},
-        "output_spec_id": output_spec_id,
-        "field_schema_id": field_schema_id,
-        "field_overrides": overrides,
         "notes": p.get("notes") or None,
         "advanced": {
             "document_structure": {
@@ -358,51 +435,23 @@ def draft_to_supplier_profile_dict(
         },
         "authoring_evidence": p.get("authoring_evidence"),
     }
-    # Absence is distinct from an authored empty list for legacy edit sessions:
-    # absent preserves source mappings; an empty list intentionally resets them.
-    if "output_mapping_overrides" in p:
-        mappings = []
-        seen_headers: set[str] = set()
-        allowed_headers = {column.header for column in output_spec.columns} if output_spec else None
-        allowed_sources = set(available_output_source_paths(field_schema)) if field_schema else None
-        for mapping in p.get("output_mapping_overrides") or []:
-            header = str(mapping.get("output_header") or "").strip()
-            source = str(mapping.get("source") or "").strip()
-            fallback = mapping.get("fallback") or None
-            transforms = list(mapping.get("transforms") or [])
-            if not header or not source:
-                raise ValueError("output mapping requires output_header and source")
-            if header in seen_headers:
-                raise ValueError(f"duplicate output mapping for '{header}'")
-            if allowed_headers is not None and header not in allowed_headers:
-                raise ValueError(f"unknown output mapping column '{header}'")
-            if allowed_sources is not None and source not in allowed_sources:
-                raise ValueError(f"unknown output mapping source '{source}'")
-            if fallback and allowed_sources is not None and fallback not in allowed_sources:
-                raise ValueError(f"unknown output mapping fallback '{fallback}'")
-            if len(transforms) != len(set(transforms)):
-                raise ValueError(f"duplicate transforms for output mapping '{header}'")
-            if any(transform not in _OUTPUT_TRANSFORMS for transform in transforms):
-                raise ValueError(f"unsupported transform for output mapping '{header}'")
-            seen_headers.add(header)
-            inherited = next(
-                (column for column in (output_spec.columns if output_spec else []) if column.header == header),
-                None,
-            )
-            if (
-                inherited is not None
-                and inherited.source == source
-                and (inherited.fallback or None) == fallback
-                and not transforms
-            ):
+    if "fields" in p:
+        by_key: dict[tuple[FieldScope, str], FieldDef] = {}
+        for entry in p.get("fields") or []:
+            fdef = _draft_entry_to_field(entry)
+            if fdef is not None:
+                by_key[(fdef.scope, fdef.name)] = fdef
+        result["fields"] = [_field_to_profile_entry(f) for f in by_key.values()]
+    if "output_columns" in p:
+        columns: list[dict] = []
+        seen: set[str] = set()
+        for entry in p.get("output_columns") or []:
+            column = _draft_column_to_profile_entry(entry)
+            if column is None or column["header"] in seen:
                 continue
-            mappings.append({
-                "output_header": header,
-                "source": source,
-                "fallback": fallback,
-                "transforms": transforms,
-            })
-        result["output_mapping_overrides"] = mappings
+            seen.add(column["header"])
+            columns.append(column)
+        result["output_columns"] = columns
     return result
 
 
@@ -410,9 +459,9 @@ def supplier_profile_to_draft(profile) -> dict:
     """Inverse of ``draft_to_supplier_profile_dict``: seed an authoring draft from an
     existing profile so the assistant can refine its extraction hints.
 
-    Only the AI-authorable surface is reflected (identity, classification, field-label
-    overrides, and the advanced hint block). Delivery, training, fingerprint, and
-    lifecycle stay on the source profile and are re-merged at finalize time.
+    Only the AI-authorable surface is reflected (identity, classification, fields,
+    output columns, and the advanced hint block). Delivery, training, fingerprint,
+    and lifecycle stay on the source profile and are re-merged at finalize time.
     """
     ds = profile.document_structure
     lih = profile.line_item_hints
@@ -422,24 +471,30 @@ def supplier_profile_to_draft(profile) -> dict:
             "canonical_name": profile.identity.canonical_name,
             "aliases": list(profile.identity.aliases or []),
             "output_type": profile.classification.output_type,
-            "field_overrides": [
+            "fields": [
                 {
-                    "field_path": f"{'field' if str(o.scope) == 'document' else 'row'}.{o.name}",
-                    "label_hint": o.label_hint,
-                    "date_format": o.date_format,
+                    "name": f.name,
+                    "scope": f.scope.value,
+                    "type": f.type.value,
+                    "role": f.role.value,
+                    "label_hint": f.label_hint,
+                    "date_format": f.date_format,
+                    "required": bool(f.required),
+                    "description": f.description or None,
                 }
-                for o in (profile.field_overrides or [])
-                if o.label_hint or o.date_format
+                for f in (profile.fields or [])
             ],
-            "output_mapping_overrides": [
+            "output_columns": [
                 {
-                    "output_header": mapping.output_header,
-                    "source": mapping.source,
-                    "fallback": mapping.fallback,
-                    "transforms": list(mapping.transforms),
-                    "reason": "Existing profile override.",
+                    "header": c.header,
+                    "source": c.source,
+                    "fallback": c.fallback,
+                    "transforms": list(c.transforms),
+                    "number_format": c.number_format,
+                    "width": c.width,
+                    "reason": "Existing profile column.",
                 }
-                for mapping in (profile.output_mapping_overrides or [])
+                for c in (profile.output_columns or [])
             ],
             "notes": profile.notes,
             "detail_start_marker": ds.detail_start_marker,
@@ -471,9 +526,9 @@ def supplier_profile_to_draft(profile) -> dict:
 def merge_source_profile_config(source, authored: dict) -> dict:
     """Layer authored settings over a source profile without losing non-AI config.
 
-    Output mappings are a complete desired list when present. An authored empty
-    list intentionally resets them; legacy payloads that omit the property keep
-    the source profile's mappings.
+    Fields merge by (scope, name) with the authored entry winning. Output
+    columns are a complete list when present: an authored list (even empty)
+    replaces the source's; a payload that omits the key keeps them.
     """
     source_dict = source.model_dump(mode="json")
     merged = {**source_dict, **authored}
@@ -481,16 +536,16 @@ def merge_source_profile_config(source, authored: dict) -> dict:
         **(source_dict.get("advanced") or {}),
         **(authored.get("advanced") or {}),
     }
-    overrides = {
+    fields = {
         (item.get("scope"), item.get("name")): item
-        for item in source_dict.get("field_overrides") or []
+        for item in source_dict.get("fields") or []
     }
-    for item in authored.get("field_overrides") or []:
+    for item in authored.get("fields") or []:
         key = (item.get("scope"), item.get("name"))
-        overrides[key] = {**overrides.get(key, {}), **item}
-    merged["field_overrides"] = list(overrides.values())
-    if "output_mapping_overrides" not in authored:
-        merged["output_mapping_overrides"] = source_dict.get("output_mapping_overrides") or []
+        fields[key] = {**fields.get(key, {}), **item}
+    merged["fields"] = list(fields.values())
+    if "output_columns" not in authored:
+        merged["output_columns"] = source_dict.get("output_columns") or []
     return merged
 
 
@@ -547,8 +602,8 @@ def _blueprint_vs_invoice_summary(
     blueprint_context: dict | None,
     target: dict,
     *,
-    output_spec: OutputSpec | None = None,
-    field_schema: FieldSchema | None = None,
+    columns: list[OutputColumn] | None = None,
+    field_set: FieldSchema | None = None,
 ) -> dict | None:
     if not blueprint_context:
         return None
@@ -605,9 +660,9 @@ def _blueprint_vs_invoice_summary(
             "or row-date fields before choosing an output mapping."
         )
     mapping_evidence = []
-    if output_spec and field_schema:
-        source_paths = available_output_source_paths(field_schema)
-        for column in output_spec.columns:
+    if columns and field_set:
+        source_paths = available_output_source_paths(field_set)
+        for column in columns:
             blueprint_values = _blueprint_column_values(
                 blueprint_context, {_normalized_header_token(column.header)})
             if not blueprint_values:
@@ -690,8 +745,8 @@ def _date_for_compare(value: object) -> str:
 
 def _build_user_prompt(
     *,
-    field_schema: FieldSchema,
-    output_spec: OutputSpec,
+    field_set: FieldSchema,
+    columns: list[OutputColumn],
     invoices: list[InvoiceEvidence],
     conversation: list[dict],
     current_draft: dict | None,
@@ -699,14 +754,14 @@ def _build_user_prompt(
     budget: int,
 ) -> str:
     """Assemble the authoring prompt, trimming layout text if over the token budget."""
-    label_hints = [
-        {"name": f.name, "scope": str(f.scope), "type": str(f.type),
-         "role": str(f.role), "label_hint": f.label_hint, "date_format": f.date_format}
-        for f in field_schema.fields
+    catalogue = [
+        {"path": _field_path(f), "type": str(f.type), "role": str(f.role), "required": bool(f.required),
+         "description": f.description, "label_hint": f.label_hint, "date_format": f.date_format}
+        for f in field_set.fields
     ]
     deliverable = [
-        {"header": c.header, "source": c.source, "fallback": c.fallback}
-        for c in output_spec.columns
+        {"header": c.header, "source": c.source, "fallback": c.fallback, "transforms": list(c.transforms)}
+        for c in columns
     ]
     history = [
         {"role": m.get("role"), "content": m.get("content")}
@@ -730,7 +785,7 @@ def _build_user_prompt(
                 block["blueprint_context"] = inv.blueprint_context
                 block["blueprint_vs_invoice_summary"] = _blueprint_vs_invoice_summary(
                     inv.blueprint_context, inv.target,
-                    output_spec=output_spec, field_schema=field_schema)
+                    columns=columns, field_set=field_set)
             elif inv.expected_rows is not None:
                 block["blueprint_context"] = {
                     "aligned_rows": inv.expected_rows,
@@ -739,14 +794,14 @@ def _build_user_prompt(
                 }
                 block["blueprint_vs_invoice_summary"] = _blueprint_vs_invoice_summary(
                     block["blueprint_context"], inv.target,
-                    output_spec=output_spec, field_schema=field_schema)
+                    columns=columns, field_set=field_set)
             if inv.diff_feedback:
                 block["preview_vs_blueprint_diff"] = inv.diff_feedback
             invoice_blocks.append(block)
         payload = {
-            "field_schema": {"schema_id": field_schema.schema_id, "fields": label_hints},
-            "deliverable_columns": deliverable,
-            "allowed_output_sources": available_output_source_paths(field_schema),
+            "field_catalogue": catalogue,
+            "current_output_columns": deliverable,
+            "allowed_output_sources": available_output_source_paths(field_set),
             "conversation": history,
             "current_draft": current_draft,
             "discovery_candidates": (
@@ -777,8 +832,8 @@ def _build_user_prompt(
 
 def author_profile(
     *,
-    field_schema: FieldSchema,
-    output_spec: OutputSpec,
+    field_set: FieldSchema,
+    columns: list[OutputColumn],
     invoices: list[InvoiceEvidence],
     conversation: list[dict],
     current_draft: dict | None = None,
@@ -786,17 +841,20 @@ def author_profile(
 ) -> ProfileAuthoringResult:
     """One AI call: author a SupplierProfile draft grounded in the sample invoices.
 
-    ``conversation`` is the prior chat history (the latest user message included);
-    ``current_draft`` is the previous turn's authored profile (the flat draft), so
-    refinement turns build on what's there instead of starting over.
+    ``field_set`` is the vocabulary the draft may read and map (the catalogue
+    plus custom fields already in play); ``columns`` are the columns currently
+    configured, if any. ``conversation`` is the prior chat history (the latest
+    user message included); ``current_draft`` is the previous turn's authored
+    profile (the flat draft), so refinement turns build on what's there instead
+    of starting over.
     """
     if not invoices:
         raise ValueError("profile authoring requires at least one extracted invoice")
 
-    schema = build_profile_authoring_schema(field_schema, output_spec)
+    schema = build_profile_authoring_schema(field_set)
     user_prompt = _build_user_prompt(
-        field_schema=field_schema,
-        output_spec=output_spec,
+        field_set=field_set,
+        columns=columns,
         invoices=invoices,
         conversation=conversation,
         current_draft=current_draft,

@@ -1,7 +1,7 @@
 """DB persistence for the config registries: supplier profiles, field schemas,
 output specs. Each stores the full pydantic JSON in a ``data`` column keyed by id.
 
-The loaders (`profiles/loader.py`, `fields/loader.py`, `specs/loader.py`) call
+The profile loader (`profiles/loader.py`) calls
 these with their own short-lived session. The DB is the source of truth; disk
 JSON only seeds these on boot.
 """
@@ -16,8 +16,6 @@ from sqlalchemy.orm import Session
 from polaris.audit import append_event, audit_stamp
 from polaris.clock import utcnow
 from polaris.db.models import (
-    FieldSchemaRecord,
-    OutputSpecRecord,
     ProviderCredential,
     RuntimeSettingRecord,
     SupplierProfileRecord,
@@ -104,80 +102,6 @@ def delete_profile(db: Session, profile_id: str, *, actor: User | None = None) -
 
 
 # ── Field schemas ────────────────────────────────────────────
-
-
-def list_field_schemas(db: Session) -> list[FieldSchemaRecord]:
-    return list(db.scalars(select(FieldSchemaRecord)).all())
-
-
-def get_field_schema(db: Session, schema_id: str) -> FieldSchemaRecord | None:
-    return db.get(FieldSchemaRecord, schema_id)
-
-
-def field_schema_exists(db: Session, schema_id: str) -> bool:
-    return db.get(FieldSchemaRecord, schema_id) is not None
-
-
-def upsert_field_schema(
-    db: Session, *, schema_id: str, name: str | None, data: dict[str, Any]
-) -> FieldSchemaRecord:
-    row = db.get(FieldSchemaRecord, schema_id)
-    if row is None:
-        row = FieldSchemaRecord(schema_id=schema_id)
-        db.add(row)
-    row.name = name
-    row.data = data
-    db.commit()
-    return row
-
-
-def delete_field_schema(db: Session, schema_id: str) -> bool:
-    row = db.get(FieldSchemaRecord, schema_id)
-    if row is None:
-        return False
-    db.delete(row)
-    db.commit()
-    return True
-
-
-# ── Output specs ─────────────────────────────────────────────
-
-
-def list_output_specs(db: Session) -> list[OutputSpecRecord]:
-    return list(db.scalars(select(OutputSpecRecord)).all())
-
-
-def get_output_spec(db: Session, spec_id: str) -> OutputSpecRecord | None:
-    return db.get(OutputSpecRecord, spec_id)
-
-
-def output_spec_exists(db: Session, spec_id: str) -> bool:
-    return db.get(OutputSpecRecord, spec_id) is not None
-
-
-def upsert_output_spec(
-    db: Session, *, spec_id: str, name: str | None, data: dict[str, Any]
-) -> OutputSpecRecord:
-    row = db.get(OutputSpecRecord, spec_id)
-    if row is None:
-        row = OutputSpecRecord(spec_id=spec_id)
-        db.add(row)
-    row.name = name
-    row.data = data
-    db.commit()
-    return row
-
-
-def delete_output_spec(db: Session, spec_id: str) -> bool:
-    row = db.get(OutputSpecRecord, spec_id)
-    if row is None:
-        return False
-    db.delete(row)
-    db.commit()
-    return True
-
-
-# Runtime settings -----------------------------------------------------------
 
 
 def list_runtime_settings(db: Session) -> list[RuntimeSettingRecord]:

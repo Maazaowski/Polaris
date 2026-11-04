@@ -343,8 +343,8 @@ def seed(*, reset: bool = False, dry_run: bool = False, layouts: tuple[str, ...]
 
         if not dry_run:
             settings.ensure_directories()
-            # The API seeds the field schema / output spec on boot; a database the
-            # API has never started against needs them before the output step.
+            # The API seeds disk profiles on boot; a database the API has never
+            # started against gets them here instead.
             from polaris.db.seed import seed_registries_from_disk
 
             seed_registries_from_disk()

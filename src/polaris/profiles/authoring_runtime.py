@@ -31,12 +31,7 @@ from polaris.extraction.layout import (
 )
 from polaris.extraction.normalization import apply_layout_profile_hints
 from polaris.extraction.page_roles import classify_pages
-from polaris.fields.loader import (
-    default_field_schema,
-    get_field_schema,
-    merge_field_schema,
-    resolve_merged_field_schema,
-)
+from polaris.fields.catalogue import default_field_set
 from polaris.models.authoring import _build_target
 from polaris.models.diff import diff_output_rows
 from polaris.output.expected_loader import load_blueprint_context
@@ -46,19 +41,15 @@ from polaris.pricing import estimate_cost_usd
 from polaris.profiles.authoring import (
     InvoiceEvidence,
     author_profile,
+    authoring_field_set,
     draft_to_supplier_profile_dict,
     merge_source_profile_config,
 )
+from polaris.profiles.contract import delivery_columns, field_set, output_columns, suggest_columns_from_headers
 from polaris.profiles.discovery import ENGINE_VERSION, DiscoveryInput, discover_profile
 from polaris.profiles.loader import get_profile
 from polaris.profiles.schema import SupplierProfile
 from polaris.profiles.validation import grade_authoring_evidence
-from polaris.specs.loader import (
-    get_output_spec,
-    load_all_output_specs,
-    output_spec_to_columns,
-    resolve_output_spec,
-)
 from polaris.validation.schema import ExtractedDocument
 
 logger = structlog.get_logger()
@@ -66,15 +57,27 @@ logger = structlog.get_logger()
 _DRAFT_PROFILE_ID = "draft.authoring.preview"  # placeholder id for preview-only profiles
 
 
-def _add_compatible_spec_suggestions(context: dict) -> dict:
-    if context.get("contract_compatible") is not False:
-        return context
-    raw = [str(header).strip().casefold() for header in context.get("raw_headers") or []]
-    context["compatible_output_spec_ids"] = [
-        spec.spec_id
-        for spec in load_all_output_specs().values()
-        if [column.header.strip().casefold() for column in spec.columns] == raw
-    ]
+def _session_columns(session) -> list:
+    """The columns the session's draft (or its source profile) currently
+    delivers, as ColumnDefs; empty while nothing has been authored yet."""
+    if session.draft_profile:
+        try:
+            return delivery_columns(_preview_profile_from_draft(session, session.draft_profile))
+        except Exception:
+            pass
+    source = get_profile(session.source_profile_id) if session.source_profile_id else None
+    return delivery_columns(source) if source is not None else []
+
+
+def _blueprint_context_for(session, path: str, columns: list) -> dict:
+    """Parse a blueprint against the configured columns; with none configured
+    yet its headers become proposed columns for the assistant to map."""
+    context = load_blueprint_context(path, columns)
+    if not columns:
+        context["suggested_output_columns"] = [
+            column.model_dump(mode="json")
+            for column in suggest_columns_from_headers(context.get("raw_headers") or [])
+        ]
     return context
 
 
@@ -107,12 +110,8 @@ def _extract_and_cache(
     Shared by the one-time upload extraction (``profile=None``, default schema)
     and on-demand re-extraction with the current draft profile's hints.
     """
-    schema = field_schema or default_field_schema()
-    output_type = (
-        session.category_override
-        or session.inferred_category
-        or ("time_and_material" if "time_and_material" in session.output_spec_id else "standard")
-    )
+    schema = field_schema or default_field_set()
+    output_type = session.category_override or session.inferred_category or "standard"
     result = extract_invoice(
         pdf, supplier_name=session.supplier_name, output_type=output_type,
         field_schema=schema, supplier_profile=profile, artifact_dir=artifact_dir,
@@ -222,35 +221,31 @@ def run_discovery(db: Session, *, session_id: str) -> dict:
     ]
     if not invoices:
         raise ValueError("upload at least one sample invoice before discovery")
-    spec = get_output_spec(session.output_spec_id)
+    columns = _session_columns(session)
     contexts: list[dict] = []
     for invoice in invoices:
         artifact_dir = Path(invoice.artifact_dir)
         blueprint = next(iter(artifact_dir.glob("blueprint.xls*")), None)
         if blueprint is not None:
-            context = _add_compatible_spec_suggestions(
-                load_blueprint_context(str(blueprint), output_spec_to_columns(spec))
-            )
+            context = _blueprint_context_for(session, str(blueprint), columns)
             context["filename"] = blueprint.name
             context["_paired_invoice"] = invoice.filename
             contexts.append(context)
             _write_json(artifact_dir / "blueprint_context.json", context)
             _write_json(artifact_dir / "expected_rows.json", context["aligned_rows"])
     for blueprint in crud.list_authoring_blueprints(db, session.id):
-        context = _add_compatible_spec_suggestions(
-            load_blueprint_context(blueprint.artifact_path, output_spec_to_columns(spec))
-        )
+        context = _blueprint_context_for(session, blueprint.artifact_path, columns)
         context["filename"] = blueprint.filename
         contexts.append(context)
 
     crud.update_authoring_session(db, session.id, phase="scanning")
     report = discover_profile(
+        output_columns=columns,
         invoices=[
             DiscoveryInput(label=invoice.filename, pdf_path=Path(invoice.artifact_dir) / "source.pdf")
             for invoice in invoices
         ],
         blueprint_contexts=contexts,
-        output_spec=spec,
         supplier_name=session.supplier_name,
         document_family_override=session.category_override,
     )
@@ -289,10 +284,7 @@ def run_discovery(db: Session, *, session_id: str) -> dict:
 def _parse_expected_blueprint(session, invoice, artifact_dir: Path) -> None:
     blueprint_path = next(iter(artifact_dir.glob("blueprint.xls*")), artifact_dir / "expected.xlsx")
     if invoice.has_expected and blueprint_path.exists():
-        spec = get_output_spec(session.output_spec_id)
-        blueprint_context = _add_compatible_spec_suggestions(
-            load_blueprint_context(str(blueprint_path), output_spec_to_columns(spec))
-        )
+        blueprint_context = _blueprint_context_for(session, str(blueprint_path), _session_columns(session))
         _write_json(artifact_dir / "blueprint_context.json", blueprint_context)
         _write_json(artifact_dir / "expected_rows.json", blueprint_context["aligned_rows"])
 
@@ -319,11 +311,7 @@ def run_extraction(db: Session, *, session_id: str, invoice_id: str) -> None:
     crud.update_authoring_invoice(db, invoice_id, extraction_status="pending", error_message=None)
     try:
         profile = get_profile(session.source_profile_id) if session.source_profile_id else None
-        field_schema = (
-            resolve_merged_field_schema(profile)
-            if profile is not None
-            else get_field_schema(session.field_schema_id)
-        )
+        field_schema = field_set(profile) if profile is not None else default_field_set()
         _extract_and_cache(
             db, session=session, invoice_id=invoice_id, pdf=source_pdf,
             artifact_dir=artifact_dir, call_type="profile_authoring_extract",
@@ -341,12 +329,7 @@ def run_extraction(db: Session, *, session_id: str, invoice_id: str) -> None:
 
 def _preview_profile_from_draft(session, draft: dict) -> SupplierProfile:
     source = get_profile(session.source_profile_id) if session.source_profile_id else None
-    schema = resolve_merged_field_schema(source) if source else get_field_schema(session.field_schema_id)
-    spec = get_output_spec(session.output_spec_id)
-    profile_dict = draft_to_supplier_profile_dict(
-        draft, output_spec_id=session.output_spec_id,
-        field_schema_id=session.field_schema_id, field_schema=schema, output_spec=spec,
-    )
+    profile_dict = draft_to_supplier_profile_dict(draft)
     if source is not None:
         profile_dict = merge_source_profile_config(source, profile_dict)
     profile_dict["profile_id"] = _DRAFT_PROFILE_ID
@@ -423,8 +406,7 @@ def _invoice_evidence(db: Session, session) -> list[InvoiceEvidence]:
 def _previews_for_draft(db: Session, session, draft: dict) -> dict:
     """Render a deliverable preview (and diff vs expected) for each sample invoice."""
     profile = _preview_profile_from_draft(session, draft)
-    spec = resolve_output_spec(profile)
-    columns = output_spec_to_columns(spec)
+    columns = delivery_columns(profile)
     out: dict[str, dict] = {}
     for inv in crud.list_authoring_invoices(db, session.id):
         if inv.extraction_status != "done":
@@ -443,7 +425,7 @@ def _previews_for_draft(db: Session, session, draft: dict) -> dict:
         apply_layout_profile_hints(doc, layout, profile)
         preview = preview_for_profile(doc, profile, extraction_path="ai")
         entry: dict = {"filename": inv.filename, "preview": preview}
-        if (adir / "expected_rows.json").exists():
+        if columns and (adir / "expected_rows.json").exists():
             expected = _read_json(adir / "expected_rows.json")
             actual = build_output_rows(doc, columns)
             diff = diff_output_rows(expected, actual, columns)
@@ -544,7 +526,7 @@ def _reextract_done_invoices_with_draft(
         raise ValueError("authoring session not found")
 
     profile = _preview_profile_from_draft(session, draft)
-    schema = resolve_merged_field_schema(profile)
+    schema = field_set(profile)
 
     invoices = [
         i for i in crud.list_authoring_invoices(db, session.id)
@@ -628,27 +610,27 @@ def run_turn(db: Session, *, session_id: str, user_message: str) -> dict:
         )
     session = crud.get_authoring_session(db, session_id)
 
-    field_schema = get_field_schema(session.field_schema_id)
-    if session.source_profile_id:
-        source = get_profile(session.source_profile_id)
-        if source is not None:
-            field_schema = resolve_merged_field_schema(source)
-    output_spec = get_output_spec(session.output_spec_id)
-    # Re-resolve label hints if the (placeholder) draft already exists.
+    source = get_profile(session.source_profile_id) if session.source_profile_id else None
+    draft_fields = ((session.draft_profile or {}).get("profile") or {}).get("fields") or []
+    # The vocabulary this turn may read and map: the catalogue plus every custom
+    # field the source profile or the current draft already carries.
+    vocabulary = authoring_field_set(field_set(source) if source is not None else None, draft_fields)
+    current_columns: list = []
     if session.draft_profile:
         try:
-            preview_profile = _preview_profile_from_draft(session, session.draft_profile)
-            field_schema = merge_field_schema(field_schema, preview_profile.field_overrides)
+            current_columns = output_columns(_preview_profile_from_draft(session, session.draft_profile))
         except Exception:
-            pass
+            current_columns = []
+    elif source is not None:
+        current_columns = output_columns(source)
 
     evidence = _invoice_evidence(db, session)
     if not evidence:
         raise ValueError("no usable samples — upload at least one sample invoice that extracts cleanly")
 
     result = author_profile(
-        field_schema=field_schema,
-        output_spec=output_spec,
+        field_set=vocabulary,
+        columns=current_columns,
         invoices=evidence,
         conversation=[*list(session.conversation or []), {"role": "user", "content": user_message}],
         current_draft=session.draft_profile,
@@ -663,31 +645,20 @@ def run_turn(db: Session, *, session_id: str, user_message: str) -> dict:
         },
     )
     authored_profile = result.draft.setdefault("profile", {})
-    inherited_by_header = {column.header: column for column in output_spec.columns}
-    normalized_mappings = []
-    for mapping in authored_profile.get("output_mapping_overrides") or []:
-        mapping["transforms"] = list(mapping.get("transforms") or [])
-        inherited = inherited_by_header.get(mapping.get("output_header"))
-        if (
-            inherited is not None
-            and mapping.get("source") == inherited.source
-            and (mapping.get("fallback") or None) == (inherited.fallback or None)
-            and not mapping["transforms"]
-        ):
-            continue
-        normalized_mappings.append(mapping)
-    authored_profile["output_mapping_overrides"] = normalized_mappings
-    field_overrides = authored_profile.setdefault("field_overrides", [])
-    overrides_by_path = {
-        item.get("field_path"): item for item in field_overrides if item.get("field_path")
+    authored_fields = authored_profile.setdefault("fields", [])
+    fields_by_path = {
+        f"{'field' if item.get('scope') == 'document' else 'row'}.{item.get('name')}": item
+        for item in authored_fields if item.get("name")
     }
-    for field_path, date_format in (discovery_report.get("inferred_date_formats") or {}).items():
-        existing = overrides_by_path.get(field_path)
+    for path, date_format in (discovery_report.get("inferred_date_formats") or {}).items():
+        existing = fields_by_path.get(path)
         if existing is None:
-            field_overrides.append({
-                "field_path": field_path,
-                "label_hint": None,
-                "date_format": date_format,
+            prefix, _, name = path.partition(".")
+            authored_fields.append({
+                "name": name,
+                "scope": "document" if prefix == "field" else "row",
+                "type": None, "role": None, "label_hint": None,
+                "date_format": date_format, "required": False, "description": None,
             })
         elif not existing.get("date_format"):
             existing["date_format"] = date_format

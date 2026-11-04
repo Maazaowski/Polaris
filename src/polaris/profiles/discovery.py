@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from polaris.config import settings
 from polaris.extraction.layout import PDFTextScan, scan_pdf_pages
-from polaris.output.spec import OutputSpec
+from polaris.output.mapper import ColumnDef
 from polaris.profiles.schema import (
     AuthoringEvidence,
     ExtractionPlan,
@@ -75,7 +75,7 @@ def discover_profile(
     *,
     invoices: list[DiscoveryInput],
     blueprint_contexts: list[dict],
-    output_spec: OutputSpec,
+    output_columns: list[ColumnDef] | None = None,
     supplier_name: str | None = None,
     document_family_override: str | None = None,
 ) -> DiscoveryReport:
@@ -84,11 +84,12 @@ def discover_profile(
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         scans = list(pool.map(lambda item: scan_pdf_pages(item.pdf_path), invoices))
 
-    signatures = [_blueprint_signature(context, output_spec) for context in blueprint_contexts]
+    columns = list(output_columns or [])
+    signatures = [_blueprint_signature(context, columns) for context in blueprint_contexts]
     _link_blueprints(signatures, invoices, scans)
     family, confidence, reasons = infer_document_family(
         scans=scans,
-        output_spec=output_spec,
+        column_headers=[column.xlsx_header for column in columns],
         supplier_name=supplier_name,
         override=document_family_override,
     )
@@ -115,10 +116,10 @@ def discover_profile(
     if any(not report.selected_page_numbers for report in invoice_reports):
         unresolved.append("At least one invoice has no high-confidence bounded line-item region.")
     for context in blueprint_contexts:
-        if context.get("contract_compatible") is False:
+        if columns and context.get("contract_compatible") is False:
             missing = ", ".join(context.get("missing_output_headers") or []) or "unknown"
             hard_blockers.append(
-                f"Blueprint headers do not match the selected output spec; missing: {missing}."
+                f"Blueprint headers do not match the configured output columns; missing: {missing}."
             )
     metrics = {
         "invoice_count": len(invoices),
@@ -153,14 +154,14 @@ def discover_profile(
 def infer_document_family(
     *,
     scans: list[PDFTextScan],
-    output_spec: OutputSpec,
-    supplier_name: str | None,
-    override: str | None,
+    column_headers: list[str] | None = None,
+    supplier_name: str | None = None,
+    override: str | None = None,
 ) -> tuple[str, float, list[str]]:
     if override in {"standard", "wireless", "time_and_material"}:
         return override, 1.0, ["User override"]
     text = "\n".join(page.text for scan in scans[:3] for page in scan.pages[:20]).lower()
-    headers = " ".join(column.header.lower() for column in output_spec.columns)
+    headers = " ".join(str(header).lower() for header in (column_headers or []))
     supplier = str(supplier_name or "").lower()
     tm_signals = sum(token in text or token in headers for token in (
         "quantity", "unit rate", "rate (usd)", "timesheet", "annexure", "ext_usagecost", "ext_usage",
@@ -172,7 +173,7 @@ def infer_document_family(
     telecom_supplier = any(token in supplier or token in text[:8000] for token in (
         "at&t", "verizon", "bell", "rogers", "t-mobile", "orange",
     ))
-    if "time_and_material" in output_spec.spec_id or tm_signals >= 2:
+    if tm_signals >= 2:
         return "time_and_material", min(0.98, 0.72 + tm_signals * 0.06), [
             "Time-and-material output/column signals",
         ]
@@ -190,10 +191,10 @@ def compact_discovery_payload(report: DiscoveryReport) -> dict:
     return report.model_dump(mode="json")
 
 
-def _blueprint_signature(context: dict, spec: OutputSpec) -> BlueprintSignature:
+def _blueprint_signature(context: dict, columns: list[ColumnDef]) -> BlueprintSignature:
     headers = [str(value or "").strip().upper() for value in context.get("aligned_headers") or []]
     rows = context.get("aligned_rows") or []
-    source_indexes = {column.source: index for index, column in enumerate(spec.columns)}
+    source_indexes = {_contract_path(column.canonical_path): index for index, column in enumerate(columns)}
 
     def values(source: str) -> list[str]:
         index = source_indexes.get(source)
@@ -219,6 +220,16 @@ def _blueprint_signature(context: dict, spec: OutputSpec) -> BlueprintSignature:
         linked_invoice=context.get("_paired_invoice"),
         match_kind="paired" if context.get("_paired_invoice") else "historical",
     )
+
+
+def _contract_path(canonical_path: str) -> str:
+    if canonical_path.startswith("header."):
+        return "field." + canonical_path.removeprefix("header.")
+    if canonical_path.startswith("line_item."):
+        return "row." + canonical_path.removeprefix("line_item.")
+    if canonical_path.startswith(("field.", "row.", "computed.")):
+        return canonical_path
+    return "field." + canonical_path
 
 
 def _link_blueprints(

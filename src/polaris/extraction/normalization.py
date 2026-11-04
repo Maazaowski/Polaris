@@ -502,11 +502,7 @@ def _hinted_profile_fields(profile: SupplierProfile | None) -> list:
     the supplier's profile set should drive a deterministic layout repair."""
     if profile is None:
         return []
-    picks = list(getattr(profile, "fields", None) or [])
-    if picks:
-        return picks
-    # Transitional: a profile persisted before its contract was embedded.
-    return list(getattr(profile, "field_overrides", None) or [])
+    return list(getattr(profile, "fields", None) or [])
 
 
 def _apply_header_date_hints(invoice, document: LayoutDocument, profile: SupplierProfile | None) -> None:
