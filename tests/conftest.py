@@ -65,6 +65,19 @@ _setup_registry_db()
 import pytest  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def plain_http_session_cookie(monkeypatch):
+    """The test client talks plain http://testserver, so the session cookie must
+    not be Secure or httpx never sends it back. The flag auto-resolves from
+    `debug`, which a developer's `.env` turns on and CI leaves off; pin it so
+    the suite does not depend on that file. Tests of the flag itself override
+    the setting with their own monkeypatch.
+    """
+    from polaris.config import settings
+
+    monkeypatch.setattr(settings, "session_cookie_secure", False)
+
+
 @pytest.fixture()
 def isolated_db(monkeypatch):
     """A clean, empty in-memory profile/registry DB for a single test (no seeded
