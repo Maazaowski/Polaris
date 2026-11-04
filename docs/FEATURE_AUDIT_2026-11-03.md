@@ -4,6 +4,8 @@ A full run-through of the product ahead of the promotional video series: the sta
 
 **Companion:** [`VIDEO_SERIES_PLAN.md`](VIDEO_SERIES_PLAN.md).
 
+> **Note, 4 Nov 2026:** parts of this snapshot are superseded; the text below is left as written. The "Field schemas, output specs" row under *What was verified working* describes registries that were removed on 4 Nov: each supplier profile now owns its fields (picked from the field catalogue, or custom) and its delivered columns, edited on the profile's Setup tab and in the builder's Output tab, and migration 024 embedded what every profile resolved to. The route count in the verdict includes those two pages, and the Model builder row predates the builder's Output tab. The fingerprint-orphaning fix (`scripts/refingerprint_models.py`) was followed by the automatic version: a profile save that changes the fingerprint inputs now re-keys that profile's models itself. See `README.md`, "What a profile configures".
+
 ## Verdict in one paragraph
 
 The product is in good shape. All 16 routes render without errors, the backend suite is green (779 tests), the production build is clean, and the Playwright suite passes once run at a sane parallelism against the dev server. The pipeline's core promise is real: an invoice from a known layout was processed by an approved template with zero tokens and zero cost, reconciled, and delivered as XLSX. Two things stand between the current checkout and a confident recording session: the AI key on file is dead, and approved templates can be silently orphaned when a profile's fingerprint rules change (a script now fixes that; the proper fix is automatic).

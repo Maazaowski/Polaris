@@ -1,5 +1,7 @@
 # Schema-driven extraction — implementation plan
 
+> **Superseded (4 Nov 2026) by the profile contract.** This plan proposed a shared `FieldSchema` registry (`field_schemas/*.json`) beside the shared `OutputSpec` registry, with profiles referencing each by id. That is not what shipped. Each supplier profile now owns its own `fields` (picks from a fixed, read-only field catalogue in `fields/catalogue.py`, or custom fields) and its own ordered `output_columns`; `profiles/contract.py` is the one place the pipeline asks what a profile reads and delivers. Both lists start empty and there is no default column set anywhere. A template drawn in the builder may carry its own columns, which win over the profile's, and an invoice with no profile delivers JSON plus a raw extraction workbook. The `/field-schemas` and `/output-specs` pages and APIs were removed, and migration 024 embedded what each profile resolved to and dropped the two tables. See `README.md`, "What a profile configures". The body below is kept as the original design record and no longer describes the code.
+
 > User-defined fields for any document. Replace the hardcoded invoice-centric extraction
 > contract with a FieldSchema registry and generic `ExtractedDocument` record, while
 > preserving invoice behavior via a shipped `invoice.standard` template and unchanged

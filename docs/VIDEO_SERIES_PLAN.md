@@ -37,25 +37,27 @@ Prep: approved Colt template (done), a processed AI-path invoice to contrast wit
 - Open AI calls (debug) and show one captured prompt: the layout text the model sees, the schema it must fill, the structured response. This is the "no magic" moment.
 - Show the Audit & usage tab: tokens in, tokens out, cost, per call.
 - Mention text-first extraction: page images only when a page has no text layer.
+- Open the output package. With no profile there are no configured columns, so it delivers the canonical JSON plus a raw extraction workbook (an Invoice sheet with every document field read, a Line items sheet with every row field). Say so: "this is a dump of what was read; a profile is what turns it into the customer's deliverable."
 
 Prep: valid key, debug mode on, one invoice from a supplier that does not exist yet in the DB.
 
-### Part 3: Supplier profiles and the three configuration layers
+### Part 3: Supplier profiles: what a supplier reads and delivers
 
-*Module: profiles, field schemas, output specs.*
+*Module: profiles, the field catalogue, delivered columns.*
 
-- Open a profile: identify, output mapping, per-field hints, accounts, notes.
-- Switch output spec from the 8-column standard to the wireless spec and show the delivered columns change in the preview tab, with no code.
-- Open the field schema and the output spec editors briefly: "what we extract" and "what we deliver" are data, not code.
+- Open a profile on the **Setup** tab and walk its sections: identify the source, **Fields to read**, **Delivered columns**, accounts, notes.
+- **Fields to read:** search the field catalogue and add a field. A catalogue pick brings its type and role; the supplier only supplies the printed label, date format and required flag. Then add a custom field the catalogue does not know.
+- **Delivered columns:** add, reorder and rename columns; point one at a field and one at the computed per-line tax. Open **Preview Output** and show the delivered columns change, with no code.
+- The point to land: "what we read" and "what we deliver" belong to this supplier's profile, in data, not code. A new profile starts with both lists empty and there is no default column set. Show the readiness message: a profile cannot be trained or activated until it has fields, columns, a date format on every delivered date and an amount field.
 - Accounts view: map a folder on disk to the profile, show the state flip from unmapped to mapped without a rescan.
 
-Prep: none beyond the current data.
+Prep: a profile with fields and columns configured, and a second new profile with both lists empty for the readiness moment.
 
 ### Part 4: Teaching Polaris a layout (AI training loop)
 
 *Module: training, candidate models, approval.*
 
-- Put a profile in training, upload three invoices from the same layout.
+- Put a profile in training (it must already have fields and columns, or the readiness check blocks it), upload three invoices from the same layout.
 - Show the training progress: author rules, execute, diff against the AI's answer, refine. Open `training_report.json` and the AI-vs-model XLSX pair from the model review downloads.
 - The candidate appears on Templates. Walk the model page: header rules, region, column bands, row classifiers, grouping, line-item fields. "This is the whole template. It is JSON. The interpreter runs it; the AI only wrote it."
 - Approve. Drop a fourth invoice. It runs free.
@@ -68,6 +70,7 @@ Prep: valid key; a layout with four or more invoices (euNetworks corpus has nine
 
 - Open the builder with a sample PDF. Draw the line-item region, the column bands, a row classifier for the lines that carry amounts, a header rule for the invoice number.
 - Live preview after every edit. Score the draft against the eval folder for that layout.
+- Open the **Output** tab. Bound to a profile, the template inherits the profile's columns ("Inheriting N columns from the profile"). Click **Customise for this template** to give it its own; template columns win over the profile's, and **Back to the profile's columns** undoes it.
 - Save as candidate, approve, run an invoice. Same interpreter, same result, no AI involved at all.
 - Follow the Orange or AT&T guides in `docs/` as the script; they already walk through the hard parts (two-column layouts, tax allocation).
 
@@ -80,7 +83,8 @@ Prep: valid key is not required for the builder itself; the eval-folder scoring 
 - Show a variance exception: the line items do not add up to the stated total; open it, see the partial output, resolve or retry.
 - Show layout drift: a supplier changed their invoice; the fingerprint no longer matches; Polaris falls back to AI and flags it instead of delivering wrong numbers silently.
 - Clone the template to retrain, approve the new version, roll back if needed; versions tab.
-- Mention the re-key script for the case where *you* changed the profile, not the supplier.
+- Mention the case where *you* changed the profile, not the supplier: saving a profile that changes its fingerprint rules, line-item anchors, field label hints or document category re-keys its approved templates automatically, and the save toast says so. `scripts/refingerprint_models.py` is only for fingerprinter code changes.
+- Show the configuration exception: an active profile with no delivered columns parks its invoices before any AI is spent.
 
 Prep: one invoice with a real variance (the Rogers ones in the dev DB), one drift case (Granite in the dev DB).
 
@@ -105,6 +109,17 @@ Prep: valid key for a live eval run (or show an existing run and its compare vie
 - CI: four offline jobs on every change; AI authoring snapshots refreshed on demand.
 
 Prep: a second user account to show the role difference; the CI workflow on a GitHub remote so the checks are real.
+
+## Needs re-recording (profile contract change, 4 Nov 2026)
+
+The shared Field schema and Output spec registries were folded into each supplier profile (a profile's `fields` and `output_columns`). The `/field-schemas` and `/output-specs` pages are gone. Anything already shot before that change is out of date:
+
+- **Part 3** (profiles): re-record in full. It showed switching an output spec and opening the two registry editors; it now shows the profile's Setup tab (Fields to read, Delivered columns).
+- **Part 5** (builder): re-record if shot. There is a new **Output** tab, and the saved template can carry its own columns.
+- **Part 2** (first invoice): re-record the closing scene if shot. An invoice with no profile now delivers JSON plus a raw extraction workbook, not a configured spreadsheet.
+- **Part 4** (training) and **Part 6** (exceptions): re-record only the affected scenes if shot. Training is gated on the profile having fields and columns, and re-keying after a profile edit is now automatic.
+
+Parts 1, 7 and 8 are unaffected.
 
 ## Optional parts if the series runs longer
 

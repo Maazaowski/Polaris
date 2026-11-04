@@ -68,7 +68,7 @@ The three key realisations:
    = the first charge description** (`access`); **tax = 20 %** of the amount.
 4. The other columns (`EXT_DATE`, `EXT_ACCOUNT`, `EXT_INVOICENUMBER`, `EXT_TAX`)
    are **document‑level** values (invoice date, account no., invoice no., tax
-   rate) that the output spec stamps onto every row — they are *not* per‑line.
+   rate) that the delivered columns stamp onto every row — they are *not* per‑line.
 
 That analysis **is** the model. The builder is just how you type it in.
 
@@ -146,6 +146,21 @@ source (open **Advanced** for the row selectors):
 `amount` is marked Required, so any group that fails to yield an amount is dropped
 — exactly what you want (it keeps noise out).
 
+### Output — *which columns are delivered*
+The tabs above produce **values**; the **Output** tab decides which of them become
+**delivered columns**. Opened from a profile (the profile is pre‑bound), it shows
+"Inheriting N columns from the profile": the template delivers whatever the
+profile's **Delivered columns** (Suppliers → Profiles → Setup) define, in that
+order, and the profile's **Fields to read** say which fields exist. For Orange
+that means the profile should already list `EXT_SERVICEID`, `EXT_BILLINGREFERENCE`,
+`EXT_AMOUNT` and the document‑level columns.
+
+If this layout needs a different shape from the profile's default, click
+**Customise for this template** and edit the columns here. Template columns win
+over the profile's when set; **Back to the profile's columns** removes them again.
+Launched without a profile there are no columns at all (there is no default set),
+and the preview shows the raw extraction, every field read, until you add some.
+
 ### Preview — *prove it*
 **Run all** in the Preview panel runs the model against the full 23‑page PDF at
 $0 and shows the deliverable it produces:
@@ -195,6 +210,11 @@ grouping/region is off; wrong values mean a column band or a field's role is off
 ---
 
 ## 4. What matched, and the honest gaps
+
+> **Update (4 Nov 2026):** the builder now has **Header**, **Tax** and **Output**
+> tabs beside the five above, so the missing header‑field editor and tax‑rate
+> support described below now exist. The walkthrough above predates them; the text
+> that follows is the original assessment.
 
 **Matched exactly (the hard part — 126 grouped rows):** `EXT_SERVICEID`,
 `EXT_BILLINGREFERENCE`, `EXT_AMOUNT`.
