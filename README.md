@@ -344,6 +344,7 @@ Every `/api/v1` route except `auth/login` requires the session cookie.
 ruff check src tests                 # lint (line length 120, py312)
 pytest                               # unit + deterministic golden corpus; no AI key, SQLite in memory
 pytest -m authoring                  # AI authoring end-to-end; needs a real key, spends money
+python scripts/refresh_authoring_snapshots.py --scratch-db   # re-author corpus model.json; spends money
 pytest tests/test_fingerprint/       # one area
 mypy src                             # strict; has a known backlog and is not a CI gate
 
@@ -354,9 +355,21 @@ npm run test:e2e                     # Playwright against a running stack (see f
 
 **Golden corpus** (`tests/fixtures/corpus/<layout>/`): real PDFs, the correct deliverables, and a committed `model.json`. Three suites keep the engine honest: fingerprints are stable within a layout and distinct across layouts; the committed model reproduces the correct output for every PDF; and (manually) AI can author a model from one invoice that generalizes to the rest.
 
+**Refreshing the corpus models.** When the authoring prompt, the interpreter or a corpus profile changes, re-author the snapshots with `scripts/refresh_authoring_snapshots.py`. It runs the `pytest -m authoring` loop for each layout with a `profile.json`: AI-extract the first PDF, author a model in the grounded loop, run it on every PDF of the layout, and write `model.json` only when every invoice reproduces. It exits non-zero when any layout fails. The provider is the usual one (the runtime setting saved in Settings, else `POLARIS_LLM_PROVIDER`), so OpenAI and Anthropic both work. Two ways to give it a key (set `PYTHONUTF8=1` on Windows):
+
+```bash
+# key from the environment, throwaway SQLite registry (what the manual workflow does)
+POLARIS_LLM_PROVIDER=anthropic POLARIS_ANTHROPIC_API_KEY=sk-ant-... python scripts/refresh_authoring_snapshots.py --scratch-db
+
+# key saved in Settings: point at that database and its Fernet key (the database is only read)
+POLARIS_DATABASE_URL=mysql+pymysql://... POLARIS_SECRET_KEY=... python scripts/refresh_authoring_snapshots.py
+```
+
+`--only <layout>` (repeatable) limits the run, `--dry-run` authors and verifies without writing, and `--work-dir` sets the scratch work dir. Review the `model.json` diff before committing it.
+
 **Eval cases** (`eval_cases/<layout>/`): the larger labelled set the Evals page scores. Same folder shape plus `expected/*.xlsx` answer keys. The eval runner and the pipeline share one post-processing path, so a PDF plus a profile gives the same deliverable from either entry point.
 
-**CI** (`.github/workflows/ci.yml`) runs four offline jobs on every push and pull request: `backend-lint`, `backend-test`, `frontend` (lint + build) and `docker-build`. AI authoring snapshots are refreshed on demand with `.github/workflows/authoring-manual.yml`, which needs the `POLARIS_OPENAI_API_KEY` repository secret and hands back the `model.json` files as an artifact for review.
+**CI** (`.github/workflows/ci.yml`) runs four offline jobs on every push and pull request: `backend-lint`, `backend-test`, `frontend` (lint + build) and `docker-build`. AI authoring snapshots are refreshed on demand with `.github/workflows/authoring-manual.yml`, which runs `scripts/refresh_authoring_snapshots.py` with the provider you pick (the `POLARIS_OPENAI_API_KEY` or `POLARIS_ANTHROPIC_API_KEY` repository secret) and hands back the `model.json` files as an artifact for review.
 
 ## Configuration reference
 
