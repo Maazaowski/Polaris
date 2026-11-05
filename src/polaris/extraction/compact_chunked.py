@@ -2106,6 +2106,8 @@ CHUNK_RULES: list[str] = [
     "as separate rows when the profile says the delivered output is grouped.",
     "For grouped output, emit one row per logical service/group. Put the selected group/current-charge/"
     "subtotal amount in row.a and put grouped tax in row.x only when the source prints per-group tax.",
+    "row.a is the charge BEFORE tax. When you set row.x, row.a must not include it: if the printed "
+    "figure for the row or group is a total that already contains that tax, subtract row.x from it.",
     "Classify row.c as recurring, one_time, tax, fee, credit, adjustment, surcharge, usage, or unknown. "
     "Use recurring for grouped service output rows unless another type is clearly printed.",
     "For each emitted row, set row.r to the best source row id for the delivered amount row, exactly as "

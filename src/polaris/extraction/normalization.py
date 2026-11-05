@@ -13,10 +13,14 @@ from calendar import monthrange
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+import structlog
+
 from polaris.extraction.layout import LayoutDocument, VisualRow, mark_anchor_rows
 from polaris.extraction.markers import marker_in_text, marker_terms
 from polaris.profiles.schema import LineItemHints, SupplierProfile
 from polaris.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ChargeType, LineItem
+
+logger = structlog.get_logger()
 
 _DATE_FORMATS = (
     "%d %b %Y", "%d %b %y", "%d-%b-%Y", "%d-%b-%y",
@@ -65,6 +69,9 @@ def apply_layout_profile_hints(
 
     hints = line_item_hints or (profile.line_item_hints if profile else None)
     if not hints:
+        # No profile: nothing says whether the printed row figure is net or
+        # gross, so let the invoice's own totals decide.
+        net_tax_inclusive_rows(invoice)
         return invoice
 
     # A model that declares its own tax policy wins over the profile default
@@ -148,6 +155,57 @@ def apply_layout_profile_hints(
         invoice.line_items = items
 
     return invoice
+
+
+TAX_NETTED_WARNING = "Row amounts included the printed tax; the per-row tax was subtracted so the rows reconcile"
+
+_CENT = Decimal("0.01")
+
+
+def net_tax_inclusive_rows(invoice) -> bool:
+    """Subtract per-row tax from rows the AI read gross, when the invoice proves it.
+
+    Zayo prints a per-service "Current Charges" figure that already contains the
+    service's "Taxes" sub-line. Read without a profile, the AI put the gross
+    figure in ``amount`` and the taxes in ``tax_amount``, so the rows alone
+    summed to the invoice total and the reconciler, adding the tax again,
+    reported the whole tax as variance.
+
+    The repair is deterministic and only fires when the arithmetic leaves no
+    other reading: the rows that carry tax sum (with the other rows) to the
+    invoice's reconciliation target, AND their taxes sum to the invoice's
+    stated tax. Rows read net would sum to the target MINUS the tax instead.
+    Returns whether anything was changed.
+    """
+    all_items = invoice.line_items  # a copy: written back below once edited
+    items = [i for i in all_items if i.charge_type not in _RECONCILED_OUT]
+    taxed = [i for i in items if i.tax_amount]
+    if not taxed:
+        return False
+    stated_tax = invoice.tax
+    if stated_tax is None or stated_tax <= 0:
+        return False
+    targets = [t for t in (invoice.current_charges, invoice.total_due) if t is not None]
+    if not targets:
+        return False
+    rows_sum = sum((i.amount for i in items), Decimal("0"))
+    tax_sum = sum((i.tax_amount for i in taxed), Decimal("0"))
+    if abs(tax_sum - stated_tax) > _CENT:
+        return False
+    if not any(abs(rows_sum - target) <= _CENT for target in targets):
+        return False
+    for item in taxed:
+        item.amount = item.amount - item.tax_amount
+        if item.unit_rate is not None and item.unit_rate == item.amount + item.tax_amount:
+            item.unit_rate = item.amount
+    invoice.line_items = all_items
+    if TAX_NETTED_WARNING not in invoice.warnings:
+        invoice.warnings.append(TAX_NETTED_WARNING)
+    logger.info("normalization.tax_inclusive_rows_netted", rows=len(taxed), tax=str(tax_sum))
+    return True
+
+
+_RECONCILED_OUT = {ChargeType.TAX, ChargeType.FEE, ChargeType.SURCHARGE}
 
 
 def _enrich_preserved_line_items(

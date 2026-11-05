@@ -1909,3 +1909,19 @@ class TestScalarContextSelection:
     def test_no_rows_in_no_rows_out(self):
         from polaris.extraction.compact_chunked import _scalar_context_rows
         assert _scalar_context_rows([], None, context_pages={1}) == []
+
+
+def test_chunk_prompt_says_the_row_amount_excludes_the_row_tax():
+    rows = [LayoutRowLine(page=1, row_id="p1.r1", text="p1.r1 Current Charges for X $1,954.45")]
+    chunk = chunk_layout_rows(rows, candidates=[])[0]
+
+    prompt = _build_chunk_prompt(
+        chunk,
+        output_type="standard",
+        supplier_profile_data=None,
+        field_schema=default_field_set(),
+        row_fields={"service_id", "amount", "tax_amount"},
+    )
+
+    assert "row.a is the charge BEFORE tax" in prompt
+    assert "subtract row.x from it" in prompt

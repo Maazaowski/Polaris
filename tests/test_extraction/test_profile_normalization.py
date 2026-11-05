@@ -1476,3 +1476,79 @@ def test_excluded_total_absent_label_is_a_no_op():
     _apply_excluded_total_hints(invoice, document, profile)
 
     assert "total_account_level_charges" not in invoice.fields
+
+
+# ── Rows read gross with no profile ─────────────────────────
+
+
+def _no_profile_invoice(rows: list[LineItem], *, tax: str, total: str) -> CanonicalInvoice:
+    return CanonicalInvoice(
+        intake_id="zayo-no-profile",
+        output_type="standard",
+        header=InvoiceHeader(supplier_name="Zayo Group, LLC", invoice_number="2026050016774",
+                             invoice_date=date(2026, 5, 1)),
+        line_items=rows,
+        tax=Decimal(tax),
+        total_due=Decimal(total),
+        metadata=ExtractionMetadata(extraction_path=ExtractionPath.AI),
+    )
+
+
+def _gross_row(n: int, amount: str, tax: str | None = None) -> LineItem:
+    return LineItem(line_number=n, description=f"Service {n}", amount=Decimal(amount),
+                    charge_type=ChargeType.RECURRING,
+                    tax_amount=Decimal(tax) if tax else None)
+
+
+def _zayo_gross_rows() -> list[LineItem]:
+    # Six Zayo rows read with no profile: the two wavelength services carry
+    # their printed "Taxes" AND the gross "Current Charges" figure that
+    # already contains them, so the rows alone sum to the 8,184.21 total.
+    return [
+        _gross_row(1, "1082.42"), _gross_row(2, "1068.61"), _gross_row(3, "1068.61"), _gross_row(4, "1068.61"),
+        _gross_row(5, "1954.45", "631.32"), _gross_row(6, "1941.51", "627.15"),
+    ]
+
+
+def test_no_profile_rows_that_already_include_their_tax_are_netted():
+    from polaris.extraction.normalization import TAX_NETTED_WARNING, net_tax_inclusive_rows
+
+    invoice = _no_profile_invoice(_zayo_gross_rows(), tax="1258.47", total="8184.21")
+
+    assert net_tax_inclusive_rows(invoice)
+
+    amounts = [item.amount for item in invoice.line_items]
+    assert amounts[4:] == [Decimal("1323.13"), Decimal("1314.36")]
+    assert amounts[:4] == [Decimal("1082.42"), Decimal("1068.61"), Decimal("1068.61"), Decimal("1068.61")]
+    assert sum(amounts) + Decimal("1258.47") == Decimal("8184.21")
+    assert TAX_NETTED_WARNING in invoice.warnings
+
+
+def test_rows_read_net_are_left_alone():
+    from polaris.extraction.normalization import net_tax_inclusive_rows
+
+    rows = _zayo_gross_rows()
+    rows[4].amount, rows[5].amount = Decimal("1323.13"), Decimal("1314.36")
+    invoice = _no_profile_invoice(rows, tax="1258.47", total="8184.21")
+
+    assert not net_tax_inclusive_rows(invoice)
+    assert invoice.line_items[4].amount == Decimal("1323.13")
+    assert invoice.warnings == []
+
+
+def test_rows_are_not_netted_when_their_taxes_do_not_match_the_invoice_tax():
+    from polaris.extraction.normalization import net_tax_inclusive_rows
+
+    invoice = _no_profile_invoice(_zayo_gross_rows(), tax="900.00", total="8184.21")
+
+    assert not net_tax_inclusive_rows(invoice)
+    assert invoice.line_items[4].amount == Decimal("1954.45")
+
+
+def test_apply_layout_profile_hints_nets_gross_rows_when_there_is_no_profile():
+    invoice = _no_profile_invoice(_zayo_gross_rows(), tax="1258.47", total="8184.21")
+    layout = LayoutDocument(pages=[])
+
+    apply_layout_profile_hints(invoice, layout, None)
+
+    assert invoice.line_items[4].amount == Decimal("1323.13")
