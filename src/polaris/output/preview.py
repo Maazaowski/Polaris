@@ -131,10 +131,10 @@ def preview_for_profile(
     delivery columns (template > profile > raw). Used by the profile (AI) and
     model (replay) preview endpoints.
     """
-    from polaris.pipeline.processor import (
-        _keep_zero_line_items,
-        _normalize_line_items,
-        _require_identifier,
+    from polaris.extraction.normalization import (
+        keep_zero_line_items,
+        normalize_line_items,
+        require_identifier,
     )
     from polaris.profiles.contract import field_set
     from polaris.validation.reconciler import reconcile
@@ -142,10 +142,10 @@ def preview_for_profile(
     schema = field_set(profile)
     # Mirror the pipeline: drop zero-amount / no-identifier rows (per profile) and
     # resequence, so the preview matches what production actually delivers.
-    _normalize_line_items(
+    normalize_line_items(
         invoice,
-        keep_zero_amount=_keep_zero_line_items(profile),
-        require_identifier=_require_identifier(profile),
+        keep_zero_amount=keep_zero_line_items(profile),
+        require_identifier=require_identifier(profile),
     )
     if invoice.reconciliation is None:
         recon = reconcile(invoice, schema)

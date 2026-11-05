@@ -999,7 +999,7 @@ def _extract_ground_truth(
 ) -> tuple[CanonicalInvoice | None, int, int]:
     """Run AI extraction for ground truth. Returns (invoice, tokens_in, tokens_out)."""
     from polaris.extraction.extractor import build_canonical_invoice, extract_invoice
-    from polaris.extraction.normalization import apply_layout_profile_hints
+    from polaris.extraction.normalization import postprocess_extracted_document
     from polaris.pricing import estimate_cost_usd
 
     try:
@@ -1031,12 +1031,7 @@ def _extract_ground_truth(
         output_type=profile.classification.output_type,
         supplier_profile_id=profile.profile_id, layout_fingerprint=fingerprint,
     )
-    apply_layout_profile_hints(invoice, document, profile, profile.line_item_hints)
-    _normalize_line_items(
-        invoice,
-        keep_zero_amount=profile.include_zero_amount_line_items,
-        require_identifier=profile.require_line_item_identifier,
-    )
+    postprocess_extracted_document(invoice, document, profile, line_item_hints=profile.line_item_hints)
     return invoice, extraction.tokens_input, extraction.tokens_output
 
 

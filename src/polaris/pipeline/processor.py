@@ -32,8 +32,19 @@ from polaris.extraction.extractor import (
     build_canonical_invoice,
     extract_invoice,
 )
-from polaris.extraction.layout import LayoutDocument, extract_layout_document
-from polaris.extraction.normalization import apply_layout_profile_hints
+from polaris.extraction.layout import cached_or_extracted_layout
+from polaris.extraction.normalization import (
+    keep_zero_line_items as _keep_zero_line_items,
+)
+from polaris.extraction.normalization import (
+    normalize_line_items as _normalize_line_items,
+)
+from polaris.extraction.normalization import (
+    postprocess_extracted_document,
+)
+from polaris.extraction.normalization import (
+    require_identifier as _require_identifier,
+)
 from polaris.fields.catalogue import default_field_set
 from polaris.fingerprint.fingerprinter import compute_layout_family_key, fingerprint_pdf
 from polaris.intake.service import process_new_pdf
@@ -965,24 +976,13 @@ def _process_ai_path(
         layout_fingerprint=fingerprint,
         page_count=page_count,
     )
-    cached_layout = settings.processing_dir / intake_id / "ai_chunks" / "layout.json"
-    layout_document = (
-        LayoutDocument.model_validate_json(cached_layout.read_text(encoding="utf-8"))
-        if cached_layout.exists()
-        else extract_layout_document(pdf_path)
-    )
-    line_item_hints = _effective_line_item_hints(profile)
-    apply_layout_profile_hints(
+    layout_document = cached_or_extracted_layout(pdf_path, settings.processing_dir / intake_id / "ai_chunks")
+    postprocess_extracted_document(
         invoice,
         layout_document,
         profile,
-        line_item_hints,
+        line_item_hints=_effective_line_item_hints(profile),
         preserve_existing_line_items=bool(extraction_result.ai_calls),
-    )
-    _normalize_line_items(
-        invoice,
-        keep_zero_amount=_keep_zero_line_items(profile),
-        require_identifier=_require_identifier(profile),
     )
     output_row_count = len(build_output_rows(invoice, delivery_columns(profile)))
     discovery_metadata = (extraction_result.artifacts or {}).get("discovery_plan")
@@ -1261,15 +1261,6 @@ def _validate_model_output_for_reuse(invoice: ExtractedDocument) -> tuple[bool, 
 # ---------------------------------------------------------------------------
 
 
-def _has_identifier(item) -> bool:
-    """True when a line item carries a usable service_id or billing_reference
-    (at least one alphanumeric character — a stray ',' or blank doesn't count)."""
-    for value in (item.service_id, item.billing_reference):
-        if value and re.search(r"[A-Za-z0-9]", str(value)):
-            return True
-    return False
-
-
 def _flag_rows_missing_service_id(db: Session, intake_id: str, invoice, pdf_path: Path) -> None:
     """Route the invoice to Exceptions when a delivered row has no service id.
 
@@ -1308,39 +1299,8 @@ def _flag_rows_missing_service_id(db: Session, intake_id: str, invoice, pdf_path
         logger.warning("pipeline.missing_service_id_exception_failed", intake_id=intake_id, error=str(exc))
 
 
-def _normalize_line_items(
-    invoice: ExtractedDocument,
-    keep_zero_amount: bool = False,
-    require_identifier: bool = False,
-) -> ExtractedDocument:
-    """Resequence line numbers; optionally drop zero-amount and/or no-identifier
-    rows, in place."""
-    kept = list(invoice.line_items)
-    if not keep_zero_amount:
-        kept = [item for item in kept if item.amount != 0]
-    if require_identifier:
-        kept = [item for item in kept if _has_identifier(item)]
-    rows: list[dict] = []
-    for new_number, item in enumerate(kept, start=1):
-        row = item.model_dump(mode="python")
-        row["line_number"] = new_number
-        rows.append(row)
-    invoice.rows = rows
-    return invoice
-
-
 def _effective_line_item_hints(profile: SupplierProfile | None) -> LineItemHints | None:
     return profile.line_item_hints if profile else None
-
-
-def _keep_zero_line_items(profile: SupplierProfile | None) -> bool:
-    """Whether the supplier profile opts to keep zero-amount line items."""
-    return bool(profile and getattr(profile, "include_zero_amount_line_items", False))
-
-
-def _require_identifier(profile: SupplierProfile | None) -> bool:
-    """Whether the supplier profile drops line items that have no identifier."""
-    return bool(profile and getattr(profile, "require_line_item_identifier", False))
 
 
 def _classify_and_log(db: Session, intake_id: str, pdf_path: Path) -> ClassificationResult:

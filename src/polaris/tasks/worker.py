@@ -300,8 +300,11 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
     handler) because the OpenAI extraction can take minutes — far longer than any
     HTTP proxy will hold a connection open."""
     import json
+    import shutil
 
     from polaris.extraction.extractor import build_extracted_document, extract_invoice
+    from polaris.extraction.layout import cached_or_extracted_layout
+    from polaris.extraction.normalization import postprocess_extracted_document
     from polaris.output.preview import preview_for_profile
     from polaris.profiles.contract import field_set
     from polaris.profiles.loader import get_profile, load_all_profiles
@@ -309,6 +312,9 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
     previews_dir = settings.work_dir / "previews"
     previews_dir.mkdir(parents=True, exist_ok=True)
     result_path = previews_dir / f"{job_id}.json"
+    # The extractor's chunk artifacts (and the layout it read) for this job;
+    # removed with the PDF once the preview is written.
+    artifact_dir = previews_dir / job_id / "ai_chunks"
     pdf = Path(pdf_path)
 
     def _write(payload: dict) -> None:
@@ -321,11 +327,20 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
             _write({"status": "error", "detail": "Profile not found"})
             return {"status": "error", "job_id": job_id}
         output_type = profile.classification.output_type
-        result = extract_invoice(pdf, supplier_profile_id=profile_id, output_type=output_type)
+        result = extract_invoice(
+            pdf, supplier_profile_id=profile_id, output_type=output_type, artifact_dir=artifact_dir,
+        )
         schema = field_set(profile)
         doc = build_extracted_document(
             result.raw_data, intake_id="preview", extraction_result=result,
             output_type=output_type, supplier_profile_id=profile_id, field_schema=schema,
+        )
+        # The same deterministic finish delivery gets (profile tax policy, header
+        # dates, row rebuilds, row filter); without it the preview allocated tax
+        # where the watcher calculated it, for the same PDF and profile.
+        layout_document = cached_or_extracted_layout(pdf, artifact_dir)
+        postprocess_extracted_document(
+            doc, layout_document, profile, preserve_existing_line_items=bool(result.ai_calls),
         )
         payload = preview_for_profile(doc, profile, extraction_path="ai")
         _write({"status": "done", "preview": payload})
@@ -339,6 +354,7 @@ def preview_profile_task(self, job_id: str, profile_id: str, pdf_path: str):
         return {"status": "error", "job_id": job_id, "error": str(exc)}
     finally:
         pdf.unlink(missing_ok=True)
+        shutil.rmtree(artifact_dir.parent, ignore_errors=True)
 
 
 def _run_authoring_queue(db, session_id: str) -> dict:

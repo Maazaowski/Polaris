@@ -29,7 +29,7 @@ from polaris.extraction.layout import (
     render_layout_text,
     scan_pdf_pages,
 )
-from polaris.extraction.normalization import apply_layout_profile_hints
+from polaris.extraction.normalization import postprocess_extracted_document
 from polaris.extraction.page_roles import classify_pages
 from polaris.fields.catalogue import default_field_set
 from polaris.models.authoring import _build_target
@@ -422,7 +422,7 @@ def _previews_for_draft(db: Session, session, draft: dict) -> dict:
         except Exception as exc:
             out[inv.id] = {"filename": inv.filename, "error": str(exc)}
             continue
-        apply_layout_profile_hints(doc, layout, profile)
+        postprocess_extracted_document(doc, layout, profile)
         preview = preview_for_profile(doc, profile, extraction_path="ai")
         entry: dict = {"filename": inv.filename, "preview": preview}
         if columns and (adir / "expected_rows.json").exists():

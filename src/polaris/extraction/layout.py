@@ -179,6 +179,21 @@ def pdf_page_count(pdf_path: Path) -> int:
         return 0
 
 
+def cached_or_extracted_layout(pdf_path: Path, artifact_dir: Path | None) -> LayoutDocument:
+    """The layout the AI saw, else a fresh one.
+
+    The compact extractor writes ``layout.json`` into its artifact dir, and with
+    a persisted extraction plan that layout is page-restricted. Post-processing
+    must look at the same document the model read, so prefer the cached file
+    and only read the PDF again when there is none (a stubbed extraction, an
+    older artifact dir).
+    """
+    cached = artifact_dir / "layout.json" if artifact_dir else None
+    if cached is not None and cached.exists():
+        return LayoutDocument.model_validate_json(cached.read_text(encoding="utf-8"))
+    return extract_layout_document(pdf_path)
+
+
 def extract_layout_document(
     pdf_path: Path,
     max_pages: int | None = None,

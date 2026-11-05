@@ -144,7 +144,7 @@ def fake_ai(monkeypatch):
 
     monkeypatch.setattr("polaris.pipeline.processor.extract_invoice", fake_extract_invoice)
     monkeypatch.setattr(
-        "polaris.pipeline.processor.apply_layout_profile_hints",
+        "polaris.extraction.normalization.apply_layout_profile_hints",
         lambda *a, **k: None,
     )
     return calls

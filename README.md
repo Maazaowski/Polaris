@@ -303,7 +303,7 @@ Three sections, reachable from the rail on the left or the command palette (`Ctr
 | | `/exceptions` | Failed and variance invoices with the reason; retry or resolve. |
 | | `/upload` | Drag-and-drop PDFs with per-file progress. |
 | **Suppliers** | `/profiles` | Every supplier profile with its template state (none, cutting, ready, drifted) and delivery folder. |
-| | `/profiles/[id]` | The editor: identify, fields to read, delivered columns, accounts, notes, advanced, preview output, training. **Edit with AI** opens the assistant on an existing profile. |
+| | `/profiles/[id]` | The editor: identify, fields to read, delivered columns, accounts, notes, advanced, preview output, training. Preview output runs the same post-processing as delivery (profile tax policy, header dates, row rebuilds), so it shows the rows the watcher would deliver. **Edit with AI** opens the assistant on an existing profile. |
 | | `/profiles/new/assistant` | AI profile authoring session from sample invoices and an optional blueprint. |
 | | `/accounts` | Folders on disk vs profiles: unmapped, mapped, conflict, missing. Assign, unassign, create, rescan. |
 | | `/models` | Templates by profile: candidates, approved, failed; confidence, usage, who created them. |

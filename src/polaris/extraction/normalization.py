@@ -160,6 +160,73 @@ def apply_layout_profile_hints(
     return invoice
 
 
+def postprocess_extracted_document(
+    invoice,
+    layout_document: LayoutDocument,
+    profile: SupplierProfile | None,
+    *,
+    line_item_hints: LineItemHints | None = None,
+    preserve_existing_line_items: bool = False,
+):
+    """The deterministic finish every AI-extracted document gets before it is
+    reconciled or delivered: the profile's hints over the layout (tax policy,
+    header dates, excluded totals, document defaults, line-item rebuilds) and
+    then the row filter and resequence. The watcher, the eval runners, training,
+    the profile assistant and the profile preview all call this, so the same
+    PDF under the same profile delivers the same rows from every entry point.
+    The preview used to skip it and showed allocated tax where delivery
+    calculated it."""
+    apply_layout_profile_hints(
+        invoice,
+        layout_document,
+        profile,
+        line_item_hints or (profile.line_item_hints if profile else None),
+        preserve_existing_line_items=preserve_existing_line_items,
+    )
+    normalize_line_items(
+        invoice,
+        keep_zero_amount=keep_zero_line_items(profile),
+        require_identifier=require_identifier(profile),
+    )
+    return invoice
+
+
+def normalize_line_items(invoice, keep_zero_amount: bool = False, require_identifier: bool = False):
+    """Resequence line numbers; optionally drop zero-amount and/or no-identifier
+    rows, in place."""
+    kept = list(invoice.line_items)
+    if not keep_zero_amount:
+        kept = [item for item in kept if item.amount != 0]
+    if require_identifier:
+        kept = [item for item in kept if has_identifier(item)]
+    rows: list[dict] = []
+    for new_number, item in enumerate(kept, start=1):
+        row = item.model_dump(mode="python")
+        row["line_number"] = new_number
+        rows.append(row)
+    invoice.rows = rows
+    return invoice
+
+
+def has_identifier(item) -> bool:
+    """True when a line item carries a usable service_id or billing_reference
+    (at least one alphanumeric character; a stray ',' or blank doesn't count)."""
+    for value in (item.service_id, item.billing_reference):
+        if value and re.search(r"[A-Za-z0-9]", str(value)):
+            return True
+    return False
+
+
+def keep_zero_line_items(profile: SupplierProfile | None) -> bool:
+    """Whether the supplier profile opts to keep zero-amount line items."""
+    return bool(profile and getattr(profile, "include_zero_amount_line_items", False))
+
+
+def require_identifier(profile: SupplierProfile | None) -> bool:
+    """Whether the supplier profile drops line items that have no identifier."""
+    return bool(profile and getattr(profile, "require_line_item_identifier", False))
+
+
 REPEATED_SECTIONS_WARNING = (
     "Rows read from other sections of the document were dropped: "
     "its main table alone accounts for the invoice total"

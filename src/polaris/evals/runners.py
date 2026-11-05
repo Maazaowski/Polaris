@@ -106,7 +106,7 @@ def _extract_to_preview(case: EvalCase, profile):
     """Shared: AI-extract the case PDF and build the delivered preview under a profile."""
     from polaris.extraction.extractor import build_extracted_document, extract_invoice
     from polaris.extraction.layout import extract_layout_document, render_layout_text
-    from polaris.extraction.normalization import apply_layout_profile_hints
+    from polaris.extraction.normalization import postprocess_extracted_document
     from polaris.output.preview import preview_for_profile
     from polaris.profiles.contract import field_set
 
@@ -126,7 +126,7 @@ def _extract_to_preview(case: EvalCase, profile):
         result.raw_data, intake_id=f"eval-{case.case_id.replace('/', '-')}",
         extraction_result=result, output_type=output_type, field_schema=schema,
     )
-    apply_layout_profile_hints(doc, layout, profile, preserve_existing_line_items=bool(result.ai_calls))
+    postprocess_extracted_document(doc, layout, profile, preserve_existing_line_items=bool(result.ai_calls))
     preview = preview_for_profile(doc, profile, extraction_path="ai")
     return doc, layout, source_text, preview, list(prompt_files)
 
@@ -178,7 +178,7 @@ def _run_classification(case: EvalCase) -> CaseResult:
 
 def _run_profile_authoring(case: EvalCase) -> CaseResult:
     from polaris.extraction.layout import render_layout_text
-    from polaris.extraction.normalization import apply_layout_profile_hints
+    from polaris.extraction.normalization import postprocess_extracted_document
     from polaris.models.authoring import _build_target
     from polaris.output.preview import preview_for_profile
     from polaris.profiles.authoring import (
@@ -213,7 +213,7 @@ def _run_profile_authoring(case: EvalCase) -> CaseResult:
     profile_dict["status"] = "draft"
     authored_profile = SupplierProfile.model_validate(profile_dict)
 
-    apply_layout_profile_hints(doc, layout, authored_profile)
+    postprocess_extracted_document(doc, layout, authored_profile)
     preview = preview_for_profile(doc, authored_profile, extraction_path="ai")
     prompt_files = list(extract_files) + list(author_files)
     scored = _score_deliverable(case, authored_profile, preview, source_text, prompt_files)
