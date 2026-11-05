@@ -480,8 +480,8 @@ export interface SupplierProfile {
 }
 
 /** What a profile save did to its templates when the edit changed the
- * fingerprint salt (fingerprint rules, line-item anchors, label hints,
- * document category). Absent when the edit did not touch the salt. */
+ * fingerprint salt (fingerprint rules, line-item anchors, label hints; the
+ * document category is not part of it). Absent when the edit did not touch the salt. */
 export interface ModelRekeySummary {
   rekeyed: number;
   unchanged: number;

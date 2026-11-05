@@ -397,8 +397,8 @@ def rekey_model_fingerprint(
 ) -> RekeyResult | None:
     """Recompute a model's layout fingerprint from the invoice it was authored on.
 
-    A fingerprint is salted by the profile's fingerprint rules and document
-    category and by the fingerprinter itself. When any of those change after a
+    A fingerprint is salted by the profile's fingerprint rules (not its document
+    category) and by the fingerprinter itself. When any of those change after a
     model is approved, the stored hash no longer equals what the pipeline
     computes for the very same PDF: routing finds no exact match, every invoice
     falls through to AI with a layout-drift exception, and the "$0 template"

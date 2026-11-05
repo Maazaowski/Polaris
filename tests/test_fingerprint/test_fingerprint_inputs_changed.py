@@ -35,7 +35,9 @@ def test_switching_between_legacy_and_profile_hash_counts():
     assert fingerprint_inputs_changed(_profile(layout_fingerprint={}), _profile()) is True
 
 
-def test_fingerprint_rules_and_category_count(monkeypatch):
+def test_fingerprint_rules_count_but_the_document_category_does_not(monkeypatch):
+    """The category enters only the unused family key, never the hash, so a
+    category edit leaves every model matching and must not re-key."""
     import polaris.fingerprint.fingerprinter as fp
 
     monkeypatch.setattr(
@@ -47,4 +49,4 @@ def test_fingerprint_rules_and_category_count(monkeypatch):
     category_changed = _profile(classification={"output_type": "wireless"})
 
     assert fingerprint_inputs_changed(before, rules_changed) is True
-    assert fingerprint_inputs_changed(before, category_changed) is True
+    assert fingerprint_inputs_changed(before, category_changed) is False

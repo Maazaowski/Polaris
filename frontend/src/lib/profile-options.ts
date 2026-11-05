@@ -22,7 +22,7 @@ export const OUTPUT_TYPE_OPTIONS: ProfileEnumOption[] = [
   {
     value: "wireless",
     label: "Wireless",
-    hint: "Wireless carrier-style layouts (salts layout fingerprint).",
+    hint: "Wireless carrier-style layouts.",
   },
   {
     value: "time_and_material",

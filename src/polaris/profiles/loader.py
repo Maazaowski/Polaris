@@ -79,8 +79,8 @@ def save_profile(profile: SupplierProfile, *, actor=None) -> "ProfileRekeySummar
     """Persist (insert or update) a profile in the DB and refresh the cache.
 
     A model is routed by (profile id, layout fingerprint) and the fingerprint is
-    salted by the profile's fingerprint rules, line-item anchors, field label
-    hints and document category. Saving an edit to any of those used to orphan
+    salted by the profile's fingerprint rules, line-item anchors and field label
+    hints (the document category is not part of it). Saving an edit to any of those used to orphan
     the profile's approved models silently: the pipeline computed a new hash
     for the same layout, found no model, and sent every invoice to AI with a
     layout-drift exception. So when the saved profile changes the salt, its

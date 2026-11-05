@@ -183,8 +183,8 @@ To go from empty to a first invoice by hand instead:
                     file staged in processing/. Source is recorded: watcher, upload, or API.
 
  2. FINGERPRINT     pymupdf reads block positions, labels and table headers from the first
-                    pages. The hash is salted by the profile's fingerprint rules and document
-                    category, so the same bytes under a different profile hash differently.
+                    pages. The hash is salted by the profile's fingerprint rules (not its document
+                    category), so the same bytes under a different profile hash differently.
 
  3. ROUTING         profile + fingerprint decide the path:
                       approved model, exact fingerprint   → TEMPLATE  ($0)
@@ -243,7 +243,7 @@ To go from empty to a first invoice by hand instead:
 - *AI training loop*: `models/authoring.py` + `models/training.py`. Author rules from layout evidence and profile hints, execute with `models/interpreter.py`, diff the delivered rows with `models/diff.py`, re-author with the diff as feedback.
 - *Visual model builder* (**Templates → Build model**): upload a sample, see its rows and cells on a canvas, draw regions, column bands, row classifiers, header rules, grouping, tax and computed values. Live preview dry-runs the unsaved draft; a debug-only control scores it against a whole eval folder. Save creates the same candidate the AI would.
 
-**Fingerprint drift.** A fingerprint depends on the profile's fingerprint rules, line-item anchors, field label hints and document category, and on the fingerprinter itself. Change any of those after approving a model and the stored hash stops matching what the pipeline computes for the same PDF: every invoice then falls to AI with a layout-drift exception, and the "ran free" counter stays at zero. Saving a profile that changes any of those inputs therefore re-keys the profile's non-retired models from the invoice each was authored on, in the same save; the save toast says how many were re-keyed and names any that could not be because their authoring invoice is no longer archived (the audit log records the same). Re-key those by hand once the invoice is back (**Re-key fingerprint** on the model page), and run the script after a change to the fingerprinter itself:
+**Fingerprint drift.** A fingerprint depends on the profile's fingerprint rules, line-item anchors and field label hints, and on the fingerprinter itself; the document category is not part of it, so a category edit leaves templates matching. Change any of those after approving a model and the stored hash stops matching what the pipeline computes for the same PDF: every invoice then falls to AI with a layout-drift exception, and the "ran free" counter stays at zero. Saving a profile that changes any of those inputs therefore re-keys the profile's non-retired models from the invoice each was authored on, in the same save; the save toast says how many were re-keyed and names any that could not be because their authoring invoice is no longer archived (the audit log records the same). Re-key those by hand once the invoice is back (**Re-key fingerprint** on the model page), and run the script after a change to the fingerprinter itself:
 
 ```bash
 python scripts/refingerprint_models.py              # dry run: shows which models would change
@@ -411,7 +411,7 @@ All settings use the `ST_` prefix and come from the environment or `.env` (`src/
 | Symptom | What to check |
 |---|---|
 | Every invoice is *failed* with `401 … invalid_api_key` in the logs | The provider key is wrong or revoked. Replace it in **Settings → AI Configuration**, or in `.env` and restart. |
-| The queue says *No invoice has run from a template yet* although a model is approved | The model's fingerprint no longer matches (profile fingerprint rules or document category edited after approval, or the fingerprinter changed). Run `python scripts/refingerprint_models.py` and apply. |
+| The queue says *No invoice has run from a template yet* although a model is approved | The model's fingerprint no longer matches (profile fingerprint rules, anchors or label hints edited after approval, or the fingerprinter changed). Run `python scripts/refingerprint_models.py` and apply. |
 | Invoices land in *Needs review* with `layout drift` | The supplier changed the layout, or see the row above. Open the invoice, compare with the model's source, retrain or clone. |
 | `Supplier profile has no output_path; output package was not copied` | The profile has no delivery folder. Assign one under **Accounts**; the package is still complete under `work_dir/completed/`. |
 | Frontend shows 500s on `/api/v1/*` | The backend is not up on `:8000` yet, or `NEXT_PUBLIC_API_URL` points elsewhere. The dev proxy reports `ECONNREFUSED` in the Next.js terminal. |

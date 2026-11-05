@@ -1394,7 +1394,7 @@ export default function ProfileEditorPage({
               </Field>
               <Field
                 label="Document Category"
-                hint="Layout category label; salts the layout fingerprint."
+                hint="Layout category label. It does not change the layout fingerprint, so templates keep matching after a change."
               >
                 <EnumSelectField
                   value={profile.classification.output_type}

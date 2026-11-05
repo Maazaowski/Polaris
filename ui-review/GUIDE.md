@@ -134,7 +134,7 @@ The Advanced tab exposes engine internals with no progressive disclosure. Candid
 ### D. Confusing labels / copy
 
 - "**Document Category**" has two competing hints: *"Default invoice / statement layout category"* and
-  *"Layout category label; salts the layout fingerprint."* The second is engine-speak.
+  *"Layout category label; salts the layout fingerprint."* (since corrected: the category does not change the fingerprint). The second is engine-speak.
 - "**Detail Start Marker** / **Detail End Marker**" — users won't know "marker" means a printed heading string.
   Call them "Line items begin after this heading".
 - "**Grouped row policy**" section title doesn't say what it's for; its explanatory example ("Example — child in

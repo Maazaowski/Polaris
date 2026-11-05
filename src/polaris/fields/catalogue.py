@@ -37,7 +37,7 @@ _R = FieldScope.ROW
 
 CANONICAL_FIELDS: tuple[FieldDef, ...] = (
     FieldDef(name="output_type", scope=_D, type=FieldType.STRING, role=FieldRole.NONE,
-             description="Layout category label; salts the fingerprint."),
+             description="Layout category label; it does not change the fingerprint."),
     FieldDef(name="supplier_name", scope=_D, type=FieldType.STRING, required=True,
              description="Supplier name as printed."),
     FieldDef(name="supplier_aliases", scope=_D, type=FieldType.STRING, role=FieldRole.NONE,

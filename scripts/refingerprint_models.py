@@ -1,8 +1,8 @@
 """Re-key extraction models whose layout fingerprint no longer matches their source PDF.
 
 Why this exists: a model is routed by (supplier_profile_id, layout_fingerprint).
-The fingerprint is salted by the profile's fingerprint rules and document
-category, and by the fingerprinter itself. Edit any of those after approving a
+The fingerprint is salted by the profile's fingerprint rules (not its document
+category), and by the fingerprinter itself. Edit any of those after approving a
 model and the stored hash stops matching what the pipeline computes for the
 very same invoice - every invoice then falls through to AI with a layout-drift
 exception and the model never fires. This recomputes each model's fingerprint

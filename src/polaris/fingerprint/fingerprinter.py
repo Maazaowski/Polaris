@@ -238,14 +238,14 @@ def fingerprint_inputs_changed(previous: SupplierProfile, current: SupplierProfi
 
     ``fingerprint_pdf`` hashes with the resolved profile config when the profile
     carries ``layout_fingerprint`` rules and with the generic legacy heuristic
-    when it does not, and the family key folds in the document category. A
-    model keyed under the old salt stops matching the very same PDF, so the
-    caller re-keys the profile's models whenever this returns True. Compare the
-    *resolved* config so a change routed through any contributing field (the
-    rules, the line-item anchors, a field's label hint) is caught.
+    when it does not. A model keyed under the old salt stops matching the very
+    same PDF, so the caller re-keys the profile's models whenever this returns
+    True. Compare the *resolved* config so a change routed through any
+    contributing field (the rules, the line-item anchors, a field's label hint)
+    is caught. The document category is not an input: it enters only the
+    ``layout_family_key``, which nothing routes on, so a category edit leaves
+    every model matching and must not trigger a re-key.
     """
-    if previous.classification.output_type != current.classification.output_type:
-        return True
     if (previous.layout_fingerprint is None) != (current.layout_fingerprint is None):
         return True
     if current.layout_fingerprint is None:

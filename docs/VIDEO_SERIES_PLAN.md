@@ -83,7 +83,7 @@ Prep: valid key is not required for the builder itself; the eval-folder scoring 
 - Show a variance exception: the line items do not add up to the stated total; open it, see the partial output, resolve or retry.
 - Show layout drift: a supplier changed their invoice; the fingerprint no longer matches; Polaris falls back to AI and flags it instead of delivering wrong numbers silently.
 - Clone the template to retrain, approve the new version, roll back if needed; versions tab.
-- Mention the case where *you* changed the profile, not the supplier: saving a profile that changes its fingerprint rules, line-item anchors, field label hints or document category re-keys its approved templates automatically, and the save toast says so. `scripts/refingerprint_models.py` is only for fingerprinter code changes.
+- Mention the case where *you* changed the profile, not the supplier: saving a profile that changes its fingerprint rules, line-item anchors or field label hints re-keys its approved templates automatically, and the save toast says so. `scripts/refingerprint_models.py` is only for fingerprinter code changes.
 - Show the configuration exception: an active profile with no delivered columns parks its invoices before any AI is spent.
 
 Prep: one invoice with a real variance (the Rogers ones in the dev DB), one drift case (Granite in the dev DB).

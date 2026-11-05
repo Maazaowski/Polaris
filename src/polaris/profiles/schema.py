@@ -25,8 +25,8 @@ class SupplierIdentity(BaseModel):
 
 class ClassificationSignals(BaseModel):
     """How this source's documents are categorised. ``output_type`` is a generic
-    layout/category label (not domain-specific); it salts the layout fingerprint
-    and is informational. The delivered columns are the profile's ``output_columns``."""
+    layout/category label (not domain-specific); it is informational and does not
+    change the layout fingerprint. The delivered columns are the profile's ``output_columns``."""
 
     output_type: str = Field(default="standard")
 
