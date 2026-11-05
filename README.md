@@ -248,6 +248,8 @@ To go from empty to a first invoice by hand instead:
 ```bash
 python scripts/refingerprint_models.py              # dry run: shows which models would change
 python scripts/refingerprint_models.py --apply      # write the recomputed fingerprints
+python scripts/fill_date_formats.py                 # dry run: infer missing printed date formats from archived invoices
+python scripts/fill_date_formats.py --apply [--set profile:field.x=%d/%m/%Y]   # write the unambiguous ones (and your answers to the ambiguous ones)
 ```
 
 ## What a profile configures
