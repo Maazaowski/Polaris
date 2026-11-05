@@ -62,13 +62,15 @@ export function ExtractionPreviewView({
     <div className="space-y-4">
       {/* Header fields */}
       {preview.header_fields.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-3xl bg-card px-6 py-5 shadow-[inset_0_0_0_1px_var(--ring-card)] sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-3xl bg-card px-6 py-5 shadow-[inset_0_0_0_1px_var(--ring-card)] sm:grid-cols-3 xl:grid-cols-6">
+          {/* min-w-0 lets a grid cell shrink below its content; without it an
+              invoice number with no break point spills into the next column. */}
           {preview.header_fields.map((f) => (
-            <div key={f.label} className="space-y-0.5">
+            <div key={f.label} className="min-w-0 space-y-0.5">
               <p className="text-[12px] font-medium text-muted-foreground">
                 {f.label}
               </p>
-              <p className="text-sm font-medium text-foreground">{fmtCell(f.value) || "—"}</p>
+              <p className="break-words text-sm font-medium text-foreground">{fmtCell(f.value) || "—"}</p>
             </div>
           ))}
         </div>

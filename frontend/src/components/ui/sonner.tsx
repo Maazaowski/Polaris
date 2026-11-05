@@ -38,8 +38,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast:
             "cn-toast !rounded-sm !border !border-border-strong !bg-popover !text-popover-foreground !shadow-[var(--shadow-overlay)] !font-sans !text-[0.8125rem]",
-          title: "!font-medium",
-          description: "!text-muted-foreground !text-[0.75rem]",
+          // API errors arrive as one issue per line (see lib/api/errors.ts);
+          // without this the browser folds the newlines into one run of text.
+          title: "!font-medium whitespace-pre-line",
+          description: "!text-muted-foreground !text-[0.75rem] whitespace-pre-line",
           actionButton:
             "!rounded-sm !bg-primary !text-primary-foreground !text-[0.75rem] !font-medium",
           cancelButton:

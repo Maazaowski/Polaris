@@ -1210,7 +1210,7 @@ export default function ProfileEditorPage({
         }
         if (saved.warnings?.length) {
           toast.warning(
-            `Add these before retraining or activating: ${saved.warnings.join(" ")}`
+            `Add these before retraining or activating:\n${saved.warnings.join("\n")}`
           );
         }
       }
