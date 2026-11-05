@@ -17,6 +17,7 @@ import structlog
 
 from polaris.extraction.layout import LayoutDocument, VisualRow, mark_anchor_rows
 from polaris.extraction.markers import marker_in_text, marker_terms
+from polaris.extraction.page_roles import DocumentPageMap, classify_pages
 from polaris.profiles.schema import LineItemHints, SupplierProfile
 from polaris.validation.schema import SYNTHETIC_INVOICE_DATE_WARNING, ChargeType, LineItem
 
@@ -69,8 +70,10 @@ def apply_layout_profile_hints(
 
     hints = line_item_hints or (profile.line_item_hints if profile else None)
     if not hints:
-        # No profile: nothing says whether the printed row figure is net or
-        # gross, so let the invoice's own totals decide.
+        # No profile: nothing says which section of the document is the
+        # deliverable or whether a printed row figure is net or gross, so let
+        # the invoice's own totals decide both.
+        drop_repeated_sections(invoice, document)
         net_tax_inclusive_rows(invoice)
         return invoice
 
@@ -155,6 +158,60 @@ def apply_layout_profile_hints(
         invoice.line_items = items
 
     return invoice
+
+
+REPEATED_SECTIONS_WARNING = (
+    "Rows read from other sections of the document were dropped: "
+    "its main table alone accounts for the invoice total"
+)
+
+
+def drop_repeated_sections(invoice, document: LayoutDocument, *, page_map: DocumentPageMap | None = None) -> bool:
+    """Keep only the document's main table when it alone reconciles.
+
+    Read with no profile, a 110-page Granite invoice came back twice over:
+    its 100 summary-table rows and then the same accounts again from their
+    per-account detail pages; an Orange invoice added the summary box on page
+    1 and a per-site recap to its 123-row detail table. The rows summed to
+    about twice the invoice and nothing in the system knew which half was
+    the deliverable.
+
+    The page map does: the table run holding the most records is the one
+    that produces the deliverable (``page_roles``). This keeps that run's
+    rows only when the arithmetic agrees, i.e. the rows as read do not
+    reconcile but the main run's rows alone do. Rows from the other pages
+    are then repeats or recaps of what the main table already states, and
+    the document warns that they were dropped. Returns whether it did.
+    """
+    items = invoice.line_items
+    if len(items) < 2 or _reconciles(invoice, items):
+        return False
+    run = (page_map or classify_pages(document)).largest_run
+    if run is None:
+        return False
+    main_pages = set(run.pages)
+    kept = [item for item in items if item.source_page in main_pages]
+    if not kept or len(kept) == len(items) or not _reconciles(invoice, kept):
+        return False
+    dropped_pages = sorted({item.source_page or 0 for item in items if item.source_page not in main_pages})
+    invoice.line_items = kept
+    if REPEATED_SECTIONS_WARNING not in invoice.warnings:
+        invoice.warnings.append(REPEATED_SECTIONS_WARNING)
+    logger.info(
+        "normalization.repeated_sections_dropped",
+        kept=len(kept), dropped=len(items) - len(kept), main_pages=sorted(main_pages), dropped_pages=dropped_pages,
+    )
+    return True
+
+
+def _reconciles(invoice, items: list[LineItem]) -> bool:
+    """Whether ``items`` alone reconcile against the invoice's stated totals."""
+    from polaris.validation.reconciler import reconcile
+
+    trial = invoice.model_copy(deep=True)
+    trial.line_items = items
+    result = reconcile(trial)
+    return bool(result is not None and result.is_reconciled)
 
 
 TAX_NETTED_WARNING = "Row amounts included the printed tax; the per-row tax was subtracted so the rows reconcile"

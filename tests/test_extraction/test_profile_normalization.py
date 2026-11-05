@@ -1552,3 +1552,96 @@ def test_apply_layout_profile_hints_nets_gross_rows_when_there_is_no_profile():
     apply_layout_profile_hints(invoice, layout, None)
 
     assert invoice.line_items[4].amount == Decimal("1323.13")
+
+
+# ── Repeated sections with no profile ───────────────────────
+
+
+def _orange_shaped_rows() -> list[LineItem]:
+    """An Orange-style read: the page-1 summary box, a per-site recap on pages
+    4-5 and the 18-page detail table that is the deliverable (pages 6-23)."""
+    rows = [
+        LineItem(line_number=1, description="Recurring charges", amount=Decimal("2800.00"),
+                 charge_type=ChargeType.RECURRING, source_page=1),
+        LineItem(line_number=2, description="Site A", amount=Decimal("1000.00"),
+                 charge_type=ChargeType.RECURRING, source_page=4),
+        LineItem(line_number=3, description="Site B", amount=Decimal("1800.00"),
+                 charge_type=ChargeType.RECURRING, source_page=5),
+    ]
+    for n, (page, amount) in enumerate(((6, "700.00"), (8, "700.00"), (15, "700.00"), (23, "700.00")), start=4):
+        rows.append(LineItem(line_number=n, service_id=f"12-{n}", description="Access", amount=Decimal(amount),
+                             charge_type=ChargeType.RECURRING, source_page=page))
+    return rows
+
+
+def _orange_shaped_invoice(rows: list[LineItem]) -> CanonicalInvoice:
+    return CanonicalInvoice(
+        intake_id="orange-no-profile",
+        output_type="standard",
+        header=InvoiceHeader(supplier_name="Orange", invoice_number="FRX02606002976", invoice_date=date(2026, 6, 1)),
+        line_items=rows,
+        subtotal=Decimal("2800.00"),
+        tax=Decimal("560.00"),
+        total_due=Decimal("3360.00"),
+        metadata=ExtractionMetadata(extraction_path=ExtractionPath.AI),
+    )
+
+
+def _page_map(main_pages: tuple[int, ...], other_runs: tuple[tuple[int, ...], ...] = ()):
+    from polaris.extraction.page_roles import DocumentPageMap, PageClassification, TableRun
+
+    runs = [TableRun(run_id=0, pages=main_pages, column_signature=(1, 20, 40), record_rows=200)]
+    for i, pages in enumerate(other_runs, start=1):
+        runs.append(TableRun(run_id=i, pages=pages, column_signature=(2, 30), record_rows=10))
+    pages = [
+        PageClassification(page_number=p, role="detail", column_signature=(), tabular_rows=1,
+                           record_rows=1, total_rows=0, text_rows=5, run_id=r.run_id)
+        for r in runs for p in r.pages
+    ]
+    return DocumentPageMap(pages=pages, runs=runs)
+
+
+def test_no_profile_rows_outside_the_main_table_are_dropped_when_it_reconciles_alone():
+    from polaris.extraction.normalization import REPEATED_SECTIONS_WARNING, drop_repeated_sections
+
+    invoice = _orange_shaped_invoice(_orange_shaped_rows())
+
+    assert drop_repeated_sections(invoice, LayoutDocument(pages=[]),
+                                  page_map=_page_map(tuple(range(6, 24)), ((4, 5),)))
+
+    kept = invoice.line_items
+    assert [item.source_page for item in kept] == [6, 8, 15, 23]
+    assert sum(item.amount for item in kept) == Decimal("2800.00")
+    assert REPEATED_SECTIONS_WARNING in invoice.warnings
+
+
+def test_rows_that_already_reconcile_are_left_alone():
+    from polaris.extraction.normalization import drop_repeated_sections
+
+    invoice = _orange_shaped_invoice(_orange_shaped_rows()[3:])
+
+    assert not drop_repeated_sections(invoice, LayoutDocument(pages=[]), page_map=_page_map(tuple(range(6, 24))))
+    assert len(invoice.line_items) == 4
+    assert invoice.warnings == []
+
+
+def test_nothing_is_dropped_when_the_main_table_does_not_reconcile_on_its_own():
+    from polaris.extraction.normalization import drop_repeated_sections
+
+    rows = _orange_shaped_rows()
+    rows[-1].amount = Decimal("100.00")  # the detail table is short by 600
+    invoice = _orange_shaped_invoice(rows)
+
+    assert not drop_repeated_sections(invoice, LayoutDocument(pages=[]), page_map=_page_map(tuple(range(6, 24))))
+    assert len(invoice.line_items) == 7
+
+
+def test_apply_layout_profile_hints_drops_repeated_sections_when_there_is_no_profile(monkeypatch):
+    from polaris.extraction import normalization
+
+    monkeypatch.setattr(normalization, "classify_pages", lambda document: _page_map(tuple(range(6, 24)), ((4, 5),)))
+    invoice = _orange_shaped_invoice(_orange_shaped_rows())
+
+    apply_layout_profile_hints(invoice, LayoutDocument(pages=[]), None)
+
+    assert len(invoice.line_items) == 4
