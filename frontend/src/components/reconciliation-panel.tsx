@@ -51,9 +51,29 @@ export function ReconciliationPanel({
 }) {
   if (!reconciliation) return null;
 
-  const { is_reconciled, line_items_sum, reconcile_target, stated_total, variance } =
-    reconciliation;
+  const {
+    is_reconciled,
+    line_items_sum,
+    computed_total,
+    reconcile_target,
+    stated_total,
+    variance,
+  } = reconciliation;
   const target = reconcile_target ?? stated_total;
+  // The check compares the invoice's figure with the rows PLUS the tax and
+  // fees it read off the invoice, not with the rows alone. Showing only the
+  // row sum once put "8,184.21 vs 8,184.21, off by 1,258.47" on screen: the
+  // rows already included tax and the stated tax was added on top. The added
+  // term has to be on the card for the arithmetic to add up.
+  const checkedTotal = computed_total ?? line_items_sum;
+  const addedTaxAndFees =
+    checkedTotal !== null &&
+    checkedTotal !== undefined &&
+    line_items_sum !== null &&
+    line_items_sum !== undefined &&
+    Math.abs(checkedTotal - line_items_sum) >= 0.005
+      ? checkedTotal - line_items_sum
+      : null;
 
   // Balanced: one line, no ceremony.
   if (is_reconciled) {
@@ -75,6 +95,9 @@ export function ReconciliationPanel({
         <p className="mt-0.5 text-[15px] text-foreground">
           The extracted rows do not add up to what the invoice says. One or more line items
           is wrong, missing, or double-counted.
+          {addedTaxAndFees !== null && addedTaxAndFees > 0
+            ? " If the rows already include tax, it is being counted twice."
+            : ""}
         </p>
       </div>
 
@@ -88,6 +111,22 @@ export function ReconciliationPanel({
             <Money value={line_items_sum} />
           </dd>
         </div>
+        {addedTaxAndFees !== null ? (
+          <>
+            <div className="flex items-baseline justify-between gap-6 py-0.5">
+              <dt className="text-muted-foreground">Tax and fees read from the invoice</dt>
+              <dd>
+                <Money value={addedTaxAndFees} sign />
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-6 py-0.5">
+              <dt className="text-muted-foreground">Checked total</dt>
+              <dd>
+                <Money value={checkedTotal} />
+              </dd>
+            </div>
+          </>
+        ) : null}
         <div className="flex items-baseline justify-between gap-6 py-0.5">
           <dt className="text-muted-foreground">Invoice states</dt>
           <dd>

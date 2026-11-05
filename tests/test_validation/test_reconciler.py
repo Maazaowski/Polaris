@@ -616,3 +616,27 @@ class TestExcludedTotal:
         result = reconcile(inv)  # default schema has no excluded_total role
 
         assert result.reconcile_target == Decimal("100.00")
+
+
+def test_variance_is_measured_from_the_rows_plus_the_tax_the_invoice_states():
+    """Rows read tax-inclusive, with the stated tax added on top, miss by that tax.
+
+    The Zayo case: six rows summed to the 8,184.21 total charges because the AI
+    read each row gross, and the reconciler added the invoice's 1,258.47 of tax
+    again. ``line_items_sum`` equals the target yet the variance is the tax, so
+    the detail card must show ``computed_total`` for its arithmetic to add up.
+    """
+    rows = [
+        _li("1082.42", line_number=1), _li("1068.61", line_number=2), _li("1068.61", line_number=3),
+        _li("1068.61", line_number=4),
+        _li("1954.45", line_number=5, tax_amount=Decimal("631.32")),
+        _li("1941.51", line_number=6, tax_amount=Decimal("627.15")),
+    ]
+    invoice = _make_invoice(rows, tax=Decimal("1258.47"), total_due=Decimal("8184.21"))
+
+    result = reconcile(invoice)
+
+    assert result.line_items_sum == Decimal("8184.21") == result.reconcile_target
+    assert result.computed_total == Decimal("9442.68")
+    assert result.variance == result.computed_total - result.reconcile_target == Decimal("1258.47")
+    assert not result.is_reconciled
